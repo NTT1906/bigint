@@ -1346,7 +1346,7 @@ struct MontgomeryReducer {
 	}
 
 	// Montgomery exponentiation: x^e (e standard, x and result in Montgomery form)
-	bu    i pow(bui x, const bui& e) const {
+	bui pow(bui x, const bui& e) const {
 		bui r = convertedOne;
 		u32 hb = highest_bit(e) + 1;
 		for (u32 i = 0; i < hb; ++i) {
