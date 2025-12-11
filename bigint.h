@@ -82,7 +82,7 @@ struct bul : std::array<u32, BI_N * 2> {
 struct MontgomeryReducer;
 
 std::string bui_to_dec(const bui& x);
-std::string bui_to_hex(const bui& a, bool split = false);
+std::string bui_to_hex(const bui &a, bool uppercase, bool split);
 bui bui_from_dec(const std::string& s);
 bui bui_from_hex(const std::string& s);
 bul bui_to_bul(const bui& x);
@@ -246,7 +246,7 @@ inline void shift_left_ip(bul &x, const u32 k) {
 
 // shift left (r = x * 2^k)
 inline bui shift_left(bui x, const u32 k) {
-	assert(k < BI_N - 1 && "Cannot shift left by big amount (k > BIN_N - 1)");
+	assert(k < BI_BIT - 1 && "Cannot shift left by big amount (k > BI_BIT - 1)");
 	if (k == 0) return x;
 	u32 limbs = k / SBU32;
 	if (limbs >= BI_N) return {};
@@ -268,7 +268,7 @@ inline bui shift_left(bui x, const u32 k) {
 
 // Experiment: shift left expand from bui to bul (r = x * 2^k)
 inline bul shift_left_expand(bui x, const u32 k) {
-	assert(k < BI_N * 2 - 1 && "Cannot shift left by big amount (k > 2xBIN_N - 1)");
+	assert(k < BI_BIT * 2 - 1 && "Cannot shift left by big amount (k > 2xBIN_N - 1)");
 	if (k == 0) return bui_to_bul(x);
 	u32 limbs = k / SBU32;
 	if (limbs >= BI_N * 2) return {};
@@ -290,7 +290,7 @@ inline bul shift_left_expand(bui x, const u32 k) {
 
 // shift left mod (r = x * 2^k mod m)
 inline bui shift_left_mod(bui x, const u32 k, const bui& m) {
-	assert(k < BI_N * 2 && "Cannot shift left by big amount (k > 2xBIN_N - 1)");
+	assert(k < BI_BIT * 2 && "Cannot shift left by big amount (k > 2xBI_BIT - 1)");
 	bul p2 = bul_pow2(k);
 	bui p2m = mod_native(p2, m);
 	x = mod_native(x, m);
@@ -925,20 +925,27 @@ inline std::string bul_to_dec(const bul& x) {
 	return oss.str();
 }
 
-inline std::string bui_to_hex(const bui &a, bool split) {
+inline std::string bui_to_hex(const bui &a, bool uppercase = false, bool split = false) {
 	std::ostringstream o;
 	o << std::hex << std::setfill('0');
-	for (u32 i = 0; i < BI_N; ++i) {
-		o << std::setw(8) << a[i];
-		if (split) o << ' ';
+	if (uppercase) o << std::uppercase;
+	u32 hl = highest_limb(a);
+	u32 idx = BI_N - hl - 1;
+	o << a[idx];
+	if (split && idx != BI_N - 1) o << ' ';
+	for (++idx; idx < BI_N; ++idx) {
+		o << std::setw(8) << a[idx]; // u32 = 8 hex
+		if (split && idx != BI_N - 1) o << ' ';
 	}
 	return o.str();
 }
 
-static std::string normalize_hex_le_to_be(const std::string& s) {
+inline std::string str_reverse(const std::string& s) {
 	std::string hex;
+	hex.reserve(s.size());
 	for (char c : s) {
-		if (!isspace((unsigned char)c)) hex.push_back(c);
+		if (c != ' ' && c != '\t')
+			hex.push_back(c);
 	}
 	if (hex.empty()) return "0";
 	reverse(hex.begin(), hex.end());
@@ -948,7 +955,7 @@ static std::string normalize_hex_le_to_be(const std::string& s) {
 inline bui read_bui_le() {
 	std::string line;
 	getline(std::cin, line);
-	std::string be_hex = normalize_hex_le_to_be(line);
+	std::string be_hex = str_reverse(line);
 	return bui_from_hex(be_hex);
 }
 
