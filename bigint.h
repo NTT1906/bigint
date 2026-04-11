@@ -34,6 +34,7 @@ typedef uint64_t u64;
 
 #if defined(_MSC_VER)
 #define ALWAYS_INLINE __forceinline
+#include <intrin.h>
 #elif defined(__GNUC__) || defined(__clang__)
 #define ALWAYS_INLINE inline __attribute__((always_inline))
 #else
@@ -147,12 +148,13 @@ inline u32 highest_bit(u32 x) {
 #if defined(__GNUC__) || defined(__clang__)
 	if (x == 0) return 0;
 	return SBU32 - __builtin_clz(x);
+#elif defined(_MSC_VER)
+	unsigned long idx;
+	_BitScanReverse(&idx, x);
+	return static_cast<u32>(idx + 1);
 #else
 	u32 pos = 0;
-	while (x > 0) {
-		++pos;
-		x >>= 1;
-	}
+	while (x > 0) { ++pos; x >>= 1; }
 	return pos;
 #endif
 }
