@@ -667,6 +667,63 @@ inline void mod_native_ip(bul& x, const bui& m) {
 	}
 }
 
+
+inline bui nmod_native(bui x, const bui& m) {
+	long long shift = (long long)highest_bit(x) - highest_bit(m);
+	if (shift < 0) return x;
+
+	bui shifted_m = m;
+	shift_left_ip(shifted_m, shift);
+
+	for (; shift >= 0; --shift) {
+		if (cmp(x, shifted_m) >= 0) {
+			sub_ip(x, shifted_m);
+		}
+		shift_right_ip(shifted_m, 1); // Slide it down by 1 bit!
+	}
+	return x;
+}
+
+inline bui nmod_native(bul x, const bui& m) {
+	long long shift = (long long)highest_bit(x) - highest_bit(m);
+	if (shift < 0) return bul_low(x);
+
+	bul shifted_m = bui_to_bul(m);
+	shift_left_ip(shifted_m, shift); // Shift up ONCE
+
+	for (; shift >= 0; --shift) {
+		if (cmp(x, shifted_m) >= 0) {
+			sub_ip(x, shifted_m);
+		}
+		shift_right_ip(shifted_m, 1); // Slide it down by 1 bit!
+	}
+	return bul_low(x);
+}
+
+// Do the exact same sliding window trick for the _ip versions:
+inline void nmod_native_ip(bui& x, const bui& m) {
+	long long shift = (long long)highest_bit(x) - highest_bit(m);
+	if (shift < 0) return;
+	bui shifted_m = m;
+	shift_left_ip(shifted_m, shift);
+	for (; shift >= 0; --shift) {
+		if (cmp(x, shifted_m) >= 0) sub_ip(x, shifted_m);
+		shift_right_ip(shifted_m, 1);
+	}
+}
+
+inline void nmod_native_ip(bul& x, const bui& m) {
+	long long shift = (long long)highest_bit(x) - highest_bit(m);
+	if (shift < 0) return;
+	bul shifted_m = bui_to_bul(m);
+	shift_left_ip(shifted_m, shift);
+	for (; shift >= 0; --shift) {
+		if (cmp(x, shifted_m) >= 0) sub_ip(x, shifted_m);
+		shift_right_ip(shifted_m, 1);
+	}
+}
+
+
 inline void divmod(const bui& a, const bui& b, bui &q, bui &r) {
 	q = {};
 	r = a;
@@ -760,159 +817,141 @@ inline bui pow_mod(bui x, const bui& e, const bui &m) {
 // Donald E. Knuth, The Art of Computer Programming, Volume 2: Seminumerical Algorithms
 // Section: 4.3.1, Algorithm D (Division of large integers).
 // https://skanthak.hier-im-netz.de/division.html
-// inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
-//     assert(!bui_is0(b));
-//     int cm = cmp(a, b);
-//     if (cm < 0) {
-//        quot = {};
-//        rem = a;
-//        return;
-//     }
-//     if (cm == 0) { // a == b
-//        quot = bui1();
-//        rem = {};
-//        return;
-//     }
-//
-//     // normalize
-//     bul r = bui_to_bul(a);
-//     bui d = b;
-//     u32 d_lead_pow = highest_limb(b);
-//     u32 d_msw_idx = BI_N - 1 - d_lead_pow;
-//     u32 d0 = d[d_msw_idx];
-//     const u32 norm_shift = (d0 == 0) ? 0 : 32 - highest_bit(d0);
-//
-//     if (norm_shift > 0) {
-//         shift_left_ip(d, norm_shift);
-//         shift_left_ip(r, norm_shift);
-//     }
-//     // recalculate divisor info after normalization
-//     d_lead_pow = highest_limb(d);
-//     d_msw_idx = BI_N - 1 - d_lead_pow;
-//     d0 = d[d_msw_idx];
-//     const u32 d1 = (d_msw_idx + 1 < BI_N) ? d[d_msw_idx + 1] : 0;
-//     const u32 n = d_lead_pow + 1; // number of limbs in divisor
-//
-//     // init
-//     quot = {};
-//     u32 r_lead_pow = highest_limb(r); // use bul highest_limb
-//     const int m = (int)r_lead_pow - (int)d_lead_pow;
-//
-//     // *Fix*: Handle n=1 (short division) by calling u32divmod
-//     // Knuth's algorithm (with the d1 correction) requires n > 1.
-//     // Your test case is n=1, which was breaking the logic.
-//     if (n == 1) {
-//         u32 r_denorm;
-//         // We must divide the *full* normalized 'r' (bul), not just the low part
-//         // Since u32divmod only takes a bui, we have to simulate it on the bul
-//         bul q_bul = {}; // quotient (bul)
-//         u32 r_temp = 0; // remainder (u32)
-//         u32 d_val = d[BI_N-1]; // The single normalized divisor limb
-//
-//         for (int i = 0; i < BI_N * 2; ++i) {
-//            u64 dividend = (u64)r_temp << 32 | r[i];
-//            q_bul[i] = (u32)(dividend / d_val);
-//            r_temp = (u32)(dividend % d_val);
-//         }
-//         // The quotient is in the low half of q_bul
-//         std::copy(q_bul.begin() + BI_N, q_bul.end(), quot.begin());
-//
-//         // Denormalize the remainder
-//         // The *un-normalized* remainder is r_temp >> norm_shift
-//         // But we must also account for the bits from r that were shifted out
-//         if (norm_shift > 0) {
-//             shift_right_ip(r, norm_shift);
-//             rem = bul_low(r);
-//             // The last `norm_shift` bits of the original `a` are in `rem`
-//             // and the `r_temp` from the division needs to be shifted back.
-//             // This is tricky. Let's just re-calculate the remainder from scratch.
-//             bui q_times_b = mul_low(quot, b);
-//             rem = sub(a, q_times_b);
-//         } else {
-//             rem = bui_from_u32(r_temp);
-//         }
-//         return; // Exit after handling short division
-//     }
-//
-//     // j = Knuth's j (power of current quotient digit), from m down to 0
-//     for (int j = m; j >= 0; --j) {
-//         // calculate q_hat (guess)
-//         // *Fix*: This is the correct, non-sliding index for u_j
-//         u32 r_idx = (BI_N * 2 - 1) - (j + n);
-//
-//         u32 u_jn = r[r_idx];
-//         u32 u_jn1 = (r_idx + 1 < BI_N * 2) ? r[r_idx + 1] : 0;
-//         u32 u_jn2 = (r_idx + 2 < BI_N * 2) ? r[r_idx + 2] : 0;
-//
-//         u64 r_top = (u64)u_jn << SBU32 | u_jn1;
-//         u64 qhat, rhat;
-//
-//         if (u_jn >= d0) {
-//             qhat = 0xFFFFFFFFULL;
-//             rhat = ((u64)(u_jn - d0) << SBU32) + u_jn1 + d0;
-//         } else {
-//             qhat = r_top / d0;
-//             rhat = r_top % d0;
-//         }
-//
-//         // knuth's correction step
-//         while (qhat >= (1ULL << 32) || (n > 1 && qhat * d1 > (rhat << 32) + u_jn2)) {
-//             qhat--;
-//             rhat += d0;
-//             if (rhat >= (1ULL << 32)) break;
-//         }
-//
-//         // multiply and subtract (r -= qhat * d * b^j)
-//         u64 borrow = 0;
-//         u32 d_lsw_idx = BI_N - 1;
-//
-//         // *Fix*: The window to subtract from starts at r_idx
-//         for (u32 i = 0; i < n; ++i) {
-//             u32 r_i = r_idx + n - i; // LSW of window is r_idx + n
-//             u32 d_i = d_lsw_idx - i;
-//             // No OOB check needed now, r_idx is static for the j-loop
-//
-//             u64 prod = qhat * d[d_i];
-//             u64 diff = (u64)r[r_i] - (prod & 0xFFFFFFFF) - borrow;
-//             r[r_i] = (u32)diff;
-//             borrow = (prod >> 32) - (diff >> 32);
-//         }
-//
-//         u64 final_diff = (u64)r[r_idx] - borrow;
-//         r[r_idx] = (u32)final_diff;
-//
-//         // store quotient digit
-//         if (j < BI_N) {
-//             u32 q_idx = BI_N - 1 - j;
-//             quot[q_idx] = (u32)qhat;
-//         }
-//
-//         // add back (if guess was too high)
-//         if (final_diff >> 32 & 1) {
-//             if (j < BI_N) {
-//                 u32 q_idx = BI_N - 1 - j;
-//                 --quot[q_idx];
-//             }
-//
-//             u64 carry = 0;
-//             for (u32 i = 0; i < n; ++i) {
-//                 u32 r_i = r_idx + n - i;
-//                 u32 d_i = d_lsw_idx - i;
-//
-//                 u64 sum = (u64)r[r_i] + d[d_i] + carry;
-//                 r[r_i] = (u32)sum;
-//                 carry = sum >> 32;
-//             }
-//             r[r_idx] = (u32)((u64)r[r_idx] + carry);
-//         }
-//     }
-//
-//     // denormalize, remainder is in the low half of 'r'
-//     if (norm_shift > 0) {
-//         shift_right_ip(r, norm_shift);
-//     }
-//     rem = bul_low(r); // copy low half of 'r' into 'rem'
-// }
+inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
+    assert(!bui_is0(b));
+    int cm = cmp(a, b);
+    if (cm < 0) {
+        quot = {};
+        rem = a;
+        return;
+    }
+    if (cm == 0) {
+        quot = bui1();
+        rem = {};
+        return;
+    }
+
+    // 1. Normalize
+    bul r = bui_to_bul(a);
+    bui d = b;
+    u32 d_lead_pow = highest_limb(b);
+    u32 d_msw_idx = BI_N - 1 - d_lead_pow;
+    u32 d0 = d[d_msw_idx];
+    const u32 norm_shift = d0 == 0 ? 0 : SBU32 - highest_bit(d0);
+
+    if (norm_shift > 0) {
+        shift_left_ip(d, norm_shift);
+        shift_left_ip(r, norm_shift);
+    }
+
+    // Recalculate divisor info after normalization
+    d_lead_pow = highest_limb(d);
+    d_msw_idx = BI_N - 1 - d_lead_pow;
+    d0 = d[d_msw_idx];
+    const u32 d1 = (d_msw_idx + 1 < BI_N) ? d[d_msw_idx + 1] : 0;
+    const u32 n = d_lead_pow + 1; // number of limbs in divisor
+
+    // 2. Fast path for single-limb divisor (n = 1)
+    if (n == 1) {
+        bul q_bul = {};
+        u32 r_temp = 0;
+        u32 d_val = d[BI_N-1];
+
+        for (int i = 0; i < BI_N * 2; ++i) {
+            u64 dividend = ((u64)r_temp << SBU32) | r[i];
+            q_bul[i] = (u32)(dividend / d_val);
+            r_temp = (u32)(dividend % d_val);
+        }
+        std::copy(q_bul.begin() + BI_N, q_bul.end(), quot.begin());
+        rem = bui_from_u32(r_temp >> norm_shift); // Denormalize remainder instantly
+        return;
+    }
+
+    // 3. Knuth Division Loop
+    quot = {};
+    u32 r_lead_pow = highest_limb(r);
+    const int m = (int)r_lead_pow - (int)d_lead_pow;
+
+    for (int j = m; j >= 0; --j) {
+        u32 r_idx = (BI_N * 2 - 1) - (j + n);
+
+        u32 u_jn = r[r_idx];
+        u32 u_jn1 = (r_idx + 1 < BI_N * 2) ? r[r_idx + 1] : 0;
+        u32 u_jn2 = (r_idx + 2 < BI_N * 2) ? r[r_idx + 2] : 0;
+
+        u64 r_top = ((u64)u_jn << SBU32) | u_jn1;
+        u64 qhat, rhat;
+
+        // Calculate initial guess
+        if (u_jn == d0) {
+            qhat = 0xFFFFFFFFULL;
+            rhat = (u64)u_jn1 + d0;
+        } else {
+            qhat = r_top / d0;
+            rhat = r_top % d0;
+        }
+
+        // Knuth's correction step (Refactored to completely avoid overflow)
+        while (n > 1) {
+            if (rhat >= (1ULL << SBU32)) break;
+            if (qhat * d1 <= (rhat << SBU32) + u_jn2) break;
+            qhat--;
+            rhat += d0;
+        }
+
+        // Multiply and subtract safely
+        u64 borrow = 0;
+        u32 d_lsw_idx = BI_N - 1;
+
+        for (u32 i = 0; i < n; ++i) {
+            u32 r_i = r_idx + n - i;
+            u32 d_i = d_lsw_idx - i;
+
+            u64 sub = qhat * d[d_i] + borrow;
+            // Safe subtraction prevents u64 underflow
+            if (r[r_i] < (u32)sub) {
+                borrow = (sub >> SBU32) + 1;
+            } else {
+                borrow = (sub >> SBU32);
+            }
+            r[r_i] = r[r_i] - (u32)sub;
+        }
+
+        bool is_negative = borrow > r[r_idx];
+        r[r_idx] = r[r_idx] - (u32)borrow;
+
+        // Store quotient digit
+        if (j < BI_N) {
+            u32 q_idx = BI_N - 1 - j;
+            quot[q_idx] = (u32)qhat;
+        }
+
+        // Add back if guess was too high
+        if (is_negative) {
+            if (j < BI_N) {
+                u32 q_idx = BI_N - 1 - j;
+                quot[q_idx] = quot[q_idx] - 1;
+            }
+
+            u64 carry = 0;
+            for (u32 i = 0; i < n; ++i) {
+                u32 r_i = r_idx + n - i;
+                u32 d_i = d_lsw_idx - i;
+
+                u64 sum = (u64)r[r_i] + d[d_i] + carry;
+                r[r_i] = (u32)sum;
+                carry = sum >> SBU32;
+            }
+            r[r_idx] = (u32)(r[r_idx] + carry);
+        }
+    }
+
+    // 4. Denormalize remainder
+    if (norm_shift > 0) {
+        shift_right_ip(r, norm_shift);
+    }
+    rem = bul_low(r);
+}
 
 ALWAYS_INLINE u32 dbl_ip_imp(bui &x) {
 	u32 c = 0, i = BI_N;
