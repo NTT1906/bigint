@@ -215,6 +215,7 @@ inline void shift_limb_left(bul &x, const u32 l) {
 }
 
 // shift left in-place (x *= 2^k)
+// @deprecated Use shift_left_ip_fused_imp() instead
 ALWAYS_INLINE void shift_left_ip_imp(u32 *x, const u32 n, const u32 k) {
 	if (k == 0) return;
 	const u32 limbs = k / SBU32;
@@ -239,12 +240,33 @@ ALWAYS_INLINE void shift_left_ip_imp(u32 *x, const u32 n, const u32 k) {
 	}
 }
 
+ALWAYS_INLINE void shift_left_ip_fused_imp(u32 *x, const u32 n, const u32 k) {
+	if (k == 0) return;
+	const u32 limbs = k / SBU32;
+	if (limbs >= n) {
+		memset(x, 0, n * SU32);
+		return;
+	}
+	const u32 bits = k % SBU32;
+	if (bits) {
+		u32 inv_bits = SBU32 - bits;
+		// single pass: Read from the right, write to the left.
+		for (u32 i = 0; i < n - limbs - 1; ++i)
+			x[i] = (x[i + limbs] << bits) | (x[i + limbs + 1] >> inv_bits);
+		x[n - limbs - 1] = x[n - 1] << bits;
+		memset(x + n - limbs, 0, limbs * SU32);
+	} else {
+		memmove(x, x + limbs, (n - limbs) * SU32);
+		memset(x + n - limbs, 0, limbs * SU32);
+	}
+}
+
 inline void shift_left_ip(bui &x, const u32 k) {
-	shift_left_ip_imp(x.data(), BI_N, k);
+	shift_left_ip_fused_imp(x.data(), BI_N, k);
 }
 
 inline void shift_left_ip(bul &x, const u32 k) {
-	shift_left_ip_imp(x.data(), BI_N * 2, k);
+	shift_left_ip_fused_imp(x.data(), BI_N * 2, k);
 }
 
 // shift left (r = x * 2^k)
@@ -303,6 +325,7 @@ inline bui shift_left_mod(bui x, const u32 k, const bui& m) {
 }
 
 // shift right in-place (x /= 2^k)
+// @deprecated Use shift_right_ip_fused_imp() instead
 ALWAYS_INLINE void shift_right_ip_imp(u32 *x, const u32 n, const u32 k) {
 	if (k == 0) return;
 	const u32 limbs = k / SBU32;
@@ -328,14 +351,35 @@ ALWAYS_INLINE void shift_right_ip_imp(u32 *x, const u32 n, const u32 k) {
 	}
 }
 
+ALWAYS_INLINE void shift_right_ip_fused_imp(u32 *x, const u32 n, const u32 k) {
+	if (k == 0) return;
+	const u32 limbs = k / SBU32;
+	if (limbs >= n) {
+		memset(x, 0, n * SU32);
+		return;
+	}
+	const u32 bits = k % SBU32;
+	if (bits) {
+		u32 inv_bits = SBU32 - bits;
+		for (int i = (int)n - 1; i > (int)limbs; --i)
+			x[i] = (x[i - limbs] >> bits) | (x[i - limbs - 1] << inv_bits);
+		x[limbs] = x[0] >> bits;
+		memset(x, 0, limbs * SU32);
+	} else {
+		// fallback to memmove only if it's a perfect limb-boundary shift
+		memmove(x + limbs, x, (n - limbs) * SU32);
+		memset(x, 0, limbs * SU32);
+	}
+}
+
 // Big int: shift right in-place (x /= 2^k)
 inline void shift_right_ip(bui& x, const u32 k) {
-	shift_right_ip_imp(x.data(), BI_N, k);
+	shift_right_ip_fused_imp(x.data(), BI_N, k);
 }
 
 // Big long: shift right in-place (x /= 2^k)
 inline void shift_right_ip(bul& x, const u32 k) {
-	shift_right_ip_imp(x.data(), BI_N * 2, k);
+	shift_right_ip_fused_imp(x.data(), BI_N * 2, k);
 }
 
 // Checking if input bigint is zero
