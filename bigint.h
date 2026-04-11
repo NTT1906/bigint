@@ -87,6 +87,7 @@ std::string bui_to_hex(const bui &a, bool uppercase, bool split);
 bui bui_from_dec(const std::string& s);
 bui bui_from_hex(const std::string& s);
 bul bui_to_bul(const bui& x);
+bul bul_from_2bui(const bui& high, const bui& low);
 
 int cmp(const bui &a, const bui &b);
 void add_ip(bui& a, const bui& b);
@@ -369,6 +370,14 @@ inline bui bul_high(const bul& x) {
 inline bul bui_to_bul(const bui& x) {
 	bul r{};
 	std::copy(x.begin(), x.end(), r.begin() + BI_N);
+	return r;
+}
+
+// Return new bul from two buis
+inline bul bul_from_2bui(const bui& high, const bui& low) {
+	bul r{};
+	std::copy(high.begin(), high.end(), r.begin());
+	std::copy(low.begin(), low.end(), r.begin() + BI_N);
 	return r;
 }
 
