@@ -41,6 +41,20 @@ typedef uint64_t u64;
 #define ALWAYS_INLINE inline
 #endif
 
+// Hardware intrinsics setup
+#if defined(_MSC_VER) && (defined(_M_AMD64) || defined(_M_IX86))
+// MSVC on x86/x64
+#include <intrin.h>
+#define USE_HW_INTRIN 1
+#elif (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
+// GCC or Clang on x86/x64
+#include <x86intrin.h>
+#define USE_HW_INTRIN 1
+#else
+// Fallback for ARM (Apple Silicon), embedded, or unknown architectures
+#define USE_HW_INTRIN 0
+#endif
+
 #if !defined(_MSC_VER) && defined(__cpp_constexpr)
 #define OP_CONSTEXPR constexpr
 #else
@@ -518,6 +532,12 @@ inline bui random_odd() {
 }
 
 ALWAYS_INLINE u32 add_ip_n_imp(u32* a, const u32* b, u32 n) {
+#if USE_HW_INTRIN
+	unsigned char c = 0;
+	while (n-- > 0)
+		c = _addcarry_u32(c, a[n], b[n], &a[n]);
+	return c;
+#else
 	u32 c = 0;
 	while (n-- > 0) {
 		u64 s = (u64)a[n] + b[n] + c;
@@ -525,6 +545,7 @@ ALWAYS_INLINE u32 add_ip_n_imp(u32* a, const u32* b, u32 n) {
 		c = s >> 32;
 	}
 	return c;
+#endif
 }
 
 inline void add_ip_n(u32* a, const u32* b, const u32 n) {
@@ -561,13 +582,20 @@ inline void add_mod_ip(bui &a, const bui &b, const bui &m) {
 }
 
 ALWAYS_INLINE u32 sub_ip_n_imp(u32* a, const u32* b, u32 n) {
-	u32 borrow = 0;
+#if USE_HW_INTRIN
+	unsigned char br = 0;
+	while (n-- > 0)
+		br = _subborrow_u32(br, a[n], b[n], &a[n]);
+	return br;
+#else
+	u32 br = 0;
 	while (n-- > 0) {
-		u64 d = (u64)a[n] - b[n] - borrow;
+		u64 d = (u64)a[n] - b[n] - br;
 		a[n] = (u32)d;
-		borrow = d >> 32 & 1; // borrow occurs if 32nd bit is 1
+		br = d >> 32 & 1; // br occurs if 32nd bit is 1
 	}
-	return borrow;
+	return br;
+#endif
 }
 
 // a -= b; // assume a > b
