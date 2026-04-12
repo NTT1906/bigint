@@ -67,6 +67,7 @@ struct bui : std::array<u32, BI_N> {
 		return r;
 	}
 };
+
 struct bul : std::array<u32, BI_N * 2> {
 	using base_type = std::array<u32, BI_N * 2>;
 	OP_CONSTEXPR bul() : base_type{} {}
@@ -80,6 +81,7 @@ struct bul : std::array<u32, BI_N * 2> {
 		return r;
 	}
 };
+
 struct MontgomeryReducer;
 
 std::string bui_to_dec(const bui& x);
@@ -88,8 +90,42 @@ bui bui_from_dec(const std::string& s);
 bui bui_from_hex(const std::string& s);
 bul bui_to_bul(const bui& x);
 bul bul_from_2bui(const bui& high, const bui& low);
+bui bul_high(const bul& x);
+bui bul_low(const bul& x);
 
-int cmp(const bui &a, const bui &b);
+u32 get_bit(u32 num, u32 pos);
+u32 set_bit(u32 num, u32 pos, u32 val);
+u32 get_bit(const bui &a, u32 pos);
+void set_bit_ip(bui &a, u32 pos, u32 val);
+void set_bit_ip(bul &a, u32 pos, u32 val);
+bui set_bit(bui a, u32 pos, u32 val);
+
+u32 highest_bit(u32 x);
+u32 highest_bit(const bui &x);
+u32 highest_bit(const bul &x);
+u32 highest_limb(const bui &x);
+u32 highest_limb(const bul &x);
+
+void bitwise_and_ip(bui &a, const bui &b);
+void bitwise_or_ip(bui &a, const bui &b);
+void bitwise_xor_ip(bui &a, const bui &b);
+
+void shift_limb_left(bul &x, u32 l);
+void shift_left_ip(bui& x, u32 k);
+void shift_left_ip(bul& x, u32 k);
+void shift_right_ip(bui& x, u32 k);
+void shift_right_ip(bul& x, u32 k);
+bui shift_left(bui x, u32 k);
+bul shift_left_expand(bui x, u32 k);
+bui shift_left_mod(bui x, u32 k, const bui& m);
+bui shift_left_mod_bulk(bui x, u32 k, const bui& m);
+
+bool bui_is0(const bui& x);
+bool bul_is0(const bui& x);
+
+int cmp(const bui& a, const bui& b);
+int cmp(const bul& a, const bul& b);
+int cmp(const bul& a, const bui& b);
 void add_ip(bui& a, const bui& b);
 void add_ip(bul& a, const bul& b);
 void sub_ip(bui& a, const bui& b);
@@ -97,6 +133,10 @@ void add_mod_ip(bui& a, const bui& b, const bui& m);
 void sub_mod_ip(bui& a, const bui& b, const bui& m);
 bui mod_native(bui x, const bui& m);
 bui mod_native(bul x, const bui& m);
+bui nmod_native(bui x, const bui& m);
+bui nmod_native(bul x, const bui& m);
+void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem);
+
 void mul_mod_ip(bui &a, bui b, const bui &m);
 void mul_ref(const bui &a, const bui &b, bul &r);
 bui bui_pow2(u32 k);
@@ -177,21 +217,30 @@ inline u32 highest_bit(const bul &x) {
 }
 
 inline void bitwise_and_ip(bui &a, const bui &b) {
-	for (u32 i = BI_N; i-- > 0;) {
+	for (u32 i = BI_N; i-- > 0;)
 		a[i] &= b[i];
-	}
+}
+
+inline void bitwise_or_ip(bui &a, const bui &b) {
+	for (u32 i = BI_N; i-- > 0;)
+		a[i] |= b[i];
+}
+
+inline void bitwise_xor_ip(bui &a, const bui &b) {
+	for (u32 i = BI_N; i-- > 0;)
+		a[i] ^= b[i];
 }
 
 // find highest (MSB) limb
 inline u32 highest_limb(const bui &x) {
-	for (size_t i = 0; i < BI_N; ++i)
+	for (u32 i = 0; i < BI_N; ++i)
 		if (x[i] > 0) return BI_N - i - 1;
 	return 0;
 }
 
 // find highest (MSB) limb
 inline u32 highest_limb(const bul &x) {
-	for (size_t i = 0; i < BI_N * 2; ++i) {
+	for (u32 i = 0; i < BI_N * 2; ++i) {
 		if (x[i] > 0)
 			return (BI_N * 2 - 1) - i;
 	}
@@ -383,18 +432,17 @@ inline void shift_right_ip(bul& x, const u32 k) {
 }
 
 // Checking if input bigint is zero
-inline bool bu_is0(const u32 *x, u32 n) {
+ALWAYS_INLINE bool bu_is0_imp(const u32 *x, u32 n) {
 	while (n-- > 0)
 		if (x[n] != 0) return false;
 	return true;
 }
 
 // Checking if input bui is zero
-inline bool bui_is0(const bui& x) {
-	for (const u32 val : x)
-		if (val != 0) return false;
-	return true;
-}
+inline bool bui_is0(const bui& x) { return bu_is0_imp(x.data(), BI_N); }
+
+// Checking if input bui is zero
+inline bool bul_is0(const bul& x) { return bu_is0_imp(x.data(), BI_N * 2); }
 
 // Return low-part of bul as bui
 inline bui bul_low(const bul& x) {
@@ -666,7 +714,6 @@ inline void mod_native_ip(bul& x, const bui& m) {
 			sub_ip(x, tmp);
 	}
 }
-
 
 inline bui nmod_native(bui x, const bui& m) {
 	long long shift = (long long)highest_bit(x) - highest_bit(m);
@@ -1002,10 +1049,10 @@ inline std::string bui_to_dec(const bui& x) {
 
 // Convert bul to decimal string using base 1e9 chunks.
 inline std::string bul_to_dec(const bul& x) {
-	if (bu_is0(x.data(), BI_N * 2)) return "0";
+	if (bu_is0_imp(x.data(), BI_N * 2)) return "0";
 	std::vector<u32> parts;
 	bul n = x, q{};
-	while (!bu_is0(n.data(), BI_N * 2)) {
+	while (!bu_is0_imp(n.data(), BI_N * 2)) {
 		u32 BASE = 1000000000u;
 		u32 r = u32_divmod_bul(n, BASE, q);
 		parts.push_back(r);
