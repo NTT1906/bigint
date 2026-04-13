@@ -157,7 +157,11 @@ bui bui_pow2(u32 k);
 bul bul_pow2(u32 k);
 bui bui_binary_flood1(u32 k);
 bul bul_binary_flood1(u32 k);
+
+u32 dbl_ip_n_imp(u32* x, u32 n);
 void dbl_ip(bui &x);
+void dbl_ip(bul &x);
+
 u32 u32_divmod_bul(const bul &a, u32 d, bul &q);
 
 ALWAYS_INLINE bui bui0() { return bui::zero(); }
@@ -798,6 +802,50 @@ inline void nmod_native_ip(bul& x, const bui& m) {
 	}
 }
 
+ALWAYS_INLINE void sqr_imp(const u32* a, u32* r, const u32 n) {
+	std::fill_n(r, 2 * n, 0);
+
+	// 1. Calculate symmetrical cross-products only ONCE (i < j)
+	for (u32 i = n; i-- > 1;) {
+		if (!a[i]) continue;
+		u64 c = 0;
+		for (u32 j = i; j-- > 0;) { // Notice j strictly stops before i
+			u64 p = (u64)a[i] * a[j] + r[i + j + 1] + c;
+			r[i + j + 1] = (u32)p;
+			c = p >> 32;
+		}
+		u32 k = i;
+		while (c) {
+			u64 s = (u64)r[k] + c;
+			r[k] = (u32)s;
+			c = s >> 32;
+			if (k-- == 0) break;
+		}
+	}
+
+	// 2. Double the cross products (r = r * 2)
+	dbl_ip_n_imp(r, n);
+
+	// 3. Add the squares (a[i] * a[i]) down the center diagonal
+	u64 c = 0;
+	for (u32 i = n; i-- > 0;) {
+		u64 p = (u64)a[i] * a[i] + r[2 * i + 1] + c;
+		r[2 * i + 1] = (u32)p;
+		c = p >> 32;
+
+		// Propagate the square's carry up one limb
+		u64 s = (u64)r[2 * i] + c;
+		r[2 * i] = (u32)s;
+		c = s >> 32;
+	}
+}
+
+/// x = x * x
+inline bul sqr(const bui& a) {
+	bul r{};
+	sqr_imp(a.data(), r.data(), BI_N);
+	return r;
+}
 
 inline void divmod(const bui& a, const bui& b, bui &q, bui &r) {
 	q = {};
