@@ -70,30 +70,56 @@ static_assert(BI_BIT > 0 && BI_BIT % 32 == 0, "BI_BIT must be positive and divis
 // a[BI_N - 2] = 0x11223344u;
 // a[BI_N - 3] = 0x9ABCDEF0u;
 // a[BI_N - 4] = 0x12345678u;
-struct bui : std::array<u32, BI_N> {
-	using base_type = std::array<u32, BI_N>;
-	OP_CONSTEXPR bui() : base_type{} {}
+
+struct alignas(64) bui {
+	std::array<u32, BI_N> limbs;
+	ALWAYS_INLINE u32& operator[](const size_t i) { return limbs[i]; }
+	ALWAYS_INLINE const u32& operator[](const size_t i) const { return limbs[i]; }
+
+	u32* data() { return limbs.data(); }
+	const u32* data() const { return limbs.data(); }
+	auto begin() { return limbs.begin(); }
+	auto begin() const { return limbs.begin(); }
+	auto end() { return limbs.end(); }
+	auto end() const { return limbs.end(); }
+	auto size() const { return limbs.size(); }
+
 	OP_CONSTEXPR static bui zero() { return {}; }
 	OP_CONSTEXPR static bui one() {
-		bui r{}; r[BI_N - 1] = 1;
+		bui r{}; r.limbs[BI_N - 1] = 1;
 		return r;
 	}
 	OP_CONSTEXPR static bui from_u32(const u32 x) {
-		bui r{}; r[BI_N - 1] = x;
+		bui r{}; r.limbs[BI_N - 1] = x;
 		return r;
 	}
 };
 
-struct bul : std::array<u32, BI_N * 2> {
-	using base_type = std::array<u32, BI_N * 2>;
-	OP_CONSTEXPR bul() : base_type{} {}
+struct alignas(64) bul {
+	union {
+		std::array<u32, BI_N * 2> limbs;
+		struct { bui high, low; };
+	};
+	bul() = default;
+	bul(const bui& high, const bui& low) : high{high}, low{low} {}
+	ALWAYS_INLINE u32& operator[](const size_t i) { return limbs[i]; }
+	ALWAYS_INLINE const u32& operator[](const size_t i) const { return limbs[i]; }
+
+	u32* data() { return limbs.data(); }
+	const u32* data() const { return limbs.data(); }
+	auto begin() { return limbs.begin(); }
+	auto begin() const { return limbs.begin(); }
+	auto end() { return limbs.end(); }
+	auto end() const { return limbs.end(); }
+	auto size() const { return limbs.size(); }
+
 	OP_CONSTEXPR static bul zero() { return {}; }
 	OP_CONSTEXPR static bul one() {
-		bul r{}; r[BI_N * 2 - 1] = 1;
+		bul r{}; r.limbs[BI_N * 2 - 1] = 1;
 		return r;
 	}
 	OP_CONSTEXPR static bul from_u32(const u32 x) {
-		bul r{}; r[BI_N * 2 - 1] = x;
+		bul r{}; r.limbs[BI_N * 2 - 1] = x;
 		return r;
 	}
 };
@@ -698,13 +724,94 @@ inline bui mul_low(const bui& a, const bui& b) {
 inline bui mul_low_fast(const bui& a, const bui& b) {
 	bui r{};
 	for (u32 i = 0; i < BI_N; ++i) {
-		if (!a[BI_N - 1 - i]) continue;
+		u32 ai = a[BI_N - 1 - i];
+		if (!ai) continue;
+		u32 c{0}, ri{BI_N - 1 - i};
+		for (u32 j = 0; j < BI_N - i; ++j) {
+			u64 sum = (u64)ai * b[BI_N - 1 - j] + r[ri - j] + c;
+			r[ri - j] = (u32)sum;
 			c = sum >> SBU32;
+		}
+	}
+	return r;
+}
+
+// inline bui mul_low_fast_comba(const bui& a, const bui& b) {
+// 	bui r{};
+//
+// 	// k = distance from LSW (column index)
+// 	// result index = BI_N - 1 - k
+// 	for (u32 k = 0; k < BI_N; ++k) {
+// 		u64 sum = 0;
+//
+// 		// accumulate all pairs (i, j) such that i + j = k
+// 		// i = offset from LSW in a
+// 		for (u32 i = 0; i <= k; ++i) {
+// 			u32 j = k - i;
+//
+// 			u32 ai = a[BI_N - 1 - i];
+// 			u32 bj = b[BI_N - 1 - j];
+//
+// 			sum += (u64)ai * bj;
+// 		}
+//
+// 		// add previous carry already stored in r
+// 		u32 idx = BI_N - 1 - k;
+// 		sum += r[idx];
+//
+// 		r[idx] = (u32)sum;
+//
+// 		// propagate carry upward (toward MSW)
+// 		u64 carry = sum >> SBU32;
+// 		int t = idx - 1;
+//
+// 		while (carry && t >= 0) {
+// 			u64 s = (u64)r[t] + carry;
+// 			r[t] = (u32)s;
+// 			carry = s >> SBU32;
+// 			--t;
+// 		}
+// 	}
+//
+// 	return r;
+// }
+
+// inline bui mul_low_fast_comba_delayed(const bui& a, const bui& b) {
+// 	u64 acc[BI_N] = {};  // wider accumulators
+// 	// k = column index from LSW
+// 	for (u32 k = 0; k < BI_N; ++k) {
+// 		u64 sum = 0;
+// 		for (u32 i = 0; i <= k; ++i) {
+// 			u32 j = k - i;
+// 			sum += (u64)a[BI_N - 1 - i] * b[BI_N - 1 - j];
+// 		}
+// 		acc[k] = sum;
+// 	}
+// 	bui r{};
+// 	u64 carry = 0;
+// 	for (u32 k = 0; k < BI_N; ++k) {
+// 		u64 sum = acc[k] + carry;
+// 		u32 idx = BI_N - 1 - k;  // BE layout
+// 		r[idx] = (u32)sum;
+// 		carry = sum >> SBU32;
+// 	}
+// 	return r;
+// }
+
+// 1024-bit x 1024-bit -> Bottom 1024-bit Result (Truncating Multiplier)
+inline bul mul_low_fast(const bul& a, const bul& b) {
+	bul r{};
+	OP_CONSTEXPR u32 N2 = BI_N * 2;
+	for (u32 i = 0; i < N2; ++i) {
+		if (!a[N2 - 1 - i]) continue;
 		u32 c = 0;
-		for (u32 j = 0; j < BI_N; ++j) {
-			if (i + j >= BI_N) continue;
-			u64 p = (u64)a[BI_N - 1 - i] * b[BI_N - 1 - j] + r[BI_N - 1 - (i + j)] + c;
-			r[BI_N - 1 - (i + j)] = (u32)p;
+		// The (i + j >= N2) check ensures we immediately stop calculating
+		// any limbs that would overflow past our 1024-bit limit!
+		for (u32 j = 0; j < N2; ++j) {
+			if (i + j >= N2) continue;
+			u64 p = (u64)a[N2 - 1 - i] * b[N2 - 1 - j] + r[N2 - 1 - (i + j)] + c;
+			r[N2 - 1 - (i + j)] = (u32)p;
+			c = (u32)(p >> SBU32);
 		}
 	}
 	return r;
