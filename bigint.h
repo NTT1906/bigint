@@ -22,7 +22,7 @@ typedef uint64_t u64;
 // #define NDEBUG
 // #endif
 
-#define SU32 sizeof(u32)
+#define SU32 sizeof(u32) // 4
 #define SBU32 32
 
 #ifndef BI_BIT
@@ -31,6 +31,8 @@ typedef uint64_t u64;
 #ifndef BI_N
 #define BI_N (BI_BIT / 32)
 #endif
+
+static_assert(BI_BIT > 0 && BI_BIT % 32 == 0, "BI_BIT must be positive and divisible by 32");
 
 #if defined(_MSC_VER)
 #define ALWAYS_INLINE __forceinline
@@ -206,11 +208,13 @@ inline bui set_bit(bui a, const u32 pos, const u32 val) {
 inline u32 highest_bit(u32 x) {
 #if defined(__GNUC__) || defined(__clang__)
 	if (x == 0) return 0;
-	return SBU32 - __builtin_clz(x);
+	return SBU32 - __builtin_clz(x); // GCC fallback
+#elif defined(_MSC_VER) && defined(USE_HW_INTRIN)
+	return SBU32 - __lzcnt(x);
 #elif defined(_MSC_VER)
 	unsigned long idx;
-	_BitScanReverse(&idx, x);
-	return static_cast<u32>(idx + 1);
+	if (_BitScanReverse(&idx, x)) return static_cast<u32>(idx + 1);
+	return 0;
 #else
 	u32 pos = 0;
 	while (x > 0) { ++pos; x >>= 1; }
@@ -476,6 +480,26 @@ inline bui bul_high(const bul& x) {
 	return r;
 }
 
+// Returns a readonly reference to high part of bul
+ALWAYS_INLINE const bui& bul_high_view(const bul& x) {
+	return *reinterpret_cast<const bui*>(x.data());
+}
+
+// Returns a readonly reference to low part of bul
+ALWAYS_INLINE const bui& bul_low_view(const bul& x) {
+	return *reinterpret_cast<const bui*>(x.data() + BI_N);
+}
+
+// Returns a reference to high part of bul
+ALWAYS_INLINE bui& bul_high_view(bul& x) {
+	return *reinterpret_cast<bui*>(x.data());
+}
+
+// Returns a reference to low part of bul
+ALWAYS_INLINE bui& bul_low_view(bul& x) {
+	return *reinterpret_cast<bui*>(x.data() + BI_N);
+}
+
 // Return new bul with low-part being input bui x
 inline bul bui_to_bul(const bui& x) {
 	bul r{};
@@ -493,27 +517,24 @@ inline bul bul_from_2bui(const bui& high, const bui& low) {
 
 // Compare between two bui
 inline int cmp(const bui &a, const bui &b) {
-	for (u32 i = 0; i < BI_N; ++i) {
+	for (u32 i = 0; i < BI_N; ++i)
 		if (a[i] != b[i])
 			return a[i] > b[i] ? 1 : -1;
-	}
 	return 0;
 }
 
 // Compare between two bul
 inline int cmp(const bul &a, const bul &b) {
-	for (u32 i = 0; i < BI_N * 2; ++i) {
+	for (u32 i = 0; i < BI_N * 2; ++i)
 		if (a[i] != b[i])
 			return a[i] > b[i] ? 1 : -1;
-	}
 	return 0;
 }
 
 // Compare between bul and bui
 inline int cmp(const bul& a, const bui& b) {
-	for (int i = 0; i < BI_N; ++i) {
+	for (int i = 0; i < BI_N; ++i)
 		if (a[i] != 0) return 1;
-	}
 	for (int i = 0; i < BI_N; ++i) {
 		u32 al = a[BI_N + i], bl = b[i];
 		if (al != bl) return al > bl ? 1 : -1;
@@ -546,7 +567,7 @@ ALWAYS_INLINE u32 add_ip_n_imp(u32* a, const u32* b, u32 n) {
 	while (n-- > 0) {
 		u64 s = (u64)a[n] + b[n] + c;
 		a[n] = (u32)s;
-		c = s >> 32;
+		c = s >> SBU32;
 	}
 	return c;
 #endif
@@ -596,7 +617,7 @@ ALWAYS_INLINE u32 sub_ip_n_imp(u32* a, const u32* b, u32 n) {
 	while (n-- > 0) {
 		u64 d = (u64)a[n] - b[n] - br;
 		a[n] = (u32)d;
-		br = d >> 32 & 1; // br occurs if 32nd bit is 1
+		br = d >> SBU32 & 1; // br occurs if 32nd bit is 1
 	}
 	return br;
 #endif
@@ -637,19 +658,18 @@ ALWAYS_INLINE void mul_imp(const u32* a, const u32* b, u32* r, const u32 n) {
 	std::fill_n(r, 2 * n, 0);
 	for (u32 i = n; i-- > 0;) {
 		if (!a[i]) continue;
-		u32 c = 0;
-		for (u32 j = n; j-- > 0;) {
+		u32 c = 0, j = n;
+		while (j-- > 0) {
 			u64 p = (u64)a[i] * b[j] + r[i + j + 1] + c;
 			r[i + j + 1] = (u32)p;
-			c = p >> 32;
+			c = p >> SBU32;
 		}
 		u32 k = i;
 		while (c) {
 			u64 s = (u64)r[k] + c;
 			r[k] = (u32)s;
-			c = s >> 32;
-			if (k == 0) break;
-			k--;
+			c = s >> SBU32;
+			if (k-- == 0) break;
 		}
 	}
 }
@@ -679,12 +699,12 @@ inline bui mul_low_fast(const bui& a, const bui& b) {
 	bui r{};
 	for (u32 i = 0; i < BI_N; ++i) {
 		if (!a[BI_N - 1 - i]) continue;
+			c = sum >> SBU32;
 		u32 c = 0;
 		for (u32 j = 0; j < BI_N; ++j) {
 			if (i + j >= BI_N) continue;
 			u64 p = (u64)a[BI_N - 1 - i] * b[BI_N - 1 - j] + r[BI_N - 1 - (i + j)] + c;
 			r[BI_N - 1 - (i + j)] = (u32)p;
-			c = p >> 32;
 		}
 	}
 	return r;
@@ -755,9 +775,8 @@ inline bui nmod_native(bui x, const bui& m) {
 	shift_left_ip(shifted_m, shift);
 
 	for (; shift >= 0; --shift) {
-		if (cmp(x, shifted_m) >= 0) {
+		if (cmp(x, shifted_m) >= 0)
 			sub_ip(x, shifted_m);
-		}
 		shift_right_ip(shifted_m, 1); // Slide it down by 1 bit!
 	}
 	return x;
@@ -771,9 +790,8 @@ inline bui nmod_native(bul x, const bui& m) {
 	shift_left_ip(shifted_m, shift); // Shift up ONCE
 
 	for (; shift >= 0; --shift) {
-		if (cmp(x, shifted_m) >= 0) {
+		if (cmp(x, shifted_m) >= 0)
 			sub_ip(x, shifted_m);
-		}
 		shift_right_ip(shifted_m, 1); // Slide it down by 1 bit!
 	}
 	return bul_low(x);
@@ -785,8 +803,9 @@ inline void nmod_native_ip(bui& x, const bui& m) {
 	if (shift < 0) return;
 	bui shifted_m = m;
 	shift_left_ip(shifted_m, shift);
-	for (; shift >= 0; --shift) {
-		if (cmp(x, shifted_m) >= 0) sub_ip(x, shifted_m);
+	while (shift-- > 0) {
+		if (cmp(x, shifted_m) >= 0)
+			sub_ip(x, shifted_m);
 		shift_right_ip(shifted_m, 1);
 	}
 }
@@ -796,12 +815,14 @@ inline void nmod_native_ip(bul& x, const bui& m) {
 	if (shift < 0) return;
 	bul shifted_m = bui_to_bul(m);
 	shift_left_ip(shifted_m, shift);
-	for (; shift >= 0; --shift) {
-		if (cmp(x, shifted_m) >= 0) sub_ip(x, shifted_m);
+	while (shift-- > 0) {
+		if (cmp(x, shifted_m) >= 0)
+			sub_ip(x, shifted_m);
 		shift_right_ip(shifted_m, 1);
 	}
 }
 
+/// <r = x*x> Return squared result of input x
 ALWAYS_INLINE void sqr_imp(const u32* a, u32* r, const u32 n) {
 	std::fill_n(r, 2 * n, 0);
 
@@ -812,13 +833,13 @@ ALWAYS_INLINE void sqr_imp(const u32* a, u32* r, const u32 n) {
 		for (u32 j = i; j-- > 0;) { // Notice j strictly stops before i
 			u64 p = (u64)a[i] * a[j] + r[i + j + 1] + c;
 			r[i + j + 1] = (u32)p;
-			c = p >> 32;
+			c = p >> SBU32;
 		}
 		u32 k = i;
 		while (c) {
 			u64 s = (u64)r[k] + c;
 			r[k] = (u32)s;
-			c = s >> 32;
+			c = s >> SBU32;
 			if (k-- == 0) break;
 		}
 	}
@@ -831,16 +852,16 @@ ALWAYS_INLINE void sqr_imp(const u32* a, u32* r, const u32 n) {
 	for (u32 i = n; i-- > 0;) {
 		u64 p = (u64)a[i] * a[i] + r[2 * i + 1] + c;
 		r[2 * i + 1] = (u32)p;
-		c = p >> 32;
+		c = p >> SBU32;
 
 		// Propagate the square's carry up one limb
 		u64 s = (u64)r[2 * i] + c;
 		r[2 * i] = (u32)s;
-		c = s >> 32;
+		c = s >> SBU32;
 	}
 }
 
-/// x = x * x
+/// <r = x*x> Return squared result of input x
 inline bul sqr(const bui& a) {
 	bul r{};
 	sqr_imp(a.data(), r.data(), BI_N);
@@ -852,7 +873,7 @@ inline void divmod(const bui& a, const bui& b, bui &q, bui &r) {
 	r = a;
 	long long shift = (long long) highest_bit(a) - highest_bit(b);
 	if (shift < 0) return;
-	for (; shift >= 0; --shift) {
+	while (shift-- > 0) {
 		bui tmp = b;
 		shift_left_ip(tmp, shift);
 		if (cmp(r, tmp) >= 0) {
@@ -868,7 +889,7 @@ inline void divmod(const bul& a, const bui& b, bui &q, bul &r) {
 	long long shift = highest_bit(a) - highest_bit(b);
 	if (shift < 0) return;
 	bul bb = bui_to_bul(b);
-	for (; shift >= 0; --shift) {
+	while (shift-- > 0) {
 		bul tmp = bb;
 		shift_left_ip(tmp, shift);
 		if (cmp(r, tmp) >= 0) {
@@ -928,9 +949,8 @@ inline bui pow_mod(bui x, const bui& e, const bui &m) {
 	bui r = bui1();
 	u32 hb = highest_bit(e);
 	for (u32 i = 0; i < hb; ++i) {
-		if (get_bit(e, i)) {
+		if (get_bit(e, i))
 			mul_mod_ip(r, x, m);
-		}
 		mul_mod_ip(x, x, m);
 	}
 	return r;
@@ -1088,13 +1108,14 @@ ALWAYS_INLINE u32 dbl_ip_imp(bui &x) {
 }
 
 // x = 2x (= x << 1)
-inline void dbl_ip(bui &x) {
-	dbl_ip_imp(x);
-}
+inline void dbl_ip(bui &x) { dbl_ip_n_imp(x.data(), BI_N); }
+
+// x = 2x (= x << 1)
+inline void dbl_ip(bul &x) { dbl_ip_n_imp(x.data(), BI_N * 2); }
 
 // x = (2x) % m
 static void dbl_mod_ip(bui &x, const bui &m) {
-	if (dbl_ip_imp(x) || cmp(x, m) >= 0)
+	if (dbl_ip_n_imp(x.data(), BI_N) || cmp(x, m) >= 0)
 		sub_ip(x, m);
 }
 
@@ -1136,9 +1157,8 @@ inline std::string bul_to_dec(const bul& x) {
 	}
 	std::ostringstream oss;
 	oss << parts.back();
-	for (int i = (int)parts.size() - 2; i >= 0; --i) {
+	for (int i = (int)parts.size() - 2; i >= 0; --i)
 		oss << std::setw(9) << std::setfill('0') << parts[i];
-	}
 	return oss.str();
 }
 
@@ -1160,10 +1180,9 @@ inline std::string bui_to_hex(const bui &a, bool uppercase = false, bool split =
 inline std::string str_reverse(const std::string& s) {
 	std::string hex;
 	hex.reserve(s.size());
-	for (char c : s) {
+	for (char c : s)
 		if (c != ' ' && c != '\t')
 			hex.push_back(c);
-	}
 	if (hex.empty()) return "0";
 	reverse(hex.begin(), hex.end());
 	return hex;
@@ -1182,7 +1201,6 @@ inline bui read_bui_le() {
 inline u32 u32_divmod_bul(const bul &a, u32 d, bul &q) {
 	u64 rem = 0;
 	for (u32 i = 0; i < BI_N * 2; ++i) q[i] = 0;
-
 	for (u32 i = 0; i < BI_N * 2; ++i) {
 		rem = (rem << 32) | (u64)a[i]; // bring down next limb
 		// quotient limb fits in 32 bits because rem < d * 2^32 here
