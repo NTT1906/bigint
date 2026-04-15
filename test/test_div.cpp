@@ -4,7 +4,7 @@
 
 // Set bit size for the test (512 is good for fast, heavy testing)
 #define BI_BIT 512
-#include "bigint.h"
+#include "../bigint.h"
 
 // Helper to generate a random double-width (bul) number
 bul random_bul() {

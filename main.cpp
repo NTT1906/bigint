@@ -66,8 +66,19 @@ int main() {
     cout << "naive A^65537 mod m = " << bui_to_dec(naive_pow) << "\n";
 
     // --- Montgomery exponentiation (faster) ---
+    auto t0 = std::chrono::steady_clock::now();
     bui mont_pow = mr_pow_mod(A_mod, e, m); // mr_pow_mod constructs a MontgomeryReducer internally
+    auto t1 = std::chrono::steady_clock::now();
+    auto dur = duration_cast<std::chrono::microseconds>(t1 - t0).count();
+    std::cout << "D: " << dur << "\n";
     cout << "Montgomery A^65537 mod m = " << bui_to_dec(mont_pow) << "\n\n";
+    // --- Montgomery 2 exponentiation (faster) ---
+    t0 = std::chrono::steady_clock::now();
+    bui mont2_pow = mr2_pow_mod(A_mod, e, m); // mr_pow_mod constructs a MontgomeryReducer internally
+    t1 = std::chrono::steady_clock::now();
+    dur = duration_cast<std::chrono::microseconds>(t1 - t0).count();
+    std::cout << "D: " << dur << "\n";
+    cout << "Montgomery A^65537 mod m = " << bui_to_dec(mont2_pow) << "\n\n";
 
     // --- modular inverse (extended gcd) ---
     bui inv;
