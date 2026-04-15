@@ -454,6 +454,25 @@ inline bui shift_left_mod(bui x, const u32 k, const bui& m) {
 	return p2m;
 }
 
+// shift left mod (r = x * 2^k mod m)
+inline bui shift_left_mod2(const bui& x, const u32 k, const bui& m) {
+	assert(k < BI_BIT * 2 && "Cannot shift left by big amount (k > 2xBI_BIT - 1)");
+	bul p2 = shift_left_expand_fused(x, k);
+	return nmod_native(p2, m);
+}
+
+// shift left mod (r = x * 2^k mod m)
+inline bui shift_left_mod_bulk(bui x, u32 k, const bui& m) {
+	x = mod_native(x, m);
+	while (k > 0) {
+		u32 step = k > BI_BIT ? BI_BIT : k;
+		bul p2 = shift_left_expand_fused(x, step);
+		x = nmod_native(p2, m);
+		k -= step;
+	}
+	return x;
+}
+
 // shift right in-place (x /= 2^k)
 // @deprecated Use shift_right_ip_fused_imp() instead
 ALWAYS_INLINE void shift_right_ip_imp(u32 *x, const u32 n, const u32 k) {
