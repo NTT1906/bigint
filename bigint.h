@@ -802,6 +802,21 @@ inline bui mul_low(const bui& a, const bui& b) {
 	return bul_low(r);
 }
 
+// inline bui mul_low_fast(const bui& a, const bui& b) {
+// 	bui r{};
+// 	for (u32 i = 0; i < BI_N; ++i) {
+// 		if (!a[BI_N - 1 - i]) continue;
+// 		u32 c = 0;
+// 		for (u32 j = 0; j < BI_N; ++j) {
+// 			if (i + j >= BI_N) continue;
+// 			u64 p = (u64)a[BI_N - 1 - i] * b[BI_N - 1 - j] + r[BI_N - 1 - (i + j)] + c;
+// 			r[BI_N - 1 - (i + j)] = (u32)p;
+// 			c = p >> SBU32;
+// 		}
+// 	}
+// 	return r;
+// }
+
 inline bui mul_low_fast(const bui& a, const bui& b) {
 	bui r{};
 	for (u32 i = 0; i < BI_N; ++i) {
