@@ -6,7 +6,7 @@
 
 // Set bit size large enough to demonstrate the memory-bandwidth difference
 #define BI_BIT 4096
-#include "bigint.h"
+#include "../bigint.h"
 
 // Helper to generate a random double-width (bul) number
 bul random_bul() {

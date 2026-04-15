@@ -410,6 +410,39 @@ inline bul shift_left_expand(bui x, const u32 k) {
 	return r;
 }
 
+// Fused Expand Shift: Reads from 'x' once, writes directly to final position in 'r'
+inline bul shift_left_expand_fused(const bui& x, const u32 k) {
+	assert(k < BI_BIT * 2 - 1 && "Cannot shift left by big amount (k > 2xBIN_N - 1)");
+	if (k == 0) return bui_to_bul(x);
+	bul r{};
+	u32 limbs = k / SBU32;
+	if (limbs >= BI_N * 2) return r;
+	u32 bits = k % SBU32;
+
+	if (bits) {
+		u32 inv_bits = SBU32 - bits;
+		u32 c = 0;
+		for (u32 i = BI_N; i-- > 0;) {
+			// underflow-proof boundary check
+			if (i + BI_N < limbs) break;
+			int r_idx = i + BI_N - limbs;
+			u32 v = x[i];
+			r[r_idx] = (v << bits) | c;
+			c = v >> inv_bits;
+		}
+		if (limbs < BI_N)
+			r[BI_N - 1 - limbs] = c;
+	} else {
+		for (u32 i = BI_N; i-- > 0;) {
+			if (i + BI_N < limbs) break;
+			u32 r_idx = i + BI_N - limbs;
+			r[r_idx] = x[i];
+		}
+	}
+
+	return r;
+}
+
 // shift left mod (r = x * 2^k mod m)
 inline bui shift_left_mod(bui x, const u32 k, const bui& m) {
 	assert(k < BI_BIT * 2 && "Cannot shift left by big amount (k > 2xBI_BIT - 1)");
