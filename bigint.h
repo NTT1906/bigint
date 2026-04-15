@@ -593,6 +593,35 @@ inline bul bul_from_2bui(const bui& high, const bui& low) {
 	return r;
 }
 
+ALWAYS_INLINE int cmp_imp_nab(const u32* a, const u32 na, const u32* b, const u32 nb) {
+	const u32 *a_ptr{a}, *b_ptr{b};
+	u32 len = na;
+	if (na > nb) {
+		u32 diff = na - nb;
+		for (u32 i = 0; i < diff; ++i)
+			if (a[i] != 0) return 1;
+		a_ptr += diff;
+		len = nb;
+	} else if (nb > na) {
+		u32 diff = nb - na;
+		for (u32 i = 0; i < diff; ++i)
+			if (b[i] != 0) return -1;
+		b_ptr += diff;
+		len = na;
+	}
+	for (u32 i = 0; i < len; ++i)
+		if (a_ptr[i] != b_ptr[i])
+			return a_ptr[i] > b_ptr[i] ? 1 : -1;
+	return 0;
+}
+
+ALWAYS_INLINE int cmp_imp(const u32* a, const u32* b, const u32 n) {
+	for (u32 i = 0; i < n; ++i)
+		if (a[i] != b[i])
+			return a[i] > b[i] ? 1 : -1;
+	return 0;
+}
+
 // Compare between two bui
 inline int cmp(const bui &a, const bui &b) {
 	for (u32 i = 0; i < BI_N; ++i)
