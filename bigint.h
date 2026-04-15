@@ -649,16 +649,30 @@ inline int cmp(const bul& a, const bui& b) {
 	return 0;
 }
 
-inline void randomize_ip(bui &x) {
-	std::random_device rd; std::mt19937 gen(rd());
+ALWAYS_INLINE void randomize_imp(u32* x, const u32 n) {
+	static thread_local std::mt19937 gen([]{
+		std::random_device rd;
+		std::seed_seq seq{
+			rd(), rd(), rd(), rd(),
+			rd(), rd(), rd(), rd()
+		};
+		return std::mt19937(seq);
+	}());
+	// std::random_device rd; std::mt19937 gen(rd());
+	// static thread_local std::mt19937 gen(123456); // fixed seed
 	std::uniform_int_distribution<u32> dist(0, UINT32_MAX);
-	size_t limbs = 1 + gen() % BI_N;
-	for (u32 &i : x) i = 0;
-	for (size_t i = limbs; i-- > 0;) x[i] = dist(gen);
+	std::uniform_int_distribution<u32> len_dist(1, n);
+	u32 limbs = len_dist(gen);
+	for (u32 i = limbs; i < n; ++i) x[i] = 0;
+	for (u32 i = 0; i < limbs; ++i) x[i] = dist(gen);
 }
 
+inline void randomize_ip(bui &x) { randomize_imp(x.data(), BI_N); }
+
+inline void randomize_ip(bul &x) { randomize_imp(x.data(), BI_N * 2); }
+
 inline bui random_odd() {
-	bui x; randomize_ip(x);
+	bui x{}; randomize_ip(x);
 	set_bit_ip(x, 0, 1);
 	return x;
 }
