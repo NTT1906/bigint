@@ -1,4 +1,6 @@
 .idea
+.zed
+AGENTS.md
 cmake-build-debug
 cmake-*
 *.exe
