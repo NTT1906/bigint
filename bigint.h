@@ -22,8 +22,8 @@ typedef uint64_t u64;
 // #define NDEBUG
 // #endif
 
-#define SU32 sizeof(u32) // 4
-#define SBU32 32
+#define BI_SU32 sizeof(u32) // 4
+#define BI_SBU32 32
 
 #ifndef BI_BIT
 #define BI_BIT 512
@@ -34,33 +34,57 @@ typedef uint64_t u64;
 
 static_assert(BI_BIT > 0 && BI_BIT % 32 == 0, "BI_BIT must be positive and divisible by 32");
 
+#define BI_FORCE_UNROLL
+#ifdef BI_FORCE_UNROLL
+#ifndef BI_UNROLL_THRESHOLD
+#define BI_UNROLL_THRESHOLD 32
+#endif
 #if defined(_MSC_VER)
-#define ALWAYS_INLINE __forceinline
+#define BI_DO_PRAGMA(x) __pragma(x)
+#define BI_UNROLL(n) BI_DO_PRAGMA(loop(unroll, n))
+#elif defined(__clang__)
+#define BI_DO_PRAGMA(x) _Pragma(#x)
+#define BI_UNROLL(n) BI_DO_PRAGMA(clang loop unroll_count(n))
+#elif defined(__GNUC__)
+#define BI_DO_PRAGMA(x) _Pragma(#x)
+#define BI_UNROLL(n) BI_DO_PRAGMA(GCC unroll n)
+#else
+#define BI_DO_PRAGMA(x)
+#define BI_UNROLL(n)
+#endif
+#endif
+
+#ifdef BI_NFORCE_UNROLL
+#define BI_UNROLL(n)
+#endif
+
+#if defined(_MSC_VER)
+#define BI_ALWAYS_INLINE __forceinline
 #include <intrin.h>
 #elif defined(__GNUC__) || defined(__clang__)
-#define ALWAYS_INLINE inline __attribute__((always_inline))
+#define BI_ALWAYS_INLINE inline __attribute__((always_inline))
 #else
-#define ALWAYS_INLINE inline
+#define BI_ALWAYS_INLINE inline
 #endif
 
 // Hardware intrinsics setup
 #if defined(_MSC_VER) && (defined(_M_AMD64) || defined(_M_IX86))
 // MSVC on x86/x64
 #include <intrin.h>
-#define USE_HW_INTRIN 1
+#define BI_USE_HW_INTRIN 1
 #elif (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
 // GCC or Clang on x86/x64
 #include <x86intrin.h>
-#define USE_HW_INTRIN 1
+#define BI_USE_HW_INTRIN 1
 #else
 // Fallback for ARM (Apple Silicon), embedded, or unknown architectures
-#define USE_HW_INTRIN 0
+#define BI_USE_HW_INTRIN 0
 #endif
 
 #if !defined(_MSC_VER) && defined(__cpp_constexpr)
-#define OP_CONSTEXPR constexpr
+#define BI_OP_CONSTEXPR constexpr
 #else
-#define OP_CONSTEXPR
+#define BI_OP_CONSTEXPR
 #endif
 
 // big endian: data[0] = MSW
@@ -70,11 +94,10 @@ static_assert(BI_BIT > 0 && BI_BIT % 32 == 0, "BI_BIT must be positive and divis
 // a[BI_N - 2] = 0x11223344u;
 // a[BI_N - 3] = 0x9ABCDEF0u;
 // a[BI_N - 4] = 0x12345678u;
-
 struct alignas(64) bui {
 	std::array<u32, BI_N> limbs;
-	ALWAYS_INLINE u32& operator[](const size_t i) { return limbs[i]; }
-	ALWAYS_INLINE const u32& operator[](const size_t i) const { return limbs[i]; }
+	u32& operator[](const size_t i) { return limbs[i]; }
+	const u32& operator[](const size_t i) const { return limbs[i]; }
 
 	u32* data() { return limbs.data(); }
 	const u32* data() const { return limbs.data(); }
@@ -84,12 +107,12 @@ struct alignas(64) bui {
 	auto end() const { return limbs.end(); }
 	auto size() const { return limbs.size(); }
 
-	OP_CONSTEXPR static bui zero() { return {}; }
-	OP_CONSTEXPR static bui one() {
+	BI_OP_CONSTEXPR static bui zero() { return {}; }
+	BI_OP_CONSTEXPR static bui one() {
 		bui r{}; r.limbs[BI_N - 1] = 1;
 		return r;
 	}
-	OP_CONSTEXPR static bui from_u32(const u32 x) {
+	BI_OP_CONSTEXPR static bui from_u32(const u32 x) {
 		bui r{}; r.limbs[BI_N - 1] = x;
 		return r;
 	}
@@ -102,8 +125,8 @@ struct alignas(64) bul {
 	};
 	bul() = default;
 	bul(const bui& high, const bui& low) : high{high}, low{low} {}
-	ALWAYS_INLINE u32& operator[](const size_t i) { return limbs[i]; }
-	ALWAYS_INLINE const u32& operator[](const size_t i) const { return limbs[i]; }
+	BI_ALWAYS_INLINE u32& operator[](const size_t i) { return limbs[i]; }
+	BI_ALWAYS_INLINE const u32& operator[](const size_t i) const { return limbs[i]; }
 
 	u32* data() { return limbs.data(); }
 	const u32* data() const { return limbs.data(); }
@@ -113,12 +136,12 @@ struct alignas(64) bul {
 	auto end() const { return limbs.end(); }
 	auto size() const { return limbs.size(); }
 
-	OP_CONSTEXPR static bul zero() { return {}; }
-	OP_CONSTEXPR static bul one() {
+	BI_OP_CONSTEXPR static bul zero() { return {}; }
+	BI_OP_CONSTEXPR static bul one() {
 		bul r{}; r.limbs[BI_N * 2 - 1] = 1;
 		return r;
 	}
-	OP_CONSTEXPR static bul from_u32(const u32 x) {
+	BI_OP_CONSTEXPR static bul from_u32(const u32 x) {
 		bul r{}; r.limbs[BI_N * 2 - 1] = x;
 		return r;
 	}
@@ -192,12 +215,12 @@ void dbl_ip(bul &x);
 
 u32 u32_divmod_bul(const bul &a, u32 d, bul &q);
 
-ALWAYS_INLINE bui bui0() { return bui::zero(); }
-ALWAYS_INLINE bui bui1() { return bui::one(); }
-ALWAYS_INLINE bui bui_from_u32(const u32 x) { return bui::from_u32(x); }
-ALWAYS_INLINE bul bul0() { return bul::zero(); }
-ALWAYS_INLINE bul bul1() { return bul::one(); }
-ALWAYS_INLINE bul bul_from_u32(const u32 x) { return bul::from_u32(x); }
+BI_ALWAYS_INLINE bui bui0() { return bui::zero(); }
+BI_ALWAYS_INLINE bui bui1() { return bui::one(); }
+BI_ALWAYS_INLINE bui bui_from_u32(const u32 x) { return bui::from_u32(x); }
+BI_ALWAYS_INLINE bul bul0() { return bul::zero(); }
+BI_ALWAYS_INLINE bul bul1() { return bul::one(); }
+BI_ALWAYS_INLINE bul bul_from_u32(const u32 x) { return bul::from_u32(x); }
 
 inline u32 get_bit(const u32 num, const u32 pos) { return num >> pos & 1; }
 
@@ -209,20 +232,20 @@ inline u32 set_bit(const u32 num, const u32 pos, const u32 val) {
 
 inline u32 get_bit(const bui &a, const u32 pos) {
 	assert(pos < BI_N * SBU32);
-	u32 k = BI_N - 1 - pos / SBU32;
-	return get_bit(a[k], pos % SBU32);
+	u32 k = BI_N - 1 - pos / BI_SBU32;
+	return get_bit(a[k], pos % BI_SBU32);
 }
 
 // set in-place
 inline void set_bit_ip(bui &a, const u32 pos, const u32 val) {
 	assert(pos < BI_N * SBU32 && "Cannot set bit outside the scope of the big integer");
-	u32 k = BI_N - 1 - pos / SBU32;
+	u32 k = BI_N - 1 - pos / BI_SBU32;
 	a[k] = set_bit(a[k], pos % 32, val);
 }
 
 inline void set_bit_ip(bul &a, const u32 pos, const u32 val) {
 	assert(pos < BI_N * 2 * SBU32 && "Cannot set bit outside the scope of the big integer");
-	u32 k = BI_N * 2 - 1 - pos / SBU32;
+	u32 k = BI_N * 2 - 1 - pos / BI_SBU32;
 	a[k] = set_bit(a[k], pos % 32, val);
 }
 
@@ -234,7 +257,7 @@ inline bui set_bit(bui a, const u32 pos, const u32 val) {
 inline u32 highest_bit(u32 x) {
 #if defined(__GNUC__) || defined(__clang__)
 	if (x == 0) return 0;
-	return SBU32 - __builtin_clz(x); // GCC fallback
+	return BI_SBU32 - __builtin_clz(x); // GCC fallback
 #elif defined(_MSC_VER) && defined(USE_HW_INTRIN)
 	return SBU32 - __lzcnt(x);
 #elif defined(_MSC_VER)
@@ -313,18 +336,18 @@ inline void shift_limb_left(bul &x, const u32 l) {
 
 // shift left in-place (x *= 2^k)
 // @deprecated Use shift_left_ip_fused_imp() instead
-ALWAYS_INLINE void shift_left_ip_imp(u32 *x, const u32 n, const u32 k) {
+BI_ALWAYS_INLINE void shift_left_ip_imp(u32 *x, const u32 n, const u32 k) {
 	if (k == 0) return;
-	const u32 limbs = k / SBU32;
+	const u32 limbs = k / BI_SBU32;
 	if (limbs >= n) {
-		memset(x, 0, n * SU32);
+		memset(x, 0, n * BI_SU32);
 		return;
 	}
-	const u32 bits = k % SBU32;
+	const u32 bits = k % BI_SBU32;
 	// limb-only move (toward MSW)
 	if (limbs) {
-		memmove(x, x + limbs, (n - limbs) * SU32);
-		memset(x + n - limbs, 0, limbs * SU32);
+		memmove(x, x + limbs, (n - limbs) * BI_SU32);
+		memset(x + n - limbs, 0, limbs * BI_SU32);
 	}
 	// intra-word stitch (only if bits != 0)
 	if (bits) {
@@ -332,29 +355,29 @@ ALWAYS_INLINE void shift_left_ip_imp(u32 *x, const u32 n, const u32 k) {
 		while (i-- > 0) {
 			u32 tmp = x[i];
 			x[i] = tmp << bits | c;
-			c = tmp >> (SBU32 - bits);
+			c = tmp >> (BI_SBU32 - bits);
 		}
 	}
 }
 
-ALWAYS_INLINE void shift_left_ip_fused_imp(u32 *x, const u32 n, const u32 k) {
+BI_ALWAYS_INLINE void shift_left_ip_fused_imp(u32 *x, const u32 n, const u32 k) {
 	if (k == 0) return;
-	const u32 limbs = k / SBU32;
+	const u32 limbs = k / BI_SBU32;
 	if (limbs >= n) {
-		memset(x, 0, n * SU32);
+		memset(x, 0, n * BI_SU32);
 		return;
 	}
-	const u32 bits = k % SBU32;
+	const u32 bits = k % BI_SBU32;
 	if (bits) {
-		u32 inv_bits = SBU32 - bits;
+		u32 inv_bits = BI_SBU32 - bits;
 		// single pass: Read from the right, write to the left.
 		for (u32 i = 0; i < n - limbs - 1; ++i)
 			x[i] = (x[i + limbs] << bits) | (x[i + limbs + 1] >> inv_bits);
 		x[n - limbs - 1] = x[n - 1] << bits;
-		memset(x + n - limbs, 0, limbs * SU32);
+		memset(x + n - limbs, 0, limbs * BI_SU32);
 	} else {
-		memmove(x, x + limbs, (n - limbs) * SU32);
-		memset(x + n - limbs, 0, limbs * SU32);
+		memmove(x, x + limbs, (n - limbs) * BI_SU32);
+		memset(x + n - limbs, 0, limbs * BI_SU32);
 	}
 }
 
@@ -370,9 +393,9 @@ inline void shift_left_ip(bul &x, const u32 k) {
 inline bui shift_left(bui x, const u32 k) {
 	assert(k < BI_BIT - 1 && "Cannot shift left by big amount (k > BI_BIT - 1)");
 	if (k == 0) return x;
-	u32 limbs = k / SBU32;
+	u32 limbs = k / BI_SBU32;
 	if (limbs >= BI_N) return {};
-	u32 bits = k % SBU32;
+	u32 bits = k % BI_SBU32;
 	bui r{};
 	// limb-only move (toward MSW)
 	std::copy(x.begin() + limbs, x.end(), r.begin());
@@ -392,9 +415,9 @@ inline bui shift_left(bui x, const u32 k) {
 inline bul shift_left_expand(bui x, const u32 k) {
 	assert(k < BI_BIT * 2 - 1 && "Cannot shift left by big amount (k > 2xBIN_N - 1)");
 	if (k == 0) return bui_to_bul(x);
-	u32 limbs = k / SBU32;
+	u32 limbs = k / BI_SBU32;
 	if (limbs >= BI_N * 2) return {};
-	u32 bits = k % SBU32;
+	u32 bits = k % BI_SBU32;
 	bul r{};
 	// limb-only move (toward MSW)
 	std::copy_backward(x.begin() + (limbs > BI_N) * (limbs - BI_N), x.end(), r.begin() + BI_N * 2 - limbs);
@@ -415,17 +438,17 @@ inline bul shift_left_expand_fused(const bui& x, const u32 k) {
 	assert(k < BI_BIT * 2 - 1 && "Cannot shift left by big amount (k > 2xBIN_N - 1)");
 	if (k == 0) return bui_to_bul(x);
 	bul r{};
-	u32 limbs = k / SBU32;
+	u32 limbs = k / BI_SBU32;
 	if (limbs >= BI_N * 2) return r;
-	u32 bits = k % SBU32;
+	u32 bits = k % BI_SBU32;
 
 	if (bits) {
-		u32 inv_bits = SBU32 - bits;
+		u32 inv_bits = BI_SBU32 - bits;
 		u32 c = 0;
 		for (u32 i = BI_N; i-- > 0;) {
 			// underflow-proof boundary check
 			if (i + BI_N < limbs) break;
-			int r_idx = i + BI_N - limbs;
+			u32 r_idx = i + BI_N - limbs;
 			u32 v = x[i];
 			r[r_idx] = (v << bits) | c;
 			c = v >> inv_bits;
@@ -475,18 +498,18 @@ inline bui shift_left_mod_bulk(bui x, u32 k, const bui& m) {
 
 // shift right in-place (x /= 2^k)
 // @deprecated Use shift_right_ip_fused_imp() instead
-ALWAYS_INLINE void shift_right_ip_imp(u32 *x, const u32 n, const u32 k) {
+BI_ALWAYS_INLINE void shift_right_ip_imp(u32 *x, const u32 n, const u32 k) {
 	if (k == 0) return;
-	const u32 limbs = k / SBU32;
+	const u32 limbs = k / BI_SBU32;
 	if (limbs >= n) {
-		memset(x, 0, n * SU32);
+		memset(x, 0, n * BI_SU32);
 		return;
 	}
-	const u32 bits = k % SBU32;
+	const u32 bits = k % BI_SBU32;
 	// limb-only move (toward MSW)
 	if (limbs) {
-		memmove(x + limbs, x, (n - limbs) * SU32);
-		memset(x, 0, limbs * SU32);
+		memmove(x + limbs, x, (n - limbs) * BI_SU32);
+		memset(x, 0, limbs * BI_SU32);
 	}
 	// intra-word stitch (only if bits != 0)
 	if (bits) {
@@ -494,30 +517,30 @@ ALWAYS_INLINE void shift_right_ip_imp(u32 *x, const u32 n, const u32 k) {
 		for (u32 i = 0; i < n; ++i) {
 			u32 v = x[i];
 			u32 new_val = v >> bits | carry;
-			carry = v << (SBU32 - bits);
+			carry = v << (BI_SBU32 - bits);
 			x[i] = new_val;
 		}
 	}
 }
 
-ALWAYS_INLINE void shift_right_ip_fused_imp(u32 *x, const u32 n, const u32 k) {
+BI_ALWAYS_INLINE void shift_right_ip_fused_imp(u32 *x, const u32 n, const u32 k) {
 	if (k == 0) return;
-	const u32 limbs = k / SBU32;
+	const u32 limbs = k / BI_SBU32;
 	if (limbs >= n) {
-		memset(x, 0, n * SU32);
+		memset(x, 0, n * BI_SU32);
 		return;
 	}
-	const u32 bits = k % SBU32;
+	const u32 bits = k % BI_SBU32;
 	if (bits) {
-		u32 inv_bits = SBU32 - bits;
+		u32 inv_bits = BI_SBU32 - bits;
 		for (int i = (int)n - 1; i > (int)limbs; --i)
 			x[i] = (x[i - limbs] >> bits) | (x[i - limbs - 1] << inv_bits);
 		x[limbs] = x[0] >> bits;
-		memset(x, 0, limbs * SU32);
+		memset(x, 0, limbs * BI_SU32);
 	} else {
 		// fallback to memmove only if it's a perfect limb-boundary shift
-		memmove(x + limbs, x, (n - limbs) * SU32);
-		memset(x, 0, limbs * SU32);
+		memmove(x + limbs, x, (n - limbs) * BI_SU32);
+		memset(x, 0, limbs * BI_SU32);
 	}
 }
 
@@ -532,7 +555,7 @@ inline void shift_right_ip(bul& x, const u32 k) {
 }
 
 // Checking if input bigint is zero
-ALWAYS_INLINE bool bu_is0_imp(const u32 *x, u32 n) {
+BI_ALWAYS_INLINE bool bu_is0_imp(const u32 *x, u32 n) {
 	while (n-- > 0)
 		if (x[n] != 0) return false;
 	return true;
@@ -559,22 +582,22 @@ inline bui bul_high(const bul& x) {
 }
 
 // Returns a readonly reference to high part of bul
-ALWAYS_INLINE const bui& bul_high_view(const bul& x) {
+BI_ALWAYS_INLINE const bui& bul_high_view(const bul& x) {
 	return *reinterpret_cast<const bui*>(x.data());
 }
 
 // Returns a readonly reference to low part of bul
-ALWAYS_INLINE const bui& bul_low_view(const bul& x) {
+BI_ALWAYS_INLINE const bui& bul_low_view(const bul& x) {
 	return *reinterpret_cast<const bui*>(x.data() + BI_N);
 }
 
 // Returns a reference to high part of bul
-ALWAYS_INLINE bui& bul_high_view(bul& x) {
+BI_ALWAYS_INLINE bui& bul_high_view(bul& x) {
 	return *reinterpret_cast<bui*>(x.data());
 }
 
 // Returns a reference to low part of bul
-ALWAYS_INLINE bui& bul_low_view(bul& x) {
+BI_ALWAYS_INLINE bui& bul_low_view(bul& x) {
 	return *reinterpret_cast<bui*>(x.data() + BI_N);
 }
 
@@ -593,7 +616,7 @@ inline bul bul_from_2bui(const bui& high, const bui& low) {
 	return r;
 }
 
-ALWAYS_INLINE int cmp_imp_nab(const u32* a, const u32 na, const u32* b, const u32 nb) {
+BI_ALWAYS_INLINE int cmp_imp_nab(const u32* a, const u32 na, const u32* b, const u32 nb) {
 	const u32 *a_ptr{a}, *b_ptr{b};
 	u32 len = na;
 	if (na > nb) {
@@ -615,7 +638,7 @@ ALWAYS_INLINE int cmp_imp_nab(const u32* a, const u32 na, const u32* b, const u3
 	return 0;
 }
 
-ALWAYS_INLINE int cmp_imp(const u32* a, const u32* b, const u32 n) {
+BI_ALWAYS_INLINE int cmp_imp(const u32* a, const u32* b, const u32 n) {
 	for (u32 i = 0; i < n; ++i)
 		if (a[i] != b[i])
 			return a[i] > b[i] ? 1 : -1;
@@ -649,7 +672,7 @@ inline int cmp(const bul& a, const bui& b) {
 	return 0;
 }
 
-ALWAYS_INLINE void randomize_imp(u32* x, const u32 n) {
+BI_ALWAYS_INLINE void randomize_imp(u32* x, const u32 n) {
 	static thread_local std::mt19937 gen([]{
 		std::random_device rd;
 		std::seed_seq seq{
@@ -677,8 +700,8 @@ inline bui random_odd() {
 	return x;
 }
 
-ALWAYS_INLINE u32 add_ip_n_imp(u32* a, const u32* b, u32 n) {
-#if USE_HW_INTRIN
+BI_ALWAYS_INLINE u32 add_ip_n_imp(u32* a, const u32* b, u32 n) {
+#if BI_USE_HW_INTRIN
 	unsigned char c = 0;
 	while (n-- > 0)
 		c = _addcarry_u32(c, a[n], b[n], &a[n]);
@@ -693,6 +716,11 @@ ALWAYS_INLINE u32 add_ip_n_imp(u32* a, const u32* b, u32 n) {
 	return c;
 #endif
 }
+
+// Add 1 to big int
+BI_ALWAYS_INLINE void add_one_ip(u32* x, u32 n) { while (n-- > 0 && !++x[n]); }
+
+BI_ALWAYS_INLINE void sub_one_ip(u32* x, u32 n) { while (n-- > 0 && !x[n]--); }
 
 inline void add_ip_n(u32* a, const u32* b, const u32 n) {
 	add_ip_n_imp(a, b, n);
@@ -727,8 +755,8 @@ inline void add_mod_ip(bui &a, const bui &b, const bui &m) {
 	}
 }
 
-ALWAYS_INLINE u32 sub_ip_n_imp(u32* a, const u32* b, u32 n) {
-#if USE_HW_INTRIN
+BI_ALWAYS_INLINE u32 sub_ip_n_imp(u32* a, const u32* b, u32 n) {
+#if BI_USE_HW_INTRIN
 	unsigned char br = 0;
 	while (n-- > 0)
 		br = _subborrow_u32(br, a[n], b[n], &a[n]);
@@ -775,7 +803,7 @@ inline void sub_mod_ip(bui& a, const bui& b, const bui& m) {
 	}
 }
 
-ALWAYS_INLINE void mul_imp(const u32* a, const u32* b, u32* r, const u32 n) {
+BI_ALWAYS_INLINE void mul_imp(const u32* a, const u32* b, u32* r, const u32 n) {
 	std::fill_n(r, 2 * n, 0);
 	for (u32 i = n; i-- > 0;) {
 		if (!a[i]) continue;
@@ -783,13 +811,13 @@ ALWAYS_INLINE void mul_imp(const u32* a, const u32* b, u32* r, const u32 n) {
 		while (j-- > 0) {
 			u64 p = (u64)a[i] * b[j] + r[i + j + 1] + c;
 			r[i + j + 1] = (u32)p;
-			c = p >> SBU32;
+			c = p >> BI_SBU32;
 		}
 		u32 k = i;
 		while (c) {
 			u64 s = (u64)r[k] + c;
 			r[k] = (u32)s;
-			c = s >> SBU32;
+			c = s >> BI_SBU32;
 			if (k-- == 0) break;
 		}
 	}
@@ -838,9 +866,9 @@ inline bui mul_low_fast(const bui& a, const bui& b) {
 		if (!ai) continue;
 		u32 c{0}, ri{BI_N - 1 - i};
 		for (u32 j = 0; j < BI_N - i; ++j) {
-			u64 sum = (u64)ai * b[BI_N - 1 - j] + r[ri - j] + c;
-			r[ri - j] = (u32)sum;
-			c = sum >> SBU32;
+			u64 s = (u64)ai * b[BI_N - 1 - j] + r[ri - j] + c;
+			r[ri - j] = (u32)s;
+			c = s >> BI_SBU32;
 		}
 	}
 	return r;
@@ -911,7 +939,7 @@ inline bui mul_low_fast(const bui& a, const bui& b) {
 // 1024-bit x 1024-bit -> Bottom 1024-bit Result (Truncating Multiplier)
 inline bul mul_low_fast(const bul& a, const bul& b) {
 	bul r{};
-	OP_CONSTEXPR u32 N2 = BI_N * 2;
+	BI_OP_CONSTEXPR u32 N2 = BI_N * 2;
 	for (u32 i = 0; i < N2; ++i) {
 		if (!a[N2 - 1 - i]) continue;
 		u32 c = 0;
@@ -930,7 +958,7 @@ inline bul mul_low_fast(const bul& a, const bul& b) {
 inline void mul_mod_ip(bui &a, bui b, const bui &m) {
 	a = mod_native(a, m);
 	b = mod_native(b, m);
-	bul r;
+	bul r{};
 	mul_ref(a, b, r);
 	a = mod_native(r, m);
 }
