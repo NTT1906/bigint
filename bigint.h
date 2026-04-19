@@ -198,7 +198,7 @@ bui mod_native(bui x, const bui& m);
 bui mod_native(bul x, const bui& m);
 bui nmod_native(bui x, const bui& m);
 bui nmod_native(bul x, const bui& m);
-void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem);
+void divmod_knuth(const bui &a, const bui& b, bui& quot, bui& rem);
 
 void mul_mod_ip(bui &a, bui b, const bui &m);
 void mul_ref(const bui &a, const bui &b, bul &r);
@@ -1257,139 +1257,138 @@ inline bui pow_mod(bui x, const bui& e, const bui &m) {
 // Section: 4.3.1, Algorithm D (Division of large integers).
 // https://skanthak.hier-im-netz.de/division.html
 inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
-    assert(!bui_is0(b));
-    int cm = cmp(a, b);
-    if (cm < 0) {
-        quot = {};
-        rem = a;
-        return;
-    }
-    if (cm == 0) {
-        quot = bui1();
-        rem = {};
-        return;
-    }
+	assert(!bui_is0(b));
+	int cm = cmp(a, b);
+	if (cm < 0) {
+		quot = {};
+		rem = a;
+		return;
+	}
+	if (cm == 0) {
+		quot = bui1();
+		rem = {};
+		return;
+	}
 
-    // 1. Normalize
-    bul r = bui_to_bul(a);
-    bui d = b;
-    u32 d_lead_pow = highest_limb(b);
-    u32 d_msw_idx = BI_N - 1 - d_lead_pow;
-    u32 d0 = d[d_msw_idx];
-    const u32 norm_shift = d0 == 0 ? 0 : SBU32 - highest_bit(d0);
+	// 1. Normalize
+	bul r = bui_to_bul(a);
+	bui d = b;
+	u32 d_lead_pow = highest_limb(b);
+	u32 d_msw_idx = BI_N - 1 - d_lead_pow;
+	u32 d0 = d[d_msw_idx];
+	const u32 norm_shift = d0 == 0 ? 0 : BI_SBU32 - highest_bit(d0);
 
-    if (norm_shift > 0) {
-        shift_left_ip(d, norm_shift);
-        shift_left_ip(r, norm_shift);
-    }
+	if (norm_shift > 0) {
+		shift_left_ip(d, norm_shift);
+		shift_left_ip(r, norm_shift);
+	}
 
-    // Recalculate divisor info after normalization
-    d_lead_pow = highest_limb(d);
-    d_msw_idx = BI_N - 1 - d_lead_pow;
-    d0 = d[d_msw_idx];
-    const u32 d1 = (d_msw_idx + 1 < BI_N) ? d[d_msw_idx + 1] : 0;
-    const u32 n = d_lead_pow + 1; // number of limbs in divisor
+	// Recalculate divisor info after normalization
+	d_lead_pow = highest_limb(d);
+	d_msw_idx = BI_N - 1 - d_lead_pow;
+	d0 = d[d_msw_idx];
+	const u32 d1 = (d_msw_idx + 1 < BI_N) ? d[d_msw_idx + 1] : 0;
+	const u32 n = d_lead_pow + 1; // number of limbs in divisor
 
-    // 2. Fast path for single-limb divisor (n = 1)
-    if (n == 1) {
-        bul q_bul = {};
-        u32 r_temp = 0;
-        u32 d_val = d[BI_N-1];
+	// 2. Fast path for single-limb divisor (n = 1)
+	if (n == 1) {
+		bul q_bul = {};
+		u32 r_temp = 0;
+		u32 d_val = d[BI_N-1];
 
-        for (int i = 0; i < BI_N * 2; ++i) {
-            u64 dividend = ((u64)r_temp << SBU32) | r[i];
-            q_bul[i] = (u32)(dividend / d_val);
-            r_temp = (u32)(dividend % d_val);
-        }
-        std::copy(q_bul.begin() + BI_N, q_bul.end(), quot.begin());
-        rem = bui_from_u32(r_temp >> norm_shift); // Denormalize remainder instantly
-        return;
-    }
+		for (int i = 0; i < BI_N * 2; ++i) {
+			u64 dividend = (u64)r_temp << BI_SBU32 | r[i];
+			q_bul[i] = (u32)(dividend / d_val);
+			r_temp = (u32)(dividend % d_val);
+		}
+		std::copy(q_bul.begin() + BI_N, q_bul.end(), quot.begin());
+		rem = bui_from_u32(r_temp >> norm_shift); // Denormalize remainder instantly
+		return;
+	}
 
-    // 3. Knuth Division Loop
-    quot = {};
-    u32 r_lead_pow = highest_limb(r);
-    const int m = (int)r_lead_pow - (int)d_lead_pow;
+	// 3. Knuth Division Loop
+	quot = {};
+	u32 r_lead_pow = highest_limb(r);
+	const int m = (int)r_lead_pow - (int)d_lead_pow;
 
-    for (int j = m; j >= 0; --j) {
-        u32 r_idx = (BI_N * 2 - 1) - (j + n);
+	for (int j = m; j >= 0; --j) {
+		u32 r_idx = (BI_N * 2 - 1) - (j + n);
 
-        u32 u_jn = r[r_idx];
-        u32 u_jn1 = (r_idx + 1 < BI_N * 2) ? r[r_idx + 1] : 0;
-        u32 u_jn2 = (r_idx + 2 < BI_N * 2) ? r[r_idx + 2] : 0;
+		u32 u_jn = r[r_idx];
+		u32 u_jn1 = (r_idx + 1 < BI_N * 2) ? r[r_idx + 1] : 0;
+		u32 u_jn2 = (r_idx + 2 < BI_N * 2) ? r[r_idx + 2] : 0;
 
-        u64 r_top = ((u64)u_jn << SBU32) | u_jn1;
-        u64 qhat, rhat;
+		u64 r_top = ((u64)u_jn << BI_SBU32) | u_jn1;
+		u64 qhat, rhat;
 
-        // Calculate initial guess
-        if (u_jn == d0) {
-            qhat = 0xFFFFFFFFULL;
-            rhat = (u64)u_jn1 + d0;
-        } else {
-            qhat = r_top / d0;
-            rhat = r_top % d0;
-        }
+		// Calculate initial guess
+		if (u_jn == d0) {
+			qhat = 0xFFFFFFFFULL;
+			rhat = (u64)u_jn1 + d0;
+		} else {
+			qhat = r_top / d0;
+			rhat = r_top % d0;
+		}
 
-        // Knuth's correction step (Refactored to completely avoid overflow)
-        while (n > 1) {
-            if (rhat >= (1ULL << SBU32)) break;
-            if (qhat * d1 <= (rhat << SBU32) + u_jn2) break;
-            qhat--;
-            rhat += d0;
-        }
+		// Knuth's correction step (Refactored to completely avoid overflow)
+		while (n > 1) {
+			if (rhat >= (1ULL << BI_SBU32)) break;
+			if (qhat * d1 <= (rhat << BI_SBU32) + u_jn2) break;
+			qhat--;
+			rhat += d0;
+		}
 
-        // Multiply and subtract safely
-        u64 borrow = 0;
-        u32 d_lsw_idx = BI_N - 1;
+		// Multiply and subtract safely
+		u64 borrow = 0;
+		u32 d_lsw_idx = BI_N - 1;
 
-        for (u32 i = 0; i < n; ++i) {
-            u32 r_i = r_idx + n - i;
-            u32 d_i = d_lsw_idx - i;
+		for (u32 i = 0; i < n; ++i) {
+			u32 r_i = r_idx + n - i;
+			u32 d_i = d_lsw_idx - i;
 
-            u64 sub = qhat * d[d_i] + borrow;
-            // Safe subtraction prevents u64 underflow
-            if (r[r_i] < (u32)sub) {
-                borrow = (sub >> SBU32) + 1;
-            } else {
-                borrow = (sub >> SBU32);
-            }
-            r[r_i] = r[r_i] - (u32)sub;
-        }
+			u64 sub = qhat * d[d_i] + borrow;
+			// Safe subtraction prevents u64 underflow
+			borrow = (sub >> BI_SBU32) + (r[r_i] < (u32)sub);
+			// if (r[r_i] < (u32)sub)
+				// borrow = (sub >> SBU32) + 1;
+			// else
+				// borrow = (sub >> SBU32);
+			r[r_i] -= (u32)sub;
+		}
 
-        bool is_negative = borrow > r[r_idx];
-        r[r_idx] = r[r_idx] - (u32)borrow;
+		bool is_negative = borrow > r[r_idx];
+		r[r_idx] = r[r_idx] - (u32)borrow;
 
-        // Store quotient digit
-        if (j < BI_N) {
-            u32 q_idx = BI_N - 1 - j;
-            quot[q_idx] = (u32)qhat;
-        }
+		// Store quotient digit
+		if (j < BI_N) {
+			u32 q_idx = BI_N - 1 - j;
+			quot[q_idx] = (u32)qhat;
+		}
 
-        // Add back if guess was too high
-        if (is_negative) {
-            if (j < BI_N) {
-                u32 q_idx = BI_N - 1 - j;
-                quot[q_idx] = quot[q_idx] - 1;
-            }
+		// Add back if guess was too high
+		if (is_negative) {
+			if (j < BI_N) {
+				u32 q_idx = BI_N - 1 - j;
+				quot[q_idx] = quot[q_idx] - 1;
+			}
 
-            u64 carry = 0;
-            for (u32 i = 0; i < n; ++i) {
-                u32 r_i = r_idx + n - i;
-                u32 d_i = d_lsw_idx - i;
+			u64 carry = 0;
+			for (u32 i = 0; i < n; ++i) {
+				u32 r_i = r_idx + n - i;
+				u32 d_i = d_lsw_idx - i;
 
-                u64 sum = (u64)r[r_i] + d[d_i] + carry;
-                r[r_i] = (u32)sum;
-                carry = sum >> SBU32;
-            }
-            r[r_idx] = (u32)(r[r_idx] + carry);
-        }
-    }
+				u64 sum = (u64)r[r_i] + d[d_i] + carry;
+				r[r_i] = (u32)sum;
+				carry = sum >> BI_SBU32;
+			}
+			r[r_idx] = (u32)(r[r_idx] + carry);
+		}
+	}
 
-    // 4. Denormalize remainder
-    if (norm_shift > 0) {
-        shift_right_ip(r, norm_shift);
-    }
-    rem = bul_low(r);
+	// 4. Denormalize remainder
+	if (norm_shift > 0)
+		shift_right_ip(r, norm_shift);
+	rem = bul_low(r);
 }
 
 ALWAYS_INLINE u32 dbl_ip_imp(bui &x) {
