@@ -192,12 +192,12 @@ int cmp(const bul& a, const bui& b);
 void add_ip(bui& a, const bui& b);
 void add_ip(bul& a, const bul& b);
 void sub_ip(bui& a, const bui& b);
-void add_mod_ip(bui& a, const bui& b, const bui& m);
-void sub_mod_ip(bui& a, const bui& b, const bui& m);
-bui mod_native(bui x, const bui& m);
-bui mod_native(bul x, const bui& m);
-bui nmod_native(bui x, const bui& m);
-bui nmod_native(bul x, const bui& m);
+void add_mod_ip(bui& a, const bui &b, const bui &m);
+void sub_mod_ip(bui &a, const bui &b, const bui &m);
+bui mod_native(bui x, const bui &m);
+bui mod_native(bul x, const bui &m);
+bui nmod_native(bui x, const bui &m);
+bui nmod_native(bul x, const bui &m);
 void divmod_knuth(const bui &a, const bui& b, bui& quot, bui& rem);
 
 void mul_mod_ip(bui &a, bui b, const bui &m);
