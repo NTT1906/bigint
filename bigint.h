@@ -774,6 +774,8 @@ inline void add_ip_n(u32* a, const u32* b, const u32 n) { add_ip_n_imp(a, b, n);
 // a += b;
 inline void add_ip(bui& a, const bui& b) { add_ip_n_imp(a.data(), b.data(), BI_N); }
 
+inline u32 add_ip_carry(bui &a, const bui &b) { return add_ip_n_imp(a.data(), b.data(), BI_N); }
+inline u32 add_ip_carry(bul &a, const bul &b) { return add_ip_n_imp(a.data(), b.data(), BI_N * 2); }
 
 // a += b
 inline void add_ip(bul& a, const bul& b) { add_ip_n_imp(a.data(), b.data(), BI_N * 2); }
