@@ -1400,12 +1400,13 @@ ALWAYS_INLINE u32 dbl_ip_imp(bui &x) {
 		x[i] = nv;
 	}
 	return c;
+#endif
 }
 
-// x = 2x (= x << 1)
+// x = 2x (x <<= 1)
 inline void dbl_ip(bui &x) { dbl_ip_n_imp(x.data(), BI_N); }
 
-// x = 2x (= x << 1)
+// x = 2x (x <<= 1)
 inline void dbl_ip(bul &x) { dbl_ip_n_imp(x.data(), BI_N * 2); }
 
 // x = (2x) % m
