@@ -880,82 +880,17 @@ inline bui mul_low_fast(const bui& a, const bui& b) {
 	return r;
 }
 
-// inline bui mul_low_fast_comba(const bui& a, const bui& b) {
-// 	bui r{};
-//
-// 	// k = distance from LSW (column index)
-// 	// result index = BI_N - 1 - k
-// 	for (u32 k = 0; k < BI_N; ++k) {
-// 		u64 sum = 0;
-//
-// 		// accumulate all pairs (i, j) such that i + j = k
-// 		// i = offset from LSW in a
-// 		for (u32 i = 0; i <= k; ++i) {
-// 			u32 j = k - i;
-//
-// 			u32 ai = a[BI_N - 1 - i];
-// 			u32 bj = b[BI_N - 1 - j];
-//
-// 			sum += (u64)ai * bj;
-// 		}
-//
-// 		// add previous carry already stored in r
-// 		u32 idx = BI_N - 1 - k;
-// 		sum += r[idx];
-//
-// 		r[idx] = (u32)sum;
-//
-// 		// propagate carry upward (toward MSW)
-// 		u64 carry = sum >> SBU32;
-// 		int t = idx - 1;
-//
-// 		while (carry && t >= 0) {
-// 			u64 s = (u64)r[t] + carry;
-// 			r[t] = (u32)s;
-// 			carry = s >> SBU32;
-// 			--t;
-// 		}
-// 	}
-//
-// 	return r;
-// }
-
-// inline bui mul_low_fast_comba_delayed(const bui& a, const bui& b) {
-// 	u64 acc[BI_N] = {};  // wider accumulators
-// 	// k = column index from LSW
-// 	for (u32 k = 0; k < BI_N; ++k) {
-// 		u64 sum = 0;
-// 		for (u32 i = 0; i <= k; ++i) {
-// 			u32 j = k - i;
-// 			sum += (u64)a[BI_N - 1 - i] * b[BI_N - 1 - j];
-// 		}
-// 		acc[k] = sum;
-// 	}
-// 	bui r{};
-// 	u64 carry = 0;
-// 	for (u32 k = 0; k < BI_N; ++k) {
-// 		u64 sum = acc[k] + carry;
-// 		u32 idx = BI_N - 1 - k;  // BE layout
-// 		r[idx] = (u32)sum;
-// 		carry = sum >> SBU32;
-// 	}
-// 	return r;
-// }
-
-// 1024-bit x 1024-bit -> Bottom 1024-bit Result (Truncating Multiplier)
 inline bul mul_low_fast(const bul& a, const bul& b) {
 	bul r{};
 	BI_OP_CONSTEXPR u32 N2 = BI_N * 2;
 	for (u32 i = 0; i < N2; ++i) {
-		if (!a[N2 - 1 - i]) continue;
-		u32 c = 0;
-		// The (i + j >= N2) check ensures we immediately stop calculating
-		// any limbs that would overflow past our 1024-bit limit!
-		for (u32 j = 0; j < N2; ++j) {
-			if (i + j >= N2) continue;
-			u64 p = (u64)a[N2 - 1 - i] * b[N2 - 1 - j] + r[N2 - 1 - (i + j)] + c;
-			r[N2 - 1 - (i + j)] = (u32)p;
-			c = (u32)(p >> SBU32);
+		u32 ai = a[N2 - 1 - i];
+		if (!ai) continue;
+		u32 c{}, ri = N2 - 1 - i;
+		for (u32 j = 0; j < N2 - i; ++j) {
+			u64 s = (u64)ai * b[N2 - 1 - j] + r[ri - j] + c;
+			r[ri - j] = (u32)s;
+			c = s >> 32;
 		}
 	}
 	return r;
