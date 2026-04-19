@@ -1617,17 +1617,6 @@ inline bui bui_from_hex(const std::string& s) {
 	int str_idx = len - 1;
 	int limb_idx = BI_N - 1;
 
-	for (; i < s.size(); ++i) {
-		char c = s[i];
-		if (c == '_' || isspace(c)) continue;
-		int val = hex_val(c);
-		if (val < 0) break;
-		any_digit = true;
-		mul_ip(out, n16);
-		tmp[BI_N - 1] = (u32)val;
-		add_ip(out, tmp);
-	}
-	assert(any_digit && "bui_from_hex: no digits found");
 	// chunks of 8 hex chars (32 bits)
 	while (str_idx >= start_idx && limb_idx >= 0) {
 		u32 limb_val = 0;
@@ -1646,6 +1635,28 @@ inline bui bui_from_hex(const std::string& s) {
 	}
 	return out;
 }
+
+inline bui bui_from_bin(const std::string& s) {
+	bui out{};
+	int start_idx = 0;
+	int len = (int)s.size();
+	while (start_idx < len && isspace(s[start_idx])) ++start_idx;
+	if (start_idx + 1 < len && s[start_idx] == '0' && (s[start_idx+1] == 'b' || s[start_idx+1] == 'B')) start_idx += 2;
+	int str_idx = len - 1;
+	int limb_idx = BI_N - 1;
+
+	while (str_idx >= start_idx && limb_idx >= 0) {
+		u32 limb_val = 0;
+		u32 shift = 0;
+
+		while (str_idx >= start_idx && shift < 32) {
+			char c = s[str_idx--];
+			if (c == '_' || isspace(c)) continue;
+			if (c == '1') limb_val |= (1u << shift);
+			if (c == '0' || c == '1') shift++;
+		}
+		out[limb_idx--] = limb_val;
+	}
 	return out;
 }
 
