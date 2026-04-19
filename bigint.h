@@ -1518,6 +1518,15 @@ inline std::string bui_to_hex(const bui &a, const bool uppercase = false, const 
 	return out;
 }
 
+inline std::string bui_to_bin(const bui& x) {
+	// u32 hb = highest_bit(x);
+	// if (hb == 0 && x[BI_N - 1] == 0) return "0";
+	u32 nhb = highest_bit(x) + 1;
+	std::string out;
+	out.reserve(nhb);
+	while (nhb-- > 0)
+		out.push_back(get_bit(x, nhb) ? '1' : '0');
+	return out;
 }
 
 inline std::string str_reverse(const std::string& s) {
