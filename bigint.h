@@ -1428,22 +1428,31 @@ inline int hex_val(const unsigned char c) {
 	return -1;
 }
 
+// Convert bul to decimal string using base 1e9 chunks.
 inline std::string bui_to_dec(const bui& x) {
 	if (bui_is0(x)) return "0";
+
 	std::vector<u32> parts;
+	parts.reserve(BI_N);
 	bui n = x, q{};
-	u32 r = 0;
+
 	while (!bui_is0(n)) {
-		u32 BASE = 1000000000u;
-		u32divmod(n, BASE, q, r);
+		BI_OP_CONSTEXPR u32 BASE = 1000000000u;
+		u32 r;
+		u32_divmod(n, BASE, q, r);
 		parts.push_back(r);
 		n = q;
 	}
-	std::ostringstream oss;
-	oss << parts.back();
-	for (int i = (int)parts.size() - 2; i >= 0; --i)
-		oss << std::setw(9) << std::setfill('0') << parts[i];
-	return oss.str();
+
+	std::string out;
+	out.reserve(parts.size() * 9);
+	out += std::to_string(parts.back());
+	for (u32 i = parts.size() - 1; i-- > 0;) {
+		std::string chunk = std::to_string(parts[i]);
+		out.append(9 - chunk.length(), '0');
+		out.append(chunk);
+	}
+	return out;
 }
 
 // Convert bul to decimal string using base 1e9 chunks.
