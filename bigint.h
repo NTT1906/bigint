@@ -212,6 +212,10 @@ void dbl_ip(bui &x);
 void dbl_ip(bul &x);
 
 u32 u32_divmod_bul(const bul &a, u32 d, bul &q);
+void u32_divmod(const bui &a, u32 b, bui &q, u32 &r);
+void u32_divmod(const bul &a, u32 b, bul &q, u32 &r);
+u32 u32_mod(bui x, u32 m);
+u32 u32_mod(bul x, u32 m);
 
 BI_ALWAYS_INLINE bui bui0() { return bui::zero(); }
 BI_ALWAYS_INLINE bui bui1() { return bui::one(); }
@@ -1146,14 +1150,59 @@ inline void divmod(const bul& a, const bui& b, bui &q, bul &r) {
 	}
 }
 
-inline void u32divmod(const bui& a, u32 b, bui& q, u32& r) {
-	q = {}, r = 0;
-	for (int i = 0; i < BI_N; ++i) {
-		u64 dividend = (u64)r << 32 | a[i];
-		q[i] = (u32)(dividend / b);
-		r = (u32)(dividend % b);
-	}
+BI_ALWAYS_INLINE u32 u32_divmod_single(u32 hi, u32 lo, u32 b, u32* rem) {
+#if defined(__GNUC__) || defined(__clang__) && (defined(__i386__) || defined(__x86_64__))
+	u32 q, r;
+	__asm__("divl %4"
+			: "=a"(q), "=d"(r)
+			: "0"(lo), "1"(hi), "rm"(b));
+	*rem = r;
+	return q;
+#elif defined(_MSC_VER) && (defined(_M_AMD64) || defined(_M_IX86))
+	return _udiv64((((u64)hi) << 32) | lo, b, rem);
+#else
+	u64 dividend = ((u64)hi << 32) | lo;
+	*rem = (u32)(dividend % b);
+	return (u32)(dividend / b);
+#endif
 }
+
+inline void u32_divmod(const bui& a, const u32 b, bui& q, u32& r) {
+	q = {};
+	r = 0;
+	u32 hl = highest_limb(a);
+	if (hl == 0 && a[BI_N - 1] == 0) return;
+	for (int i = BI_N - 1 - hl; i < BI_N; ++i)
+		q[i] = u32_divmod_single(r, a[i], b, &r);
+}
+
+inline u32 u32_mod(bui x, const u32 m) {
+	u32 hl = highest_limb(x);
+	if (hl == 0 && x[BI_N - 1] == 0) return 0;
+	u32 r = 0;
+	for (int i = BI_N - 1 - hl; i < BI_N; ++i)
+		x[i] = u32_divmod_single(r, x[i], m, &r);
+	return r;
+}
+
+inline void u32_divmod(const bul &a, const u32 b, bul &q, u32& r) {
+	q = {};
+	r = 0;
+	u32 hl = highest_limb(a);
+	if (hl == 0 && a[BI_N * 2 - 1] == 0) return;
+	for (u32 i = BI_N * 2 - 1 - hl; i < BI_N * 2; ++i)
+		q[i] = u32_divmod_single(r, a[i], b, &r);
+}
+
+inline u32 u32_mod(bul x, const u32 m) {
+	u32 r = 0;
+	u32 hl = highest_limb(x);
+	if (hl == 0 && x[BI_N * 2 - 1] == 0) return 0;
+	for (u32 i = BI_N * 2 - 1 - hl; i < BI_N * 2; ++i)
+		x[i] = u32_divmod_single(r, x[i], m, &r);
+	return r;
+}
+
 
 // Big int: return 2^k
 inline bui bui_pow2(const u32 k) {
