@@ -1563,9 +1563,23 @@ inline u32 u32_divmod_bul(const bul &a, u32 d, bul &q) {
 	return (u32)rem;
 }
 
+// Lightweight O(N) multiply and add for a 32-bit multiplier
+inline void mul_u32_add_ip(bui& x, u32 multiplier, u32 addition) {
+	u64 c = addition;
+	u32 i = BI_N;
+	while (i-- > 0) {
+		u64 p = (u64)x[i] * multiplier + c;
+		x[i] = (u32)p;
+		c = p >> 32;
+	}
+}
+
 // Big int: return bui from dec string
 inline bui bui_from_dec(const std::string& s) {
 	assert(!s.empty() && "bui_from_dec: empty string");
+	bui out{};
+	u32 chunk = 0;
+	u32 chunk_multiplier = 1;
 	u32 i = 0;
 	// skip leading spaces and optional '+'
 	while (isspace(s[i])) ++i;
@@ -1573,20 +1587,22 @@ inline bui bui_from_dec(const std::string& s) {
 	assert(s[i] != '-' && "bui_from_dec: negative not supported");
 	// skip leading zeros, underscores, spaces
 	while (s[i] == '0' || s[i] == '_') ++i;
-	bool any_digit = false;
-	// process each digit in the decimal string
-	bui n10 = bui_from_u32(10u);
-	bui out{}, tmp{};
 	for (; i < s.size(); ++i) {
 		char c = s[i];
-		if (c == '_' || isspace(c)) continue;
-		if (c < '0' || c > '9') break;
-		any_digit = true;
-		mul_ip(out, n10);
-		tmp[BI_N - 1] = c - '0';
-		add_ip(out, tmp);
+		if (c < '0' || c > '9') continue;
+		chunk = chunk * 10 + (c - '0');
+		chunk_multiplier *= 10;
+		//flush the chunk to bui when hit 1E9
+		if (chunk_multiplier == 1000000000u) {
+			mul_u32_add_ip(out, chunk_multiplier, chunk);
+			chunk = 0;
+			chunk_multiplier = 1;
+		}
 	}
-	assert(any_digit && "bui_from_dec: no digits found");
+	// flush remaining
+	if (chunk_multiplier > 1) {
+		mul_u32_add_ip(out, chunk_multiplier, chunk);
+	}
 	return out;
 }
 
