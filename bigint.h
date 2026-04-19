@@ -184,7 +184,7 @@ bui shift_left_mod(bui x, u32 k, const bui& m);
 bui shift_left_mod_bulk(bui x, u32 k, const bui& m);
 
 bool bui_is0(const bui& x);
-bool bul_is0(const bui& x);
+bool bul_is0(const bul& x);
 
 int cmp(const bui& a, const bui& b);
 int cmp(const bul& a, const bul& b);
@@ -233,20 +233,20 @@ inline u32 set_bit(const u32 num, const u32 pos, const u32 val) {
 }
 
 inline u32 get_bit(const bui &a, const u32 pos) {
-	assert(pos < BI_N * SBU32);
+	assert(pos < BI_N * BI_SBU32);
 	u32 k = BI_N - 1 - pos / BI_SBU32;
 	return get_bit(a[k], pos % BI_SBU32);
 }
 
 // set in-place
 inline void set_bit_ip(bui &a, const u32 pos, const u32 val) {
-	assert(pos < BI_N * SBU32 && "Cannot set bit outside the scope of the big integer");
+	assert(pos < BI_N * BI_SBU32 && "Cannot set bit outside the scope of the big integer");
 	u32 k = BI_N - 1 - pos / BI_SBU32;
 	a[k] = set_bit(a[k], pos % 32, val);
 }
 
 inline void set_bit_ip(bul &a, const u32 pos, const u32 val) {
-	assert(pos < BI_N * 2 * SBU32 && "Cannot set bit outside the scope of the big integer");
+	assert(pos < BI_N * 2 * BI_SBU32 && "Cannot set bit outside the scope of the big integer");
 	u32 k = BI_N * 2 - 1 - pos / BI_SBU32;
 	a[k] = set_bit(a[k], pos % 32, val);
 }
@@ -261,7 +261,7 @@ inline u32 highest_bit(u32 x) {
 	if (x == 0) return 0;
 	return BI_SBU32 - __builtin_clz(x); // GCC fallback
 #elif defined(_MSC_VER) && defined(USE_HW_INTRIN)
-	return SBU32 - __lzcnt(x);
+	return BI_SBU32 - __lzcnt(x);
 #elif defined(_MSC_VER)
 	unsigned long idx;
 	if (_BitScanReverse(&idx, x)) return static_cast<u32>(idx + 1);
@@ -609,10 +609,10 @@ BI_ALWAYS_INLINE bool bu_is0_imp(const u32 *x, u32 n) {
 }
 
 // Checking if input bui is zero
-inline bool bui_is0(const bui& x) { return bu_is0_imp(x.data(), BI_N); }
+inline bool bui_is0(const bui &x) { return bu_is0_imp(x.data(), BI_N); }
 
 // Checking if input bui is zero
-inline bool bul_is0(const bul& x) { return bu_is0_imp(x.data(), BI_N * 2); }
+inline bool bul_is0(const bul &x) { return bu_is0_imp(x.data(), BI_N * 2); }
 
 // Return low-part of bul as bui
 inline bui bul_low(const bul& x) {
@@ -628,22 +628,22 @@ inline bui bul_high(const bul& x) {
 	return r;
 }
 
-// Returns a readonly reference to high part of bul
+// Returns a readonly reference to the high part of bul
 BI_ALWAYS_INLINE const bui& bul_high_view(const bul& x) {
 	return *reinterpret_cast<const bui*>(x.data());
 }
 
-// Returns a readonly reference to low part of bul
+// Returns a readonly reference to the low part of bul
 BI_ALWAYS_INLINE const bui& bul_low_view(const bul& x) {
 	return *reinterpret_cast<const bui*>(x.data() + BI_N);
 }
 
-// Returns a reference to high part of bul
+// Returns a reference to the high part of bul
 BI_ALWAYS_INLINE bui& bul_high_view(bul& x) {
 	return *reinterpret_cast<bui*>(x.data());
 }
 
-// Returns a reference to low part of bul
+// Returns a reference to the low part of bul
 BI_ALWAYS_INLINE bui& bul_low_view(bul& x) {
 	return *reinterpret_cast<bui*>(x.data() + BI_N);
 }
@@ -758,7 +758,7 @@ BI_ALWAYS_INLINE u32 add_ip_n_imp(u32* a, const u32* b, u32 n) {
 	while (n-- > 0) {
 		u64 s = (u64)a[n] + b[n] + c;
 		a[n] = (u32)s;
-		c = s >> SBU32;
+		c = s >> BI_SBU32;
 	}
 	return c;
 #endif
@@ -769,19 +769,14 @@ BI_ALWAYS_INLINE void add_one_ip(u32* x, u32 n) { while (n-- > 0 && !++x[n]); }
 
 BI_ALWAYS_INLINE void sub_one_ip(u32* x, u32 n) { while (n-- > 0 && !x[n]--); }
 
-inline void add_ip_n(u32* a, const u32* b, const u32 n) {
-	add_ip_n_imp(a, b, n);
-}
+inline void add_ip_n(u32* a, const u32* b, const u32 n) { add_ip_n_imp(a, b, n); }
 
 // a += b;
-inline void add_ip(bui& a, const bui& b) {
-	add_ip_n_imp(a.data(), b.data(), BI_N);
-}
+inline void add_ip(bui& a, const bui& b) { add_ip_n_imp(a.data(), b.data(), BI_N); }
+
 
 // a += b
-inline void add_ip(bul& a, const bul& b) {
-	add_ip_n_imp(a.data(), b.data(), BI_N * 2);
-}
+inline void add_ip(bul& a, const bul& b) { add_ip_n_imp(a.data(), b.data(), BI_N * 2); }
 
 // r.size = 2n
 inline void add_n(const u32* a, const u32* b, u32* r, const u32 n) {
@@ -813,7 +808,7 @@ BI_ALWAYS_INLINE u32 sub_ip_n_imp(u32* a, const u32* b, u32 n) {
 	while (n-- > 0) {
 		u64 d = (u64)a[n] - b[n] - br;
 		a[n] = (u32)d;
-		br = d >> SBU32 & 1; // br occurs if 32nd bit is 1
+		br = d >> BI_SBU32 & 1; // br occurs if 32nd bit is 1
 	}
 	return br;
 #endif
@@ -900,7 +895,7 @@ inline bui mul_low(const bui& a, const bui& b) {
 // 			if (i + j >= BI_N) continue;
 // 			u64 p = (u64)a[BI_N - 1 - i] * b[BI_N - 1 - j] + r[BI_N - 1 - (i + j)] + c;
 // 			r[BI_N - 1 - (i + j)] = (u32)p;
-// 			c = p >> SBU32;
+// 			c = p >> BI_SBU32;
 // 		}
 // 	}
 // 	return r;
@@ -1071,7 +1066,7 @@ BI_ALWAYS_INLINE void sqr_imp(const u32* a, u32* r, const u32 n) {
 		}
 	}
 
-	// 2. Double the cross products (r = r * 2)
+	// 2. Double the cross-products (r = r * 2)
 	dbl_ip_n_imp(r, n);
 
 	// 3. Add the squares (a[i] * a[i]) down the center diagonal
@@ -1326,9 +1321,9 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 			// Safe subtraction prevents u64 underflow
 			borrow = (sub >> BI_SBU32) + (r[r_i] < (u32)sub);
 			// if (r[r_i] < (u32)sub)
-				// borrow = (sub >> SBU32) + 1;
+				// borrow = (sub >> BI_SBU32) + 1;
 			// else
-				// borrow = (sub >> SBU32);
+				// borrow = (sub >> BI_SBU32);
 			r[r_i] -= (u32)sub;
 		}
 
