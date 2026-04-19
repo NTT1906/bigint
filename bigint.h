@@ -1609,16 +1609,13 @@ inline bui bui_from_dec(const std::string& s) {
 // Big int: return bui from hex string
 inline bui bui_from_hex(const std::string& s) {
 	assert(!s.empty() && "bui_from_hex: empty string");
-	u32 i = 0;
-	// skip leading spaces
-	while (i < s.size() && isspace(s[i])) ++i;
-	// optional "0x" or "0X" prefix
-	if (i + 1 < s.size() && s[i] == '0' && (s[i+1] == 'x' || s[i+1] == 'X')) i += 2;
-
-	bool any_digit = false;
 	bui out{};
-	bui tmp{};
-	bui n16 = bui_from_u32(16u);
+	int start_idx = 0;
+	int len = (int)s.size();
+	while (start_idx < len && isspace(s[start_idx])) ++start_idx;
+	if (start_idx + 1 < len && s[start_idx] == '0' && (s[start_idx+1] == 'x' || s[start_idx+1] == 'X')) start_idx += 2;
+	int str_idx = len - 1;
+	int limb_idx = BI_N - 1;
 
 	for (; i < s.size(); ++i) {
 		char c = s[i];
@@ -1631,6 +1628,24 @@ inline bui bui_from_hex(const std::string& s) {
 		add_ip(out, tmp);
 	}
 	assert(any_digit && "bui_from_hex: no digits found");
+	// chunks of 8 hex chars (32 bits)
+	while (str_idx >= start_idx && limb_idx >= 0) {
+		u32 limb_val = 0;
+		u32 shift = 0;
+		while (str_idx >= start_idx && shift < BI_SBU32) {
+			char c = s[str_idx--];
+			if (c == '_' || isspace(c)) continue;
+
+			int val = hex_val(c);
+			if (val >= 0) {
+				limb_val |= (u32)val << shift;
+				shift += 4;
+			}
+		}
+		out[limb_idx--] = limb_val;
+	}
+	return out;
+}
 	return out;
 }
 
