@@ -1391,14 +1391,20 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 	rem = bul_low(r);
 }
 
-ALWAYS_INLINE u32 dbl_ip_imp(bui &x) {
-	u32 c = 0, i = BI_N;
-	while (i-- > 0) {
-		u32 v = x[i];
-		u32 nv = v << 1 | c;
-		c = v >> 31;
-		x[i] = nv;
-	}
+/// (x <<= 1)
+/// Double the int in-place
+BI_ALWAYS_INLINE u32 dbl_ip_n_imp(u32* x, u32 n) {
+	assert(n != 0 && "Cannot double zero-limb.");
+#if BI_USE_HW_INTRIN
+	unsigned char c = 0;
+	while (n-- > 0)
+		c = _addcarry_u32(c, x[n], x[n], &x[n]);
+	return c;
+#else
+	u32 c = x[0] >> 31;
+	for (u32 i = 0; i < n - 1; ++i)
+		x[i] = x[i] << 1 | x[i + 1] >> 31;
+	x[n - 1] = x[n - 1] << 1;
 	return c;
 #endif
 }
