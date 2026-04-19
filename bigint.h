@@ -1482,19 +1482,42 @@ inline std::string bul_to_dec(const bul& x) {
 	return out;
 }
 
-inline std::string bui_to_hex(const bui &a, bool uppercase = false, bool split = false) {
-	std::ostringstream o;
-	o << std::hex << std::setfill('0');
-	if (uppercase) o << std::uppercase;
+inline std::string bui_to_hex(const bui &a, const bool uppercase = false, const bool split = false) {
+	if (bui_is0(a)) return "0";
+	const char* hex_chars = uppercase ? "0123456789ABCDEF" : "0123456789abcdef";
+	std::string out;
 	u32 hl = highest_limb(a);
-	u32 idx = BI_N - hl - 1;
-	o << a[idx];
-	if (split && idx != BI_N - 1) o << ' ';
-	for (++idx; idx < BI_N; ++idx) {
-		o << std::setw(8) << a[idx]; // u32 = 8 hex
-		if (split && idx != BI_N - 1) o << ' ';
+	out.reserve(hl * (split ? 9 : 8));
+	bool first_limb = true;
+	for (u32 i = BI_N - hl - 1; i < BI_N; ++i) {
+		u32 val = a[i];
+		if (first_limb) {
+			// strip leading zeros for the very first limb printed
+			bool printing = false;
+			for (int shift = BI_SBU32 - 4; shift >= 0; shift -= 4) {
+				u32 nibble = val >> shift & 0xF;
+				if (nibble > 0 || printing) {
+					out.push_back(hex_chars[nibble]);
+					printing = true;
+				}
+			}
+			first_limb = false;
+		} else {
+			// print all 8 characters for inner limbs
+			if (split) out.push_back(' ');
+			out.push_back(hex_chars[val >> 28 & 0xF]);
+			out.push_back(hex_chars[val >> 24 & 0xF]);
+			out.push_back(hex_chars[val >> 20 & 0xF]);
+			out.push_back(hex_chars[val >> 16 & 0xF]);
+			out.push_back(hex_chars[val >> 12 & 0xF]);
+			out.push_back(hex_chars[val >>  8 & 0xF]);
+			out.push_back(hex_chars[val >>  4 & 0xF]);
+			out.push_back(hex_chars[val	      & 0xF]);
+		}
 	}
-	return o.str();
+	return out;
+}
+
 }
 
 inline std::string str_reverse(const std::string& s) {
