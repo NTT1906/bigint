@@ -1,14 +1,12 @@
 #ifndef _BIGINT_H_
 #define _BIGINT_H_
 #include <algorithm>
-#include <iomanip>
 #include <array>
 #include <cassert>
 #include <cstdint>
 #include <cstring>
 #include <future>
 #include <string>
-#include <sstream>
 #include <random>
 #include <cctype>
 #include <cstring>
@@ -1068,7 +1066,7 @@ inline void nmod_native_ip(bul& x, const bui& m) {
 }
 
 /// <r = x*x> Return squared result of input x
-ALWAYS_INLINE void sqr_imp(const u32* a, u32* r, const u32 n) {
+BI_ALWAYS_INLINE void sqr_imp(const u32* a, u32* r, const u32 n) {
 	std::fill_n(r, 2 * n, 0);
 
 	// 1. Calculate symmetrical cross-products only ONCE (i < j)
@@ -1078,13 +1076,13 @@ ALWAYS_INLINE void sqr_imp(const u32* a, u32* r, const u32 n) {
 		for (u32 j = i; j-- > 0;) { // Notice j strictly stops before i
 			u64 p = (u64)a[i] * a[j] + r[i + j + 1] + c;
 			r[i + j + 1] = (u32)p;
-			c = p >> SBU32;
+			c = p >> BI_SBU32;
 		}
 		u32 k = i;
 		while (c) {
 			u64 s = (u64)r[k] + c;
 			r[k] = (u32)s;
-			c = s >> SBU32;
+			c = s >> BI_SBU32;
 			if (k-- == 0) break;
 		}
 	}
@@ -1097,12 +1095,12 @@ ALWAYS_INLINE void sqr_imp(const u32* a, u32* r, const u32 n) {
 	for (u32 i = n; i-- > 0;) {
 		u64 p = (u64)a[i] * a[i] + r[2 * i + 1] + c;
 		r[2 * i + 1] = (u32)p;
-		c = p >> SBU32;
+		c = p >> BI_SBU32;
 
 		// Propagate the square's carry up one limb
 		u64 s = (u64)r[2 * i] + c;
 		r[2 * i] = (u32)s;
-		c = s >> SBU32;
+		c = s >> BI_SBU32;
 	}
 }
 
@@ -1172,8 +1170,8 @@ inline bul bul_pow2(const u32 k) {
 // Return 2^k - 1, k smaller than BI_BIN
 inline bui bui_binary_flood1(const u32 k) {
 	bui r{};
-	u32 l = k / SBU32;
-	u32 b = k % SBU32;
+	u32 l = k / BI_SBU32;
+	u32 b = k % BI_SBU32;
 	if (l) std::fill_n(r.data() + BI_N - l, l, 0xffffffff);
 	if (b) r[BI_N - 1 - l] = (1 << b) - 1;
 	return r;
@@ -1182,8 +1180,8 @@ inline bui bui_binary_flood1(const u32 k) {
 // Return 2^k - 1, k smaller than 2xBI_BIN
 inline bul bul_binary_flood1(const u32 k) {
 	bul r{};
-	u32 l = k / SBU32;
-	u32 b = k % SBU32;
+	u32 l = k / BI_SBU32;
+	u32 b = k % BI_SBU32;
 	if (l) std::fill_n(r.data() + BI_N * 2 - l, l, 0xffffffff);
 	if (b) r[BI_N * 2 - 1 - l] = (1 << b) - 1;
 	return r;
@@ -1364,7 +1362,7 @@ static void dbl_mod_ip(bui &x, const bui &m) {
 		sub_ip(x, m);
 }
 
-inline int hex_val(unsigned char c) {
+inline int hex_val(const unsigned char c) {
 	if (c >= '0' && c <= '9') return c - '0';
 	if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
 	if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
@@ -1685,7 +1683,7 @@ inline bool mod_inverse_old(bui a, const bui &m, bui &inv_out) {
 	bui r0 = m, r1 = a, t0{}, t1 = bui1();
 	while (!bui_is0(r1)) {
 		// q = r0 / r1, rem = r0 % r1
-		bui q, rem;
+		bui q{}, rem{};
 		divmod(r0, r1, q, rem);
 		// r0, r1 = r1, rem
 		r0 = r1, r1 = rem;
@@ -1726,7 +1724,7 @@ inline bool mod_inverse(const bui& a_in, const bui& m, bui& inv_out) {
 	bui t0{}, t1 = bui1();
 
 	while (!bui_is0(r1)) {
-		bui q, rem;
+		bui q{}, rem{};
 		divmod(r0, r1, q, rem); // r0 = q*r1 + rem
 		r0 = r1;
 		r1 = rem;
@@ -1735,7 +1733,7 @@ inline bool mod_inverse(const bui& a_in, const bui& m, bui& inv_out) {
 		bui qt = t1;
 		mul_mod_ip(qt, q, m); // qt = (q * t1) mod m
 
-		bui tnew;
+		bui tnew{};
 		if (cmp(t0, qt) >= 0) {
 			tnew = t0;
 			sub_ip(tnew, qt); // tnew = t0 - qt
@@ -1779,7 +1777,7 @@ struct MontgomeryReducer {
 
 	MontgomeryReducer(const bui& modulus) : modulus(modulus) {
 		assert(get_bit(modulus, 0) && cmp(modulus, bui1()) == 1);
-		reducerBits = (highest_bit(modulus) / SBU32 + 1) * SBU32;
+		reducerBits = (highest_bit(modulus) / BI_SBU32 + 1) * BI_SBU32;
 		if (reducerBits > BI_BIT) reducerBits = BI_BIT;
 		reducer = bul_pow2(reducerBits);
 		mask = bui_binary_flood1(reducerBits);
@@ -1789,7 +1787,7 @@ struct MontgomeryReducer {
 		auto tmp = bui_to_bul(reciprocal);
 		shift_left_ip(tmp, reducerBits);
 		sub_ip(tmp, bul1());
-		bul rem;
+		bul rem{};
 		divmod(tmp, modulus, factor, rem);
 		// std::cout << "modulus      = " << bui_to_dec(modulus)      << "\n";
 		// std::cout << "reducer      = " << bul_to_dec(reducer)      << "\n";
@@ -1826,9 +1824,8 @@ struct MontgomeryReducer {
 			bul carry = bul_pow2(BI_BIT * 2 - reducerBits);
 			add_ip(product, carry);
 		}
-		if (cmp(product, modulus) >= 0) {
+		if (cmp(product, modulus) >= 0)
 			sub_ip(product, bui_to_bul(modulus));
-		}
 		return bul_low(product);
 	}
 
@@ -1837,9 +1834,8 @@ struct MontgomeryReducer {
 		bui r = convertedOne;
 		u32 hb = highest_bit(e) + 1;
 		for (u32 i = 0; i < hb; ++i) {
-			if (get_bit(e, i)) {
+			if (get_bit(e, i))
 				r = multiply(r, x);
-			}
 			x = multiply(x, x);
 		}
 		return r;
