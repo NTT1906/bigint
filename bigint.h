@@ -278,10 +278,18 @@ inline u32 highest_bit(u32 x) {
 }
 
 inline u32 highest_bit(const bui &x) {
-	for (size_t i = 0; i < BI_N; ++i) {
-		if (x[i] != 0)
-			return highest_bit(x[i]) + (BI_N - i - 1) * SBU32;
+	u32 i = 0;
+	for (; i + 3 < BI_N; i += 4) {
+		if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
+			if (x[i  ]) return highest_bit(x[i  ]) + (BI_N - i - 1) * BI_SBU32;
+			if (x[i+1]) return highest_bit(x[i+1]) + (BI_N - i - 2) * BI_SBU32;
+			if (x[i+2]) return highest_bit(x[i+1]) + (BI_N - i - 3) * BI_SBU32;
+			/* x[i+3] */return highest_bit(x[i+4]) + (BI_N - i - 4) * BI_SBU32;
+		}
 	}
+	for (; i < BI_N; ++i)
+		if (x[i] != 0)
+			return highest_bit(x[i]) + (BI_N - i - 1) * BI_SBU32;
 	return 0; // all limbs zero
 }
 
