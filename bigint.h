@@ -286,10 +286,18 @@ inline u32 highest_bit(const bui &x) {
 }
 
 inline u32 highest_bit(const bul &x) {
-	for (size_t i = 0; i < BI_N * 2; ++i) {
-		if (x[i] != 0)
-			return highest_bit(x[i]) + (BI_N * 2 - i - 1) * SBU32;
+	u32 i = 0;
+	for (; i + 3 < BI_N * 2; i += 4) {
+		if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
+			if (x[i  ]) return highest_bit(x[i  ]) + (BI_N * 2 - i - 1) * BI_SBU32;
+			if (x[i+1]) return highest_bit(x[i+1]) + (BI_N * 2 - i - 2) * BI_SBU32;
+			if (x[i+2]) return highest_bit(x[i+1]) + (BI_N * 2 - i - 3) * BI_SBU32;
+			/* x[i+3] */return highest_bit(x[i+4]) + (BI_N * 2 - i - 4) * BI_SBU32;
+		}
 	}
+	for (; i < BI_N * 2; ++i)
+		if (x[i] != 0)
+			return highest_bit(x[i]) + (BI_N * 2 - i - 1) * BI_SBU32;
 	return 0; // all limbs zero
 }
 
@@ -308,32 +316,52 @@ inline void bitwise_xor_ip(bui &a, const bui &b) {
 		a[i] ^= b[i];
 }
 
-// find highest (MSB) limb
+// find the highest (MSB) limb
 inline u32 highest_limb(const bui &x) {
-	for (u32 i = 0; i < BI_N; ++i)
-		if (x[i] > 0) return BI_N - i - 1;
+	u32 i = 0;
+#if BI_N > 16
+	for (; i + 3 < BI_N; i += 4) {
+		if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
+			if (x[i  ]) return BI_N - i - 1;
+			if (x[i+1]) return BI_N - i - 2;
+			if (x[i+2]) return BI_N - i - 3;
+			/* x[i+3] */return BI_N - i - 4;
+		}
+	}
+#endif
+	for (; i < BI_N; ++i)
+		if (x[i] != 0) return BI_N - i - 1;
 	return 0;
 }
 
-// find highest (MSB) limb
+// find the highest (MSB) limb
 inline u32 highest_limb(const bul &x) {
-	for (u32 i = 0; i < BI_N * 2; ++i) {
-		if (x[i] > 0)
-			return (BI_N * 2 - 1) - i;
+	u32 i = 0;
+#if (BI_N * 2) > 16
+	for (; i + 3 < BI_N * 2; i += 4) {
+		if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
+			if (x[i  ]) return BI_N * 2 - i - 1;
+			if (x[i+1]) return BI_N * 2 - i - 2;
+			if (x[i+2]) return BI_N * 2 - i - 3;
+			/* x[i+3] */return BI_N * 2 - i - 4;
+		}
 	}
+#endif
+	for (; i < BI_N * 2; ++i)
+		if (x[i] != 0) return BI_N * 2 - i - 1;
 	return 0;
 }
 
 // Big long: shift left by l whole limbs (each limb is 32 bits) in big‑endian representation.
 // Storage is [x[0] = MSW, ..., x[2*BI_N-1] = LSW].
 // eg: n = 5, l = 1
-//   before: index  0    1    2    3    4
-//           value  a0   a1   a2   a3   a4
-//   after:         a1   a2   a3   a4   0   // multiplied by 2^(32*l)
+//   before: index	0	1	2	3	4
+//           value	a0	a1	a2	a3	a4
+//   after:			a1	a2	a3	a4	0 // multiplied by 2^(32*l)
 inline void shift_limb_left(bul &x, const u32 l) {
 	if (l == 0) return;
 	if (l >= BI_N * 2) {
-		std::fill(x.begin(), x.end(), 0);
+		x = {};
 		return;
 	}
 	std::copy(x.begin() + l, x.end(), x.begin());
@@ -562,6 +590,11 @@ inline void shift_right_ip(bul& x, const u32 k) {
 
 // Checking if input bigint is zero
 BI_ALWAYS_INLINE bool bu_is0_imp(const u32 *x, u32 n) {
+	// some optimization bs (loop unroll)
+	while (n >= 4) {
+		n -= 4;
+		if (x[n] | x[n+1] | x[n+2] | x[n+3]) return false;
+	}
 	while (n-- > 0)
 		if (x[n] != 0) return false;
 	return true;
