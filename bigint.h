@@ -264,8 +264,12 @@ inline u32 highest_bit(u32 x) {
 	return 0;
 #else
 	u32 pos = 0;
-	while (x > 0) { ++pos; x >>= 1; }
-	return pos;
+	if (x >= (1u << 16)) { x >>= 16; pos += 16; }
+	if (x >= (1u << 8))  { x >>= 8;  pos += 8;  }
+	if (x >= (1u << 4))  { x >>= 4;  pos += 4;  }
+	if (x >= (1u << 2))  { x >>= 2;  pos += 2;  }
+	if (x >= (1u << 1))  {           pos += 1;  }
+	return pos + 1;
 #endif
 }
 
