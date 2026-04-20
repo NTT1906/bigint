@@ -663,6 +663,13 @@ inline bul bul_from_2bui(const bui& high, const bui& low) {
 	return r;
 }
 
+BI_ALWAYS_INLINE int cmp_imp(const u32* a, const u32* b, const u32 n) {
+	for (u32 i = 0; i < n; ++i)
+		if (a[i] != b[i])
+			return a[i] > b[i] ? 1 : -1;
+	return 0;
+}
+
 BI_ALWAYS_INLINE int cmp_imp_nab(const u32* a, const u32 na, const u32* b, const u32 nb) {
 	const u32 *a_ptr{a}, *b_ptr{b};
 	u32 len = na;
@@ -679,45 +686,17 @@ BI_ALWAYS_INLINE int cmp_imp_nab(const u32* a, const u32 na, const u32* b, const
 		b_ptr += diff;
 		len = na;
 	}
-	for (u32 i = 0; i < len; ++i)
-		if (a_ptr[i] != b_ptr[i])
-			return a_ptr[i] > b_ptr[i] ? 1 : -1;
-	return 0;
-}
-
-BI_ALWAYS_INLINE int cmp_imp(const u32* a, const u32* b, const u32 n) {
-	for (u32 i = 0; i < n; ++i)
-		if (a[i] != b[i])
-			return a[i] > b[i] ? 1 : -1;
-	return 0;
+	return cmp_imp(a_ptr, b_ptr, len);
 }
 
 // Compare between two bui
-inline int cmp(const bui &a, const bui &b) {
-	for (u32 i = 0; i < BI_N; ++i)
-		if (a[i] != b[i])
-			return a[i] > b[i] ? 1 : -1;
-	return 0;
-}
-
+inline int cmp(const bui &a, const bui &b) { return cmp_imp(a.data(), b.data(), BI_N); }
 // Compare between two bul
-inline int cmp(const bul &a, const bul &b) {
-	for (u32 i = 0; i < BI_N * 2; ++i)
-		if (a[i] != b[i])
-			return a[i] > b[i] ? 1 : -1;
-	return 0;
-}
-
+inline int cmp(const bul &a, const bul &b) { return cmp_imp(a.data(), b.data(), BI_N * 2); }
 // Compare between bul and bui
-inline int cmp(const bul& a, const bui& b) {
-	for (int i = 0; i < BI_N; ++i)
-		if (a[i] != 0) return 1;
-	for (int i = 0; i < BI_N; ++i) {
-		u32 al = a[BI_N + i], bl = b[i];
-		if (al != bl) return al > bl ? 1 : -1;
-	}
-	return 0;
-}
+inline int cmp(const bul& a, const bui& b) { return cmp_imp_nab(a.data(), BI_N * 2, b.data(), BI_N); }
+// Compare between bui and bul
+inline int cmp(const bui& a, const bul& b) { return cmp_imp_nab(a.data(), BI_N, b.data(), BI_N * 2); }
 
 BI_ALWAYS_INLINE void randomize_imp(u32* x, const u32 n) {
 	static thread_local std::mt19937 gen([]{
