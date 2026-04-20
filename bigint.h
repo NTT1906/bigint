@@ -426,7 +426,6 @@ BI_ALWAYS_INLINE void shift_left_ip_fused_imp(u32 *x, const u32 n, const u32 k) 
 	const u32 bits = k % BI_SBU32;
 	if (bits) {
 		u32 inv_bits = BI_SBU32 - bits;
-		// single pass: Read from the right, write to the left.
 		for (u32 i = 0; i < n - limbs - 1; ++i)
 			x[i] = (x[i + limbs] << bits) | (x[i + limbs + 1] >> inv_bits);
 		x[n - limbs - 1] = x[n - 1] << bits;
@@ -448,6 +447,7 @@ inline void shift_left_ip(bul &x, const u32 k) {
 // shift left (r = x * 2^k)
 inline bui shift_left(bui x, const u32 k) {
 	assert(k < BI_BIT - 1 && "Cannot shift left by big amount (k > BI_BIT - 1)");
+
 	if (k == 0) return x;
 	u32 limbs = k / BI_SBU32;
 	if (limbs >= BI_N) return {};
@@ -731,7 +731,6 @@ BI_ALWAYS_INLINE void randomize_imp(u32* x, const u32 n) {
 }
 
 inline void randomize_ip(bui &x) { randomize_imp(x.data(), BI_N); }
-
 inline void randomize_ip(bul &x) { randomize_imp(x.data(), BI_N * 2); }
 
 inline bui random_odd() {
