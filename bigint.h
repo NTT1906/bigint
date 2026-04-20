@@ -95,6 +95,10 @@ static_assert(BI_BIT > 0 && BI_BIT % 32 == 0, "BI_BIT must be positive and divis
 #define BI_OP_CONSTEXPR
 #endif
 
+#ifdef BI_FORCE_NO_USE_HW_INTRIN
+#define USE_HW_INTRIN 0
+#endif
+
 // big endian: data[0] = MSW
 // eg: assign 1 to bui: a[BI_N - 1] = 1;
 // eg: assign 0x12345678'9ABCDEF0'11223344'55667788 to bui
