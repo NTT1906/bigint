@@ -20,6 +20,14 @@ typedef uint64_t u64;
 // #define NDEBUG
 // #endif
 
+// MACRO DETAIL:
+// BI_BIT: fixed size of bigint in bit
+// BI_N: size of bigint in limb (1 limb = u32 = 32 bit)
+// BI_FORCE_UNROLL: force some loop to unroll when optimize
+// BI_UNROLL_THRESHOLD: unroll threshold
+// BI_UNROLL(n): unroll pragma
+// BI_NFORCE_UNROLL: force not to unroll
+
 #define BI_SU32 sizeof(u32) // 4
 #define BI_SBU32 32
 
@@ -29,6 +37,8 @@ typedef uint64_t u64;
 #ifndef BI_N
 #define BI_N (BI_BIT / 32)
 #endif
+
+#define BI_2N (BI_N * 2)
 
 static_assert(BI_BIT > 0 && BI_BIT % 32 == 0, "BI_BIT must be positive and divisible by 32");
 
@@ -699,7 +709,7 @@ inline int cmp(const bul& a, const bui& b) { return cmp_imp_nab(a.data(), BI_N *
 inline int cmp(const bui& a, const bul& b) { return cmp_imp_nab(a.data(), BI_N, b.data(), BI_N * 2); }
 
 BI_ALWAYS_INLINE void randomize_imp(u32* x, const u32 n) {
-	static thread_local std::mt19937 gen([]{
+	thread_local std::mt19937 gen([]{
 		std::random_device rd;
 		std::seed_seq seq{
 			rd(), rd(), rd(), rd(),
@@ -745,7 +755,6 @@ BI_ALWAYS_INLINE u32 add_ip_n_imp(u32* a, const u32* b, u32 n) {
 
 // Add 1 to big int
 BI_ALWAYS_INLINE void add_one_ip(u32* x, u32 n) { while (n-- > 0 && !++x[n]); }
-
 BI_ALWAYS_INLINE void sub_one_ip(u32* x, u32 n) { while (n-- > 0 && !x[n]--); }
 
 inline void add_ip_n(u32* a, const u32* b, const u32 n) { add_ip_n_imp(a, b, n); }
@@ -753,8 +762,8 @@ inline void add_ip_n(u32* a, const u32* b, const u32 n) { add_ip_n_imp(a, b, n);
 // a += b;
 inline void add_ip(bui& a, const bui& b) { add_ip_n_imp(a.data(), b.data(), BI_N); }
 
-inline u32 add_ip_carry(bui &a, const bui &b) { return add_ip_n_imp(a.data(), b.data(), BI_N); }
-inline u32 add_ip_carry(bul &a, const bul &b) { return add_ip_n_imp(a.data(), b.data(), BI_N * 2); }
+[[nodiscard]] inline u32 add_ip_carry(bui &a, const bui &b) { return add_ip_n_imp(a.data(), b.data(), BI_N); }
+[[nodiscard]] inline u32 add_ip_carry(bul &a, const bul &b) { return add_ip_n_imp(a.data(), b.data(), BI_N * 2); }
 
 // a += b
 inline void add_ip(bul& a, const bul& b) { add_ip_n_imp(a.data(), b.data(), BI_N * 2); }
@@ -899,13 +908,12 @@ inline bui mul_low_fast(const bui& a, const bui& b) {
 
 inline bul mul_low_fast(const bul& a, const bul& b) {
 	bul r{};
-	BI_OP_CONSTEXPR u32 N2 = BI_N * 2;
-	for (u32 i = 0; i < N2; ++i) {
-		u32 ai = a[N2 - 1 - i];
+	for (u32 i = 0; i < BI_2N; ++i) {
+		u32 ai = a[BI_2N - 1 - i];
 		if (!ai) continue;
-		u32 c{}, ri = N2 - 1 - i;
-		for (u32 j = 0; j < N2 - i; ++j) {
-			u64 s = (u64)ai * b[N2 - 1 - j] + r[ri - j] + c;
+		u32 c{}, ri = BI_2N - 1 - i;
+		for (u32 j = 0; j < BI_2N - i; ++j) {
+			u64 s = (u64)ai * b[BI_2N - 1 - j] + r[ri - j] + c;
 			r[ri - j] = (u32)s;
 			c = s >> 32;
 		}
