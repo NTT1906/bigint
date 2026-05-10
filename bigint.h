@@ -1275,7 +1275,7 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 	const int m = (int)r_lead_pow - (int)d_lead_pow;
 
 	for (int j = m; j >= 0; --j) {
-		u32 r_idx = (BI_N * 2 - 1) - (j + n);
+		u32 r_idx = BI_N * 2 - 1 - (j + n);
 
 		u32 u_jn = r[r_idx];
 		u32 u_jn1 = (r_idx + 1 < BI_N * 2) ? r[r_idx + 1] : 0;
@@ -1294,12 +1294,10 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 		}
 
 		// Knuth's correction step (Refactored to completely avoid overflow)
-		while (n > 1) {
-			if (rhat >= (1ULL << BI_SBU32)) break;
-			if (qhat * d1 <= (rhat << BI_SBU32) + u_jn2) break;
-			qhat--;
-			rhat += d0;
-		}
+		if (rhat >= (1ULL << BI_SBU32)) break;
+		if (qhat * d1 <= (rhat << BI_SBU32) + u_jn2) break;
+		qhat--;
+		rhat += d0;
 
 		// Multiply and subtract safely
 		u64 borrow = 0;
@@ -1323,18 +1321,13 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 		r[r_idx] = r[r_idx] - (u32)borrow;
 
 		// Store quotient digit
-		if (j < BI_N) {
-			u32 q_idx = BI_N - 1 - j;
-			quot[q_idx] = (u32)qhat;
-		}
+		u32 q_idx = BI_N - 1 - j;
+		quot[q_idx] = (u32)qhat;
 
 		// Add back if guess was too high
 		if (is_negative) {
-			if (j < BI_N) {
-				u32 q_idx = BI_N - 1 - j;
-				quot[q_idx] = quot[q_idx] - 1;
-			}
-
+			u32 q_idx = BI_N - 1 - j;
+			quot[q_idx] = quot[q_idx] - 1;
 			u64 carry = 0;
 			for (u32 i = 0; i < n; ++i) {
 				u32 r_i = r_idx + n - i;
