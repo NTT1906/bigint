@@ -1310,13 +1310,14 @@ inline bui bui_binary_flood1(const u32 k) {
 	return r;
 }
 
-// Return 2^k - 1, k smaller than 2xBI_BIN
+// Return 2^k - 1, k <= 2xBI_BIN
 inline bul bul_binary_flood1(const u32 k) {
+	assert(k <= BI_BIT * 2 && "bul_binary_flood1: input k must be smaller than 2xBI_BIT");
 	bul r{};
 	u32 l = k / BI_SBU32;
 	u32 b = k % BI_SBU32;
-	if (l) std::fill_n(r.data() + BI_N * 2 - l, l, 0xffffffff);
-	if (b) r[BI_N * 2 - 1 - l] = (1 << b) - 1;
+	if (l) std::fill_n(r.data() + BI_2N - l, l, 0xffffffffu);
+	if (l < BI_2N) r[BI_2N - 1 - l] = (1u << b) - 1;
 	return r;
 }
 
