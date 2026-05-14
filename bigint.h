@@ -1686,24 +1686,6 @@ inline std::string bui_to_bin(const bui& x) {
 	return out;
 }
 
-inline std::string str_reverse(const std::string& s) {
-	std::string hex;
-	hex.reserve(s.size());
-	for (char c : s)
-		if (c != ' ' && c != '\t')
-			hex.push_back(c);
-	if (hex.empty()) return "0";
-	reverse(hex.begin(), hex.end());
-	return hex;
-}
-
-inline bui read_bui_le() {
-	std::string line;
-	getline(std::cin, line);
-	std::string be_hex = str_reverse(line);
-	return bui_from_hex(be_hex);
-}
-
 // Divide a double-width big-int (bul, MSW at index 0) by a 32-bit divisor.
 // q := a / d (quotient), returns remainder r = a % d.
 // Requires: d != 0
