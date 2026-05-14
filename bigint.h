@@ -1305,13 +1305,14 @@ inline bul bul_pow2(const u32 k) {
 	return r;
 }
 
-// Return 2^k - 1, k smaller than BI_BIN
+// Return 2^k - 1, k <= BI_BIN
 inline bui bui_binary_flood1(const u32 k) {
+	assert(k <= BI_BIT && "bui_binary_flood1: input k must be smaller than BI_BIT");
 	bui r{};
 	u32 l = k / BI_SBU32;
 	u32 b = k % BI_SBU32;
-	if (l) std::fill_n(r.data() + BI_N - l, l, 0xffffffff);
-	if (b) r[BI_N - 1 - l] = (1 << b) - 1;
+	if (l) std::fill_n(r.data() + BI_N - l, l, 0xffffffffu);
+	if (l < BI_N) r[BI_N - 1 - l] = (1u << b) - 1;
 	return r;
 }
 
@@ -1448,8 +1449,6 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 	rem = r.low();
 }
 
-/// (x <<= 1)
-/// Double the int in-place
 inline void divmod_knuth2(const bui& a, const bui& b, bui& quot, bui& rem) {
 	assert(!bui_is0(b));
 	int cm = cmp(a, b);
@@ -1549,6 +1548,8 @@ inline void divmod_knuth2(const bui& a, const bui& b, bui& quot, bui& rem) {
 	rem = {};
 	std::copy_n(u.begin() + 2, BI_N, rem.begin());
 }
+
+/// Computes x = (2x) in-place.
 BI_ALWAYS_INLINE u32 dbl_ip_n_imp(u32* x, u32 n) {
 	assert(n != 0 && "Cannot double zero-limb.");
 #if BI_USE_HW_INTRIN
