@@ -780,11 +780,10 @@ BI_ALWAYS_INLINE void randomize_imp(u32* x, const u32 n) {
 	}());
 	// std::random_device rd; std::mt19937 gen(rd());
 	// static thread_local std::mt19937 gen(123456); // fixed seed
-	std::uniform_int_distribution<u32> dist(0, UINT32_MAX);
 	std::uniform_int_distribution<u32> len_dist(1, n);
 	u32 limbs = len_dist(gen);
 	for (u32 i = limbs; i < n; ++i) x[i] = 0;
-	for (u32 i = 0; i < limbs; ++i) x[i] = dist(gen);
+	for (u32 i = 0; i < limbs; ++i) x[i] = gen();
 }
 
 inline void randomize_ip(bui &x) { randomize_imp(x.data(), BI_N); }
@@ -922,6 +921,57 @@ BI_ALWAYS_INLINE void mul_imp(const u32* a, const u32* b, u32* r, const u32 n) {
 		// }
 	}
 }
+
+BI_ALWAYS_INLINE void mul_imp_fast(const u32* a, const u32* b, u32* r, const u32 n) {
+	std::fill_n(r, 2 * n, 0);
+	u32 hla = highest_limb_imp(a, n);
+	if (hla == 0 && a[n - 1] == 0) return;
+	u32 hlb = highest_limb_imp(b, n);
+	if (hlb == 0 && b[n - 1] == 0) return;
+	u32 start_a = n - 1 - hla;
+	u32 start_b = n - 1 - hlb;
+
+	for (u32 i = n; i-- > start_a;) {
+		u32 a_limb = a[i];
+		if (!a_limb) continue;
+		u32 c = 0, j = n;
+		BI_UNROLL(BI_UNROLL_THRESHOLD)
+		while (j-- > start_b) {
+			u64 p = (u64)a_limb * b[j] + r[i + j + 1] + c;
+			r[i + j + 1] = (u32)p;
+			c = p >> BI_SBU32;
+		}
+		r[i + start_b] = c;
+		// u32 k = i + start_b;
+		// while (c) {
+		// 	if (r[k]) {
+		// 		printf("mul_imp_fast: r_k not 0 (%u)\n", r[k]);
+		// 	}
+		// 	u64 s = (u64)r[k] + c;
+		// 	r[k--] = (u32)s;
+		// 	c = s >> BI_SBU32;
+		// }
+	}
+}
+
+BI_ALWAYS_INLINE void mul_imp2(const u32* a, const u32* b, u32* r, const u32 n) {
+	std::fill_n(r, 2 * n, 0);
+	for (u32 i = 0; i < n; ++i) {
+		if (a[n - 1 - i] == 0) continue;
+		u64 c = 0;
+		u32 k = 2 * n - 1 - i;
+		BI_UNROLL(BI_UNROLL_THRESHOLD)
+		for (u32 j = 0; j < n; ++j) {
+			u64 p = (u64)a[n - 1 - i] * b[n - 1 - j] + r[k] + c;
+			r[k--] = (u32)p;
+			c = p >> BI_SBU32;
+		}
+		r[k] = c;
+		// while (c) {
+		// 	u64 s = (u64)r[k] + c;
+		// 	r[k--] = (u32)s;
+		// 	c = s >> BI_SBU32;
+		// }
 	}
 }
 
