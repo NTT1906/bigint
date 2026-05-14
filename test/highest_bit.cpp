@@ -29,8 +29,8 @@ BI_UNROLL(BI_UNROLL_THRESHOLD)
 
 inline u32 highest_bit_old_bul(const bul &x) {
 BI_UNROLL(BI_UNROLL_THRESHOLD)
-    for (u32 i = 0; i < BI_N * 2; ++i)
-       if (x[i] != 0) return highest_bit(x[i]) + (BI_N * 2 - i - 1) * BI_SBU32;
+    for (u32 i = 0; i < BI_2N; ++i)
+       if (x[i] != 0) return highest_bit(x[i]) + (BI_2N - i - 1) * BI_SBU32;
     return 0;
 }
 

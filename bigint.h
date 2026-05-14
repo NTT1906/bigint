@@ -812,6 +812,7 @@ inline bui random_odd() {
 BI_ALWAYS_INLINE u32 add_ip_n_imp(u32* a, const u32* b, u32 n) {
 #if BI_USE_HW_INTRIN
 	unsigned char c = 0;
+	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
 		c = _addcarry_u32(c, a[n], b[n], &a[n]);
 	return c;
@@ -1249,7 +1250,7 @@ inline void divmod(const bul& a, const bui& b, bui &q, bul &r) {
 }
 
 BI_ALWAYS_INLINE u32 u32_divmod_single(u32 hi, u32 lo, u32 b, u32* rem) {
-#if defined(__GNUC__) || defined(__clang__) && (defined(__i386__) || defined(__x86_64__))
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__i386__) || defined(__x86_64__))
 	u32 q, r;
 	__asm__("divl %4"
 			: "=a"(q), "=d"(r)
@@ -1579,13 +1580,14 @@ BI_ALWAYS_INLINE u32 dbl_ip_n_imp(u32* x, u32 n) {
 #endif
 }
 
-// x = 2x (x <<= 1)
+/// Computes x = (2x) in-place.
 inline void dbl_ip(bui &x) { dbl_ip_n_imp(x.data(), BI_N); }
 
-// x = 2x (x <<= 1)
+/// Computes x = (2x) in-place.
 inline void dbl_ip(bul &x) { dbl_ip_n_imp(x.data(), BI_N * 2); }
 
-// x = (2x) % m
+/// Computes x = (2x) % m in-place.
+/// Requires: 0 <= x < m.
 static void dbl_mod_ip(bui &x, const bui &m) {
 	if (dbl_ip_n_imp(x.data(), BI_N) || cmp(x, m) >= 0)
 		sub_ip(x, m);
