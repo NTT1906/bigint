@@ -198,7 +198,11 @@ void bitwise_and_ip(bui &a, const bui &b);
 void bitwise_or_ip(bui &a, const bui &b);
 void bitwise_xor_ip(bui &a, const bui &b);
 
+void shift_limb_left(bui &x, u32 l);
+void shift_limb_right(bui &x, u32 l);
 void shift_limb_left(bul &x, u32 l);
+void shift_limb_right(bul &x, u32 l);
+
 void shift_left_ip(bui& x, u32 k);
 void shift_left_ip(bul& x, u32 k);
 void shift_right_ip(bui& x, u32 k);
@@ -385,6 +389,26 @@ inline u32 highest_limb(const bul &x) {
 	return 0;
 }
 
+inline void shift_limb_left(bui &x, const u32 l) {
+	if (l == 0) return;
+	if (l >= BI_N) {
+		x = {};
+		return;
+	}
+	std::copy(x.begin() + l, x.end(), x.begin());
+	std::fill(x.end() - l, x.end(), 0);
+}
+
+inline void shift_limb_right(bui &x, const u32 l) {
+	if (l == 0) return;
+	if (l >= BI_N) {
+		x = {};
+		return;
+	}
+	std::copy_backward(x.begin(), x.end() - l, x.end());
+	std::fill_n(x.begin(), l, 0);
+}
+
 // Big long: shift left by l whole limbs (each limb is 32 bits) in big‑endian representation.
 // Storage is [x[0] = MSW, ..., x[2*BI_N-1] = LSW].
 // eg: n = 5, l = 1
@@ -399,6 +423,22 @@ inline void shift_limb_left(bul &x, const u32 l) {
 	}
 	std::copy(x.begin() + l, x.end(), x.begin());
 	std::fill(x.end() - l, x.end(), 0);
+}
+
+// Big long: shift right by l whole limbs (each limb is 32 bits) in big-endian representation.
+// Storage is [x[0] = MSW, ..., x[2*BI_N-1] = LSW].
+// eg: n = 5, l = 1
+//   before: index  0   1   2   3   4
+//           value  a0  a1  a2  a3  a4
+//   after:         0   a0  a1  a2  a3 // divided by 2^(32*l)
+inline void shift_limb_right(bul &x, const u32 l) {
+	if (l == 0) return;
+	if (l >= BI_N * 2) {
+		x = {};
+		return;
+	}
+	std::copy_backward(x.begin(), x.end() - l, x.end());
+	std::fill_n(x.begin(), l, 0);
 }
 
 // shift left in-place (x *= 2^k)
@@ -531,17 +571,6 @@ inline bul shift_left_expand_fused(const bui& x, const u32 k) {
 	}
 
 	return r;
-}
-
-// shift left mod (r = x * 2^k mod m)
-inline bui shift_left_mod(bui x, const u32 k, const bui& m) {
-	assert(k < BI_BIT * 2 && "Cannot shift left by big amount (k > 2xBI_BIT - 1)");
-	bul p2 = bul_pow2(k);
-	bui p2m = mod_native(p2, m);
-	x = mod_native(x, m);
-	mul_ref(x, p2m, p2);
-	p2m = mod_native(p2, m);
-	return p2m;
 }
 
 // shift left mod (r = x * 2^k mod m)
