@@ -1134,7 +1134,8 @@ inline void nmod_native_ip(bui& x, const bui& m) {
 	if (shift < 0) return;
 	bui shifted_m = m;
 	shift_left_ip(shifted_m, shift);
-	while (shift-- > 0) {
+	for (; shift >= 0; --shift) {
+	// while (shift-- > 0) {
 		if (cmp(x, shifted_m) >= 0)
 			sub_ip(x, shifted_m);
 		shift_right_ip(shifted_m, 1);
@@ -1146,7 +1147,8 @@ inline void nmod_native_ip(bul& x, const bui& m) {
 	if (shift < 0) return;
 	bul shifted_m = bui_to_bul(m);
 	shift_left_ip(shifted_m, shift);
-	while (shift-- > 0) {
+	for (; shift >= 0; --shift) {
+	// while (shift-- > 0) {
 		if (cmp(x, shifted_m) >= 0)
 			sub_ip(x, shifted_m);
 		shift_right_ip(shifted_m, 1);
@@ -1204,7 +1206,8 @@ inline void divmod(const bui& a, const bui& b, bui &q, bui &r) {
 	r = a;
 	long long shift = (long long) highest_bit(a) - highest_bit(b);
 	if (shift < 0) return;
-	while (shift-- > 0) {
+	// while (shift-- > 0) {
+	for (; shift >= 0; --shift) {
 		bui tmp = b;
 		shift_left_ip(tmp, shift);
 		if (cmp(r, tmp) >= 0) {
@@ -1220,7 +1223,8 @@ inline void divmod(const bul& a, const bui& b, bui &q, bul &r) {
 	long long shift = highest_bit(a) - highest_bit(b);
 	if (shift < 0) return;
 	bul bb = bui_to_bul(b);
-	while (shift-- > 0) {
+	// while (shift-- > 0) {
+	for (; shift >= 0; --shift) {
 		bul tmp = bb;
 		shift_left_ip(tmp, shift);
 		if (cmp(r, tmp) >= 0) {
