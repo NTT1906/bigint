@@ -106,8 +106,8 @@ static_assert(BI_BIT > 0 && BI_BIT % 32 == 0, "BI_BIT must be positive and divis
 // a[BI_N - 2] = 0x11223344u;
 // a[BI_N - 3] = 0x9ABCDEF0u;
 // a[BI_N - 4] = 0x12345678u;
-struct alignas(64) bui {
-	std::array<u32, BI_N> limbs;
+struct bui {
+	std::array<u32, BI_N> limbs{};
 	u32& operator[](const size_t i) { return limbs[i]; }
 	const u32& operator[](const size_t i) const { return limbs[i]; }
 
@@ -130,16 +130,21 @@ struct alignas(64) bui {
 	}
 };
 
-struct alignas(64) bul {
-	union {
-		std::array<u32, BI_N * 2> limbs;
-		struct { bui high, low; };
-	};
+struct bul {
+	std::array<u32, BI_N * 2> limbs{};
 	bul() = default;
-	bul(const bui& high, const bui& low) : high{high}, low{low} {}
+	bul(const bui& high, const bui& low) {
+		std::copy_n(high.begin(), BI_N, limbs.begin());
+		std::copy_n(low.begin(), BI_N, limbs.begin() + BI_N);
+	}
+
+	bui& high() { return *reinterpret_cast<bui*>(limbs.data()); }
+	bui& low() { return *reinterpret_cast<bui*>(limbs.data() + BI_N); }
+	const bui& high() const { return *reinterpret_cast<const bui*>(&limbs[0]); }
+	const bui& low() const { return *reinterpret_cast<const bui*>(&limbs[BI_N]); }
+
 	BI_ALWAYS_INLINE u32& operator[](const size_t i) { return limbs[i]; }
 	BI_ALWAYS_INLINE const u32& operator[](const size_t i) const { return limbs[i]; }
-
 	u32* data() { return limbs.data(); }
 	const u32* data() const { return limbs.data(); }
 	auto begin() { return limbs.begin(); }
@@ -158,6 +163,12 @@ struct alignas(64) bul {
 		return r;
 	}
 };
+
+// -------------------- compile-time safety checks --------------------
+static_assert(std::is_trivially_copyable_v<bui>);
+static_assert(std::is_trivially_copyable_v<bul>);
+static_assert(sizeof(bui) == BI_SU32 * BI_N);
+static_assert(sizeof(bul) == BI_SU32 * BI_N * 2);
 
 struct MontgomeryReducer;
 
@@ -865,7 +876,7 @@ inline void mul_ref(const bui &a, const bui &b, bul &r) {
 inline void mul_ip(bui &a, const bui &b) {
 	bul r{};
 	mul_ref(a, b, r);
-	a = bul_low(r);
+	a = r.low();
 }
 
 inline bul mul(const bui& a, const bui& b) {
@@ -876,7 +887,7 @@ inline bul mul(const bui& a, const bui& b) {
 
 inline bui mul_low(const bui& a, const bui& b) {
 	bul r = mul(a, b);
-	return bul_low(r);
+	return r.low();
 }
 
 // inline bui mul_low_fast(const bui& a, const bui& b) {
@@ -947,7 +958,7 @@ inline bui mod_native(bui x, const bui& m) {
 
 inline bui mod_native(bul x, const bui& m) {
 	long long shift = (long long) highest_bit(x) - highest_bit(m);
-	if (shift < 0) return bul_low(x);
+	if (shift < 0) return x.low();
 
 	for (; shift >= 0; --shift) {
 		bul tmp = bui_to_bul(m);
@@ -955,7 +966,7 @@ inline bui mod_native(bul x, const bui& m) {
 		if (cmp(x, tmp) >= 0)
 			sub_ip(x, tmp);
 	}
-	return bul_low(x);
+	return x.low();
 }
 
 inline void mod_native_ip(bui& x, const bui& m) {
@@ -998,7 +1009,7 @@ inline bui nmod_native(bui x, const bui& m) {
 
 inline bui nmod_native(bul x, const bui& m) {
 	long long shift = (long long)highest_bit(x) - highest_bit(m);
-	if (shift < 0) return bul_low(x);
+	if (shift < 0) return x.low();
 
 	bul shifted_m = bui_to_bul(m);
 	shift_left_ip(shifted_m, shift); // Shift up ONCE
@@ -1008,7 +1019,7 @@ inline bui nmod_native(bul x, const bui& m) {
 			sub_ip(x, shifted_m);
 		shift_right_ip(shifted_m, 1); // Slide it down by 1 bit!
 	}
-	return bul_low(x);
+	return x.low();
 }
 
 // Do the exact same sliding window trick for the _ip versions:
@@ -1344,7 +1355,7 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 	// 4. Denormalize remainder
 	if (norm_shift > 0)
 		shift_right_ip(r, norm_shift);
-	rem = bul_low(r);
+	rem = r.low();
 }
 
 /// (x <<= 1)
@@ -1920,7 +1931,7 @@ struct MontgomeryReducer {
 	bui multiply(const bui& x, const bui& y) const {
 		assert(cmp(x, modulus) < 0 && cmp(y, modulus) < 0);
 		bul product = mul(x, y);
-		bui t_low = bul_low(product);
+		bui t_low = product.low();
 		bitwise_and_ip(t_low, mask);
 		t_low = mul_low_fast(t_low, factor);
 		bitwise_and_ip(t_low, mask);
@@ -1933,7 +1944,7 @@ struct MontgomeryReducer {
 		}
 		if (cmp(product, modulus) >= 0)
 			sub_ip(product, bui_to_bul(modulus));
-		return bul_low(product);
+		return product.low();
 	}
 
 	// Montgomery exponentiation: x^e (e standard, x and result in Montgomery form)
