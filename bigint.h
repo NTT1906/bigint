@@ -353,39 +353,38 @@ inline void bitwise_xor_ip(bui &a, const bui &b) {
 		a[i] ^= b[i];
 }
 
-// find the highest (MSB) limb
-inline u32 highest_limb(const bui &x) {
+template <u32 n>
+BI_ALWAYS_INLINE u32 highest_limb_template(const u32 *x) {
 	u32 i = 0;
-#if BI_N > 16
-	for (; i + 3 < BI_N; i += 4) {
-		if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
-			if (x[i  ]) return BI_N - i - 1;
-			if (x[i+1]) return BI_N - i - 2;
-			if (x[i+2]) return BI_N - i - 3;
-			/* x[i+3] */return BI_N - i - 4;
+	if constexpr (n > 16) {
+		for (; i + 3 < n; i += 4) {
+			if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
+				if (x[i  ]) return n - i - 1;
+				if (x[i+1]) return n - i - 2;
+				if (x[i+2]) return n - i - 3;
+				/* x[i+3] */return n - i - 4;
+			}
 		}
 	}
-#endif
-	for (; i < BI_N; ++i)
-		if (x[i] != 0) return BI_N - i - 1;
+	for (; i < n; ++i)
+		if (x[i] != 0) return n - i - 1;
 	return 0;
 }
 
-// find the highest (MSB) limb
-inline u32 highest_limb(const bul &x) {
+BI_ALWAYS_INLINE u32 highest_limb_imp(const u32 *x, const u32 n) {
 	u32 i = 0;
-#if (BI_N * 2) > 16
-	for (; i + 3 < BI_N * 2; i += 4) {
-		if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
-			if (x[i  ]) return BI_N * 2 - i - 1;
-			if (x[i+1]) return BI_N * 2 - i - 2;
-			if (x[i+2]) return BI_N * 2 - i - 3;
-			/* x[i+3] */return BI_N * 2 - i - 4;
+	if  (n > 16) {
+		for (; i + 3 < n; i += 4) {
+			if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
+				if (x[i  ]) return n - i - 1;
+				if (x[i+1]) return n - i - 2;
+				if (x[i+2]) return n - i - 3;
+				/* x[i+3] */return n - i - 4;
+			}
 		}
 	}
-#endif
-	for (; i < BI_N * 2; ++i)
-		if (x[i] != 0) return BI_N * 2 - i - 1;
+	for (; i < n; ++i)
+		if (x[i] != 0) return n - i - 1;
 	return 0;
 }
 
