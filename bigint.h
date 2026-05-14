@@ -1176,7 +1176,7 @@ BI_ALWAYS_INLINE void sqr_imp(const u32* a, u32* r, const u32 n) {
 	}
 
 	// 2. Double the cross-products (r = r * 2)
-	dbl_ip_n_imp(r, n);
+	dbl_ip_n_imp(r, 2 * n);
 
 	// 3. Add the squares (a[i] * a[i]) down the center diagonal
 	u64 c = 0;
