@@ -719,26 +719,6 @@ inline bui bul_high(const bul& x) {
 	return r;
 }
 
-// Returns a readonly reference to the high part of bul
-BI_ALWAYS_INLINE const bui& bul_high_view(const bul& x) {
-	return *reinterpret_cast<const bui*>(x.data());
-}
-
-// Returns a readonly reference to the low part of bul
-BI_ALWAYS_INLINE const bui& bul_low_view(const bul& x) {
-	return *reinterpret_cast<const bui*>(x.data() + BI_N);
-}
-
-// Returns a reference to the high part of bul
-BI_ALWAYS_INLINE bui& bul_high_view(bul& x) {
-	return *reinterpret_cast<bui*>(x.data());
-}
-
-// Returns a reference to the low part of bul
-BI_ALWAYS_INLINE bui& bul_low_view(bul& x) {
-	return *reinterpret_cast<bui*>(x.data() + BI_N);
-}
-
 // Return new bul with low-part being input bui x
 inline bul bui_to_bul(const bui& x) {
 	bul r{};
