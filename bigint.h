@@ -905,13 +905,23 @@ BI_ALWAYS_INLINE void mul_imp(const u32* a, const u32* b, u32* r, const u32 n) {
 			r[i + j + 1] = (u32)p;
 			c = p >> BI_SBU32;
 		}
-		u32 k = i;
-		while (c) {
-			u64 s = (u64)r[k] + c;
-			r[k] = (u32)s;
-			c = s >> BI_SBU32;
-			if (k-- == 0) break;
-		}
+		r[i] = c;
+		// if (c) r[i] = c;
+		// u32 k = i;
+		// u32 counter = 0;
+		// while (c) {
+		// 	counter++;
+		// 	if (counter >= 2) {
+		// 		printf("DEBUG: It did loop a lot!\n");
+		// 	} else if (counter == 1) {
+		// 		printf("DEBUG: It did loop for once\n");
+		// 	}
+		// 	u64 s = (u64)r[k] + c;
+		// 	r[k--] = (u32)s; // k may underflow but carry will be 0 next iter
+		// 	c = s >> BI_SBU32;
+		// }
+	}
+}
 	}
 }
 
