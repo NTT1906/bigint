@@ -289,7 +289,7 @@ inline u32 highest_bit(u32 x) {
 #if defined(__GNUC__) || defined(__clang__)
 	if (x == 0) return 0;
 	return BI_SBU32 - __builtin_clz(x); // GCC fallback
-#elif defined(_MSC_VER) && defined(USE_HW_INTRIN)
+#elif defined(_MSC_VER) && defined(BI_USE_HW_INTRIN)
 	return BI_SBU32 - __lzcnt(x);
 #elif defined(_MSC_VER)
 	unsigned long idx;
@@ -387,6 +387,44 @@ inline u32 highest_limb(const bul &x) {
 	for (; i < BI_N * 2; ++i)
 		if (x[i] != 0) return BI_N * 2 - i - 1;
 	return 0;
+}
+
+// find the highest (MSB) limb
+inline u32 highest_limb(const bui &x) {
+	return highest_limb_template<BI_N>(x.data());
+// 	u32 i = 0;
+// #if BI_N > 16
+// 	for (; i + 3 < BI_N; i += 4) {
+// 		if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
+// 			if (x[i  ]) return BI_N - i - 1;
+// 			if (x[i+1]) return BI_N - i - 2;
+// 			if (x[i+2]) return BI_N - i - 3;
+// 			/* x[i+3] */return BI_N - i - 4;
+// 		}
+// 	}
+// #endif
+// 	for (; i < BI_N; ++i)
+// 		if (x[i] != 0) return BI_N - i - 1;
+// 	return 0;
+}
+
+// find the highest (MSB) limb
+inline u32 highest_limb(const bul &x) {
+	return highest_limb_template<BI_N * 2>(x.data());
+// 	u32 i = 0;
+// #if (BI_N * 2) > 16
+// 	for (; i + 3 < BI_N * 2; i += 4) {
+// 		if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
+// 			if (x[i  ]) return BI_N * 2 - i - 1;
+// 			if (x[i+1]) return BI_N * 2 - i - 2;
+// 			if (x[i+2]) return BI_N * 2 - i - 3;
+// 			/* x[i+3] */return BI_N * 2 - i - 4;
+// 		}
+// 	}
+// #endif
+// 	for (; i < BI_N * 2; ++i)
+// 		if (x[i] != 0) return BI_N * 2 - i - 1;
+// 	return 0;
 }
 
 inline void shift_limb_left(bui &x, const u32 l) {
