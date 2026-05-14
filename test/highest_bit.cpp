@@ -48,8 +48,8 @@ inline u32 highest_bit_new_bui(const bui &x) {
            if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
               if (x[i  ]) return highest_bit(x[i  ]) + (BI_N - i - 1) * BI_SBU32;
               if (x[i+1]) return highest_bit(x[i+1]) + (BI_N - i - 2) * BI_SBU32;
-              if (x[i+2]) return highest_bit(x[i+2]) + (BI_N - i - 3) * BI_SBU32; // Fixed!
-              return highest_bit(x[i+3]) + (BI_N - i - 4) * BI_SBU32;             // Fixed!
+              if (x[i+2]) return highest_bit(x[i+2]) + (BI_N - i - 3) * BI_SBU32;
+              /* x[i+3] */return highest_bit(x[i+3]) + (BI_N - i - 4) * BI_SBU32;
            }
         }
         for (; i < BI_N; ++i)
@@ -59,22 +59,22 @@ inline u32 highest_bit_new_bui(const bui &x) {
 }
 
 inline u32 highest_bit_new_bul(const bul &x) {
-    if BI_OP_CONSTEXPR (BI_N * 2 <= 16) {
-        for (u32 i = 0; i < BI_N * 2; ++i)
-           if (x[i] != 0) return highest_bit(x[i]) + (BI_N * 2 - i - 1) * BI_SBU32;
+    if BI_OP_CONSTEXPR (BI_2N <= 16) {
+        for (u32 i = 0; i < BI_2N; ++i)
+           if (x[i] != 0) return highest_bit(x[i]) + (BI_2N - i - 1) * BI_SBU32;
         return 0;
     } else {
         u32 i = 0;
-        for (; i + 3 < BI_N * 2; i += 4) {
+        for (; i + 3 < BI_2N; i += 4) {
            if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
-              if (x[i  ]) return highest_bit(x[i  ]) + (BI_N * 2 - i - 1) * BI_SBU32;
-              if (x[i+1]) return highest_bit(x[i+1]) + (BI_N * 2 - i - 2) * BI_SBU32;
-              if (x[i+2]) return highest_bit(x[i+2]) + (BI_N * 2 - i - 3) * BI_SBU32; // Fixed!
-              return highest_bit(x[i+3]) + (BI_N * 2 - i - 4) * BI_SBU32;             // Fixed!
+              if (x[i  ]) return highest_bit(x[i  ]) + (BI_2N - i - 1) * BI_SBU32;
+              if (x[i+1]) return highest_bit(x[i+1]) + (BI_2N - i - 2) * BI_SBU32;
+              if (x[i+2]) return highest_bit(x[i+2]) + (BI_2N - i - 3) * BI_SBU32;
+              /* x[i+3] */return highest_bit(x[i+3]) + (BI_2N - i - 4) * BI_SBU32;
            }
         }
-        for (; i < BI_N * 2; ++i)
-           if (x[i] != 0) return highest_bit(x[i]) + (BI_N * 2 - i - 1) * BI_SBU32;
+        for (; i < BI_2N; ++i)
+           if (x[i] != 0) return highest_bit(x[i]) + (BI_2N - i - 1) * BI_SBU32;
         return 0;
     }
 }
@@ -106,7 +106,7 @@ int main() {
         else if (edge < 30) {
             // Edge Case 2: Small numbers (Data only at the very end LSW)
             test_bui[i][BI_N - 1] = val_dist(gen);
-            test_bul[i][BI_N * 2 - 1] = val_dist(gen);
+            test_bul[i][BI_2N - 1] = val_dist(gen);
         }
         else if (edge < 50) {
             // Edge Case 3: Massive numbers (Data at the very beginning MSW)
@@ -116,10 +116,10 @@ int main() {
         else {
             // Edge Case 4: Random lengths
             u32 active_limbs_bui = (gen() % BI_N) + 1;
-            u32 active_limbs_bul = (gen() % (BI_N * 2)) + 1;
+            u32 active_limbs_bul = (gen() % (BI_2N)) + 1;
 
             test_bui[i][BI_N - active_limbs_bui] = val_dist(gen);
-            test_bul[i][BI_N * 2 - active_limbs_bul] = val_dist(gen);
+            test_bul[i][BI_2N - active_limbs_bul] = val_dist(gen);
         }
     }
 
