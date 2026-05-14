@@ -1355,6 +1355,15 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 		return;
 	}
 
+	// 2. Fast path for single-limb divisor (n = 1)
+	if (highest_limb(b) == 0 && b[BI_N - 1] != 0) {
+		u32 r32 = 0;
+		u32_divmod(a, b[BI_N - 1], quot, r32);
+		rem = {};
+		rem[BI_N - 1] = r32;
+		return;
+	}
+
 	// 1. Normalize
 	bul r = bui_to_bul(a);
 	bui d = b;
@@ -1372,31 +1381,14 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 	d_lead_pow = highest_limb(d);
 	d_msw_idx = BI_N - 1 - d_lead_pow;
 	d0 = d[d_msw_idx];
-	const u32 d1 = (d_msw_idx + 1 < BI_N) ? d[d_msw_idx + 1] : 0;
+	const u32 d1 = d_msw_idx + 1 < BI_N ? d[d_msw_idx + 1] : 0;
 	const u32 n = d_lead_pow + 1; // number of limbs in divisor
-
-	// 2. Fast path for single-limb divisor (n = 1)
-	if (n == 1) {
-		bul q_bul = {};
-		u32 r_temp = 0;
-		u32 d_val = d[BI_N-1];
-
-		for (int i = 0; i < BI_N * 2; ++i) {
-			u64 dividend = (u64)r_temp << BI_SBU32 | r[i];
-			q_bul[i] = (u32)(dividend / d_val);
-			r_temp = (u32)(dividend % d_val);
-		}
-		std::copy(q_bul.begin() + BI_N, q_bul.end(), quot.begin());
-		rem = bui_from_u32(r_temp >> norm_shift); // Denormalize remainder instantly
-		return;
-	}
 
 	// 3. Knuth Division Loop
 	quot = {};
 	u32 r_lead_pow = highest_limb(r);
-	const int m = (int)r_lead_pow - (int)d_lead_pow;
-
-	for (int j = m; j >= 0; --j) {
+	int j = (int)r_lead_pow - (int)d_lead_pow + 1;
+	while (j-- > 0) {
 		u32 r_idx = BI_N * 2 - 1 - (j + n);
 
 		u32 u_jn = r[r_idx];
@@ -1406,7 +1398,7 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 		u64 r_top = ((u64)u_jn << BI_SBU32) | u_jn1;
 		u64 qhat, rhat;
 
-		// Calculate initial guess
+		// calculate initial guess
 		if (u_jn == d0) {
 			qhat = 0xFFFFFFFFULL;
 			rhat = (u64)u_jn1 + d0;
@@ -1415,13 +1407,13 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 			rhat = r_top % d0;
 		}
 
-		// Knuth's correction step (Refactored to completely avoid overflow)
-		if (rhat >= (1ULL << BI_SBU32)) break;
-		if (qhat * d1 <= (rhat << BI_SBU32) + u_jn2) break;
-		qhat--;
-		rhat += d0;
+		// Knuth's correction step
+		while (rhat < (1ULL << BI_SBU32) && qhat * d1 > (rhat << BI_SBU32) + u_jn2) {
+			--qhat;
+			rhat += d0;
+		}
 
-		// Multiply and subtract safely
+		// multiply and subtract
 		u64 borrow = 0;
 		u32 d_lsw_idx = BI_N - 1;
 
@@ -1430,36 +1422,22 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 			u32 d_i = d_lsw_idx - i;
 
 			u64 sub = qhat * d[d_i] + borrow;
-			// Safe subtraction prevents u64 underflow
+			// safe subtraction prevents u64 underflow
 			borrow = (sub >> BI_SBU32) + (r[r_i] < (u32)sub);
-			// if (r[r_i] < (u32)sub)
-				// borrow = (sub >> BI_SBU32) + 1;
-			// else
-				// borrow = (sub >> BI_SBU32);
 			r[r_i] -= (u32)sub;
 		}
 
 		bool is_negative = borrow > r[r_idx];
-		r[r_idx] = r[r_idx] - (u32)borrow;
-
-		// Store quotient digit
+		r[r_idx] -= (u32)borrow;
+		// store quotient digit
 		u32 q_idx = BI_N - 1 - j;
 		quot[q_idx] = (u32)qhat;
 
-		// Add back if guess was too high
+		// add back if guess was too high
 		if (is_negative) {
-			u32 q_idx = BI_N - 1 - j;
-			quot[q_idx] = quot[q_idx] - 1;
-			u64 carry = 0;
-			for (u32 i = 0; i < n; ++i) {
-				u32 r_i = r_idx + n - i;
-				u32 d_i = d_lsw_idx - i;
-
-				u64 sum = (u64)r[r_i] + d[d_i] + carry;
-				r[r_i] = (u32)sum;
-				carry = sum >> BI_SBU32;
-			}
-			r[r_idx] = (u32)(r[r_idx] + carry);
+			--quot[q_idx];
+			u32 carry = add_ip_n_imp(r.data() + r_idx + 1, d.data() + (BI_N - n), n);
+			r[r_idx] += carry;
 		}
 	}
 
