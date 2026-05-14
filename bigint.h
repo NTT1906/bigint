@@ -45,7 +45,7 @@ static_assert(BI_BIT > 0 && BI_BIT % 32 == 0, "BI_BIT must be positive and divis
 #define BI_FORCE_UNROLL
 #ifdef BI_FORCE_UNROLL
 #ifndef BI_UNROLL_THRESHOLD
-#define BI_UNROLL_THRESHOLD 32
+#define BI_UNROLL_THRESHOLD 16
 #endif
 #if defined(_MSC_VER)
 #define BI_DO_PRAGMA(x) __pragma(x)
@@ -96,7 +96,7 @@ static_assert(BI_BIT > 0 && BI_BIT % 32 == 0, "BI_BIT must be positive and divis
 #endif
 
 #ifdef BI_FORCE_NO_USE_HW_INTRIN
-#define USE_HW_INTRIN 0
+#define BI_USE_HW_INTRIN 0
 #endif
 
 // big endian: data[0] = MSW
