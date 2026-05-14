@@ -228,6 +228,7 @@ bui mod_native(bul x, const bui &m);
 bui nmod_native(bui x, const bui &m);
 bui nmod_native(bul x, const bui &m);
 void divmod_knuth(const bui &a, const bui& b, bui& quot, bui& rem);
+void divmod_knuth2(const bui &a, const bui& b, bui& quot, bui& rem);
 
 void mul_mod_ip(bui &a, bui b, const bui &m);
 void mul_ref(const bui &a, const bui &b, bul &r);
@@ -1449,6 +1450,105 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 
 /// (x <<= 1)
 /// Double the int in-place
+inline void divmod_knuth2(const bui& a, const bui& b, bui& quot, bui& rem) {
+	assert(!bui_is0(b));
+	int cm = cmp(a, b);
+	if (cm < 0) {
+		quot = {};
+		rem = a;
+		return;
+	}
+	if (cm == 0) {
+		quot = bui1();
+		rem = {};
+		return;
+	}
+
+	u32 d_lead_pow = highest_limb(b);
+	if (d_lead_pow == 0 && b[BI_N - 1] != 0) {
+		u32 r32 = 0;
+		u32_divmod(a, b[BI_N - 1], quot, r32);
+		rem = {};
+		rem[BI_N - 1] = r32;
+		return;
+	}
+
+	const u32 n = d_lead_pow + 1;
+	const u32 d_start = BI_N - n;
+	bui d = b;
+
+	u32 d0 = d[d_start];
+	const u32 norm_shift = d0 == 0 ? 0 : BI_SBU32 - highest_bit(d0);
+
+	std::array<u32, BI_N + 2> u{};
+	std::copy_n(a.begin(), BI_N, u.begin() + 2);
+
+	if (norm_shift > 0) {
+		shift_left_ip_fused_imp(d.data(), BI_N, norm_shift);
+		shift_left_ip_fused_imp(u.data(), BI_N + 2, norm_shift);
+	}
+
+	d0 = d[d_start];
+	const u32 d1 = n > 1 ? d[d_start + 1] : 0;
+
+	quot = {};
+	const u32 u_lead_pow = highest_limb_imp(u.data(), BI_N + 2);
+	int j = (int)u_lead_pow - (int)d_lead_pow + 1;
+
+	while (j-- > 0) {
+		const u32 u_idx = BI_N + 1 - (j + n);
+
+		u32 u_jn = u[u_idx];
+		u32 u_jn1 = u[u_idx + 1];
+		u32 u_jn2 = (u_idx + 2 < BI_N + 2) ? u[u_idx + 2] : 0;
+
+		u64 u_top = ((u64)u_jn << BI_SBU32) | u_jn1;
+		u64 qhat, rhat;
+
+		if (u_jn == d0) {
+			qhat = 0xffffffffULL;
+			rhat = (u64)u_jn1 + d0;
+		} else {
+			qhat = u_top / d0;
+			rhat = u_top % d0;
+		}
+
+		while (rhat < (1ULL << BI_SBU32) && qhat * d1 > (rhat << BI_SBU32) + u_jn2) {
+			--qhat;
+			rhat += d0;
+		}
+
+		u64 borrow = 0;
+		const u32 d_lsw_idx = BI_N - 1;
+
+		for (u32 i = 0; i < n; ++i) {
+			u32 u_i = u_idx + n - i;
+			u32 d_i = d_lsw_idx - i;
+
+			u64 sub = qhat * d[d_i] + borrow;
+			borrow = (sub >> BI_SBU32) + (u[u_i] < (u32)sub);
+			u[u_i] -= (u32)sub;
+		}
+
+		bool is_negative = borrow > u[u_idx];
+		u[u_idx] -= (u32)borrow;
+
+		u32 q_idx = BI_N - 1 - j;
+		quot[q_idx] = (u32)qhat;
+
+		if (is_negative) {
+			--quot[q_idx];
+			u32 carry = add_ip_n_imp(u.data() + u_idx + 1, d.data() + d_start, n);
+			u[u_idx] += carry;
+		}
+	}
+
+	if (norm_shift > 0)
+		shift_right_ip_fused_imp(u.data(), BI_N + 2, norm_shift);
+
+	rem = {};
+	std::copy_n(u.begin() + 2, BI_N, rem.begin());
+}
 BI_ALWAYS_INLINE u32 dbl_ip_n_imp(u32* x, u32 n) {
 	assert(n != 0 && "Cannot double zero-limb.");
 #if BI_USE_HW_INTRIN
