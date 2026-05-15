@@ -1,132 +1,151 @@
 #include <iostream>
-#define BI_BIT 64
+#define BI_BIT 512
 #include "bigint.h"
 
+void test_divmod_imp() {
+    std::cout << "Testing divmod_knuth_imp...\n";
+
+    // Test 1: Simple division
+    {
+        bui a = bui_from_u32(100);
+        bui b = bui_from_u32(3);
+        bui q{}, r{}, q2{}, r2{};
+
+        divmod_knuth2(a, b, q, r);
+        divmod_knuth_imp(a.data(), BI_N, b.data(), BI_N, q2.data(), BI_N, r2.data(), BI_N);
+
+        if (cmp(q, q2) != 0 || cmp(r, r2) != 0) {
+            std::cerr << "Test 1 FAILED!\n";
+            std::exit(1);
+        }
+        std::cout << "  Test 1 (100/3): q=" << bui_to_dec(q2) << " r=" << bui_to_dec(r2) << " PASS\n";
+    }
+
+    // Test 2: Random values comparing divmod_knuth2 vs divmod_knuth_imp
+    {
+        std::mt19937 gen(123456);
+        std::uniform_int_distribution<u32> dist(0, 0xffffffffu);
+
+        for (int i = 0; i < 1000; ++i) {
+            bui a{}, b{};
+            for (u32 j = 0; j < BI_N; ++j) {
+                a[j] = dist(gen);
+                b[j] = dist(gen);
+            }
+            if (bui_is0(b)) b[BI_N-1] = 1;
+
+            // Make b have fewer limbs
+            if (i % 5 == 0) {
+                for (u32 j = 0; j < BI_N/2; ++j)
+                    b[j] = 0;
+                b[BI_N/2] |= 1u << 31;
+            }
+
+            bui q1{}, r1{}, q2{}, r2{};
+            divmod_knuth2(a, b, q1, r1);
+            divmod_knuth_imp(a.data(), BI_N, b.data(), BI_N, q2.data(), BI_N, r2.data(), BI_N);
+
+            if (cmp(q1, q2) != 0 || cmp(r1, r2) != 0) {
+                std::cerr << "Random test " << i << " FAILED!\n";
+                std::exit(1);
+            }
+
+            // Verify identity
+            bui qb = mul_low(q2, b);
+            bui check = add(qb, r2);
+            if (cmp(check, a) != 0 || cmp(r2, b) >= 0) {
+                std::cerr << "Random test " << i << " IDENTITY FAILED!\n";
+                std::exit(1);
+            }
+        }
+        std::cout << "  Test 2 (1000 random): PASS\n";
+    }
+
+    // Test 3: edge cases
+    {
+        // a < b
+        {
+            bui a = bui_from_u32(5);
+            bui b = bui_from_u32(100);
+            bui q{}, r{};
+            divmod_knuth_imp(a.data(), BI_N, b.data(), BI_N, q.data(), BI_N, r.data(), BI_N);
+            if (!bui_is0(q) || cmp(r, a) != 0) {
+                std::cerr << "Test 3a (a < b) FAILED!\n";
+                std::exit(1);
+            }
+            std::cout << "  Test 3a (a < b): PASS\n";
+        }
+
+        // a == b
+        {
+            bui a = bui_from_u32(12345);
+            bui b = bui_from_u32(12345);
+            bui q{}, r{};
+            divmod_knuth_imp(a.data(), BI_N, b.data(), BI_N, q.data(), BI_N, r.data(), BI_N);
+            bui one = bui1();
+            if (cmp(q, one) != 0 || !bui_is0(r)) {
+                std::cerr << "Test 3b (a == b) FAILED!\n";
+                std::exit(1);
+            }
+            std::cout << "  Test 3b (a == b): PASS\n";
+        }
+
+        // b is single limb
+        {
+            bui a{};
+            for (auto& x : a) x = 0x12345678;
+            bui b = bui_from_u32(0xfedcba98);
+            bui q1{}, r1{}, q2{}, r2{};
+            divmod_knuth2(a, b, q1, r1);
+            divmod_knuth_imp(a.data(), BI_N, b.data(), BI_N, q2.data(), BI_N, r2.data(), BI_N);
+            if (cmp(q1, q2) != 0 || cmp(r1, r2) != 0) {
+                std::cerr << "Test 3c (single limb b) FAILED!\n";
+                std::exit(1);
+            }
+            std::cout << "  Test 3c (single limb b): PASS\n";
+        }
+    }
+
+    // Test 4: bul/bui (dividing a 2N-width value by N-width using _imp)
+    // This tests the TODO cases in the codebase
+    {
+        std::mt19937 gen(42);
+        std::uniform_int_distribution<u32> dist(0, 0xffffffffu);
+
+        for (int i = 0; i < 100; ++i) {
+            bul a{};  // 2N capacity
+            bui b{};  // N capacity
+            for (u32 j = 0; j < BI_2N; ++j) a[j] = dist(gen);
+            for (u32 j = 0; j < BI_N; ++j) b[j] = dist(gen);
+            if (bui_is0(b)) b[BI_N-1] = 1;
+
+            // Make b have fewer limbs sometimes
+            if (i % 5 == 0) {
+                for (u32 j = 0; j < BI_N/2; ++j)
+                    b[j] = 0;
+                b[BI_N/2] |= 1u << 31;
+            }
+
+            // If a < b, skip (since bul/bui cmp not directly testable with simple verify)
+            // Actually let's use _imp to compute q, r
+            bul q{};
+            bui r{};
+
+            divmod_knuth_imp(a.data(), BI_2N, b.data(), BI_N, q.data(), BI_2N, r.data(), BI_N);
+
+            // Verify: r < b
+            if (cmp(r, b) >= 0) {
+                std::cerr << "Test 4 (bul/bui) FAILED: remainder >= divisor at iter " << i << "\n";
+                std::exit(1);
+            }
+        }
+        std::cout << "  Test 4 (100 bul/bui): r < b check PASS\n";
+    }
+
+    std::cout << "All tests PASSED!\n";
+}
+
 int main() {
-    using std::cout;
-    using std::endl;
-
-    // {
-    //     // bui x = bui_from_dec("123456789");
-    //     // bui e = bui_from_dec("65537");
-    //     // bui m = bui_from_dec("1000000007");
-    //     bui x = bui_from_dec("6949805586317758496");
-    //     bui e = bui_from_dec("15425568521676317348");
-    //     bui m = bui_from_dec("16551092499265970731");
-    //     bui r = pow_mod_mont_cios2(x, e, m);
-    //     std::cout << bui_to_dec(r) << '\n'; // 8200633687040324010
-    //     return 0;
-    // }
-
-    bui tt = bui_from_dec("10850230394766384103107228565732700591998183978729776235675428711444172751337127279965246958616283758446800440987816517962513658188119312923410696014659584");
-    cout << "tt = " << bui_to_dec(tt) << '\n';
-
-    bui ta = bui_from_dec("6");
-    bui tb = bui_from_dec("5");
-    bui tq{}, tr{};
-    divmod(ta, tb, tq, tr);
-    cout << "tq = " << bui_to_dec(tq) << ", tr = " << bui_to_dec(tr) << '\n';
-
-    // --- create bigints from decimal strings ---
-    bui A = bui_from_dec("123456789012345678901234567890");
-    // bui B = bui_from_dec("98765432109876543210987654321");
-    bui B = bui_from_hex("0x00000008FFFFFFFFFFFFFFFFFFFFFFFF");
-    cout << "A (dec) : " << bui_to_dec(A) << "\n";
-    cout << "B (dec) : " << bui_to_dec(B) << "\n";
-    cout << "A (hex) : " << bui_to_hex(A, true) << "\n";
-    cout << "B (hex) : " << bui_to_hex(B, true) << "\n\n";
-
-    // --- add / subtract ---
-    bui sum = add(A, B);
-    cout << "A + B = " << bui_to_dec(sum) << "\n";
-
-    bui diff = A;
-    // assume A > B for demonstration; if not swap
-    if (cmp(diff, B) >= 0) {
-        sub_ip(diff, B);
-        cout << "A - B = " << bui_to_dec(diff) << "\n";
-    } else {
-        bui tmp = B;
-        sub_ip(tmp, A);
-        cout << "B - A = " << bui_to_dec(tmp) << "\n";
-    }
-
-    // --- multiplication (full 2N result and low half) ---
-    bul prod;
-    mul_ref(A, B, prod);                // full 2N product
-    cout << "A * B (low half as dec): " << bul_to_dec(prod) << "\n";
-    cout << "A * B (low half only): " << bui_to_dec(bul_low(prod)) << "\n\n";
-    // A = bui_from_u32(2);
-    // B = bui_from_u32(3);
-    bui prod_low = mul_low_fast(A, B);
-    cout << "A * B (narrowing): " << bui_to_dec(prod_low) << "\n";
-
-    // --- division/modulo ---
-    bui q, r;
-    divmod(A, B, q, r);                 // q = A / B, r = A % B
-    cout << "A / B = " << bui_to_dec(q) << ",  A % B = " << bui_to_dec(r) << "\n\n";
-
-    // --- modular operations ---
-    // choose a modulus m (must be odd for Montgomery)
-    bui m = bui_from_dec("1000000000000000000000000000037"); // example prime-like modulus
-
-    // reduce values modulo m
-    bui A_mod = mod(A, m);
-    bui B_mod = mod(B, m);
-    cout << "A mod m = " << bui_to_dec(A_mod) << "\n";
-    cout << "B mod m = " << bui_to_dec(B_mod) << "\n";
-
-    // modular multiply (uses mul_mod_ip)
-    bui C = A_mod;
-    mul_mod_ip(C, B_mod, m);
-    cout << "A * B mod m = " << bui_to_dec(C) << "\n\n";
-
-    // --- modular exponentiation (naive) ---
-    bui e = bui_from_dec("65537");      // common exponent
-    bui naive_pow = pow_mod(A_mod, e, m);
-    cout << "naive A^65537 mod m = " << bui_to_dec(naive_pow) << "\n";
-
-    // --- Montgomery exponentiation (faster) ---
-    auto t0 = std::chrono::steady_clock::now();
-    bui mont_pow = mr_pow_mod(A_mod, e, m); // mr_pow_mod constructs a MontgomeryReducer internally
-    auto t1 = std::chrono::steady_clock::now();
-    auto dur = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
-    std::cout << "D: " << dur << "\n";
-    cout << "Montgomery A^65537 mod m = " << bui_to_dec(mont_pow) << "\n\n";
-    // --- Montgomery 2 exponentiation (faster) ---
-    t0 = std::chrono::steady_clock::now();
-    bui mont2_pow = mr_cios_pow_mod(A_mod, e, m); // mr_pow_mod constructs a MontgomeryReducer internally
-    t1 = std::chrono::steady_clock::now();
-    dur = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
-    std::cout << "D: " << dur << "\n";
-    cout << "Montgomery A^65537 mod m = " << bui_to_dec(mont2_pow) << "\n\n";
-
-    // --- modular inverse (extended gcd) ---
-    bui inv;
-    if (mod_inverse(A_mod, m, inv)) {
-        cout << "A^{-1} mod m = " << bui_to_dec(inv) << "\n";
-        // verify: (A_mod * inv) % m == 1
-        bui check = A_mod;
-        mul_mod_ip(check, inv, m);
-        cout << "verify (A * inv) mod m = " << bui_to_dec(check) << "\n";
-    } else {
-        cout << "A has no inverse modulo m\n";
-    }
-
-    // --- shifts ---
-    bui sh = A;
-    shift_left_ip(sh, 20);              // sh <<= 20 bits
-    cout << "A << 20 (dec) = " << bui_to_dec(sh) << "\n";
-
-    bui sh_mod = shift_left_mod(A_mod, 100, m); // (A * 2^100) % m
-    cout << "A * 2^100 mod m = " << bui_to_dec(sh_mod) << "\n";
-
-    bui f1 = bui_binary_flood1(33);
-    cout << "f1 = " << bui_to_dec(f1) << "\n";
-    bul f2 = bul_binary_flood1(721);
-    cout << "f2 = " << bul_to_dec(f2) << "\n";
-
-    // --- convert back to hex/dec strings for display (already used above) ---
-    cout << "\nDone.\n";
+    test_divmod_imp();
     return 0;
 }

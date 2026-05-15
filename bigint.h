@@ -226,15 +226,20 @@ void add_ip(bul& a, const bul& b);
 void sub_ip(bui& a, const bui& b);
 void add_mod_ip(bui& a, const bui &b, const bui &m);
 void sub_mod_ip(bui &a, const bui &b, const bui &m);
-bui mod_native_deprecated(bui x, const bui &m);
-bui mod_native_deprecated(bul x, const bui &m);
 bui nmod_native(bui x, const bui &m);
 bui nmod_native(bul x, const bui &m);
 void divmod_knuth(const bui &a, const bui& b, bui& quot, bui& rem);
 void divmod_knuth2(const bui &a, const bui& b, bui& quot, bui& rem);
+void divmod_knuth(const bul& a, const bui& b, bul& q, bui& r);
+void divmod_knuth(const bul& a, const bul& b, bul& q, bul& r);
 
 bui mod(const bui &x, const bui &m);
 void mod_ip(bui &x, const bui &m);
+bui mod(const bul &x, const bui &m);
+void mod_ip(bul &x, const bui &m);
+bul mod(const bul &x, const bul &m);
+void mod_ip(bul &x, const bul &m);
+
 
 void mul_mod_ip(bui &a, bui b, const bui &m);
 void mul_ref(const bui &a, const bui &b, bul &r);
@@ -569,7 +574,7 @@ inline bul shift_left_expand_fused(const bui& x, const u32 k) {
 inline bui shift_left_mod2(const bui& x, const u32 k, const bui& m) {
 	assert(k < BI_BIT * 2 && "Cannot shift left by big amount (k > 2xBI_BIT - 1)");
 	bul p2 = shift_left_expand_fused(x, k);
-	return nmod_native(p2, m); // TODO: imp bul divmod_knuth
+	return mod(p2, m);
 }
 
 // shift left mod (r = x * 2^k mod m)
@@ -578,7 +583,7 @@ inline bui shift_left_mod_bulk(bui x, u32 k, const bui& m) {
 	while (k > 0) {
 		u32 step = k > BI_BIT ? BI_BIT : k;
 		bul p2 = shift_left_expand_fused(x, step);
-		x = nmod_native(p2, m); // TODO: imp bul divmod_knuth
+		x = mod(p2, m);
 		k -= step;
 	}
 	return x;
@@ -588,13 +593,6 @@ inline bui shift_left_mod_bulk(bui x, u32 k, const bui& m) {
 // @deprecated Use shift_left_mod2() instead
 inline bui shift_left_mod(const bui& x, const u32 k, const bui& m) {
 	return shift_left_mod2(x, k, m);
-	// assert(k < BI_BIT * 2 && "Cannot shift left by big amount (k > 2xBI_BIT - 1)");
-	// bul p2 = bul_pow2(k);
-	// bui p2m = mod_native(p2, m);
-	// x = mod_native(x, m);
-	// mul_ref(x, p2m, p2);
-	// p2m = mod_native(p2, m);
-	// return p2m;
 }
 
 // shift right in-place (x /= 2^k)
@@ -649,22 +647,25 @@ inline bool bul_is0(const bul &x) { return bu_is0_imp(x.data(), BI_2N); }
 
 // Return low-part of bul as bui
 inline bui bul_low(const bul& x) {
-	bui r{};
-	std::copy(x.begin() + BI_N, x.end(), r.begin());
-	return r;
+	return x.low();
+	// bui r{};
+	// std::copy(x.begin() + BI_N, x.end(), r.begin());
+	// return r;
 }
 
 // Return high-part of bul as bui
 inline bui bul_high(const bul& x) {
-	bui r{};
-	std::copy_n(x.begin(), BI_N, r.begin());
-	return r;
+	return x.high();
+	// bui r{};
+	// std::copy_n(x.begin(), BI_N, r.begin());
+	// return r;
 }
 
 // Return new bul with low-part being input bui x
 inline bul bui_to_bul(const bui& x) {
 	bul r{};
-	std::copy(x.begin(), x.end(), r.begin() + BI_N);
+	r.low() = x;
+	// std::copy(x.begin(), x.end(), r.begin() + BI_N);
 	return r;
 }
 
@@ -1089,60 +1090,7 @@ inline void mul_mod_ip(bui &a, bui b, const bui &m) {
 	b = mod(b, m);
 	bul r{};
 	mul_ref(a, b, r);
-	a = nmod_native(r, m); // TODO: imp bul divmod_knuth
-}
-
-/// @deprecated
-inline bui mod_native_deprecated(bui x, const bui& m) {
-	long long shift = (long long) highest_bit(x) - highest_bit(m);
-	if (shift < 0) return x;
-
-	for (; shift >= 0; --shift) {
-		bui tmp = m;
-		shift_left_ip(tmp, shift);
-		if (cmp(x, tmp) >= 0)
-			sub_ip(x, tmp);
-	}
-	return x;
-}
-
-/// @deprecated
-inline bui mod_native_deprecated(bul x, const bui& m) {
-	long long shift = (long long) highest_bit(x) - highest_bit(m);
-	if (shift < 0) return x.low();
-
-	for (; shift >= 0; --shift) {
-		bul tmp = bui_to_bul(m);
-		shift_left_ip(tmp, shift);
-		if (cmp(x, tmp) >= 0)
-			sub_ip(x, tmp);
-	}
-	return x.low();
-}
-
-/// @deprecated
-inline void mod_native_ip_deprecated(bui& x, const bui& m) {
-	long long shift = (long long) highest_bit(x) - highest_bit(m);
-	if (shift < 0) return;
-	for (; shift >= 0; --shift) {
-		bui tmp = m;
-		shift_left_ip(tmp, shift);
-		if (cmp(x, tmp) >= 0)
-			sub_ip(x, tmp);
-	}
-}
-
-/// @deprecated
-inline void mod_native_ip_deprecated(bul& x, const bui& m) {
-	long long shift = (long long) highest_bit(x) - highest_bit(m);
-	if (shift < 0) return;
-
-	for (; shift >= 0; --shift) {
-		bul tmp = bui_to_bul(m);
-		shift_left_ip(tmp, shift);
-		if (cmp(x, tmp) >= 0)
-			sub_ip(x, tmp);
-	}
+	a = mod(r, m); // TODO: imp bul divmod_knuth
 }
 
 // Do the exact same sliding window trick for the _ip versions:
@@ -1190,9 +1138,33 @@ inline bui mod(const bui &x, const bui &m) {
 #endif
 }
 
-inline void mod_ip(bui &x, const bui &m) {
-	x = mod(x, m);
+inline void mod_ip(bui &x, const bui &m) { x = mod(x, m); }
+
+inline bui mod(const bul &x, const bui &m) {
+#ifdef BI_USE_DIVMOD_KNUTH
+	bul q;
+	bui r;
+	divmod_knuth(x, m, q, r);
+	return r;
+#else
+	return nmod_native(x, m);
+#endif
 }
+
+inline void mod_ip(bul &x, const bui &m) { x.high() = {}; x.low() = mod(x, m); }
+
+inline bul mod(const bul &x, const bul &m) {
+#ifdef BI_USE_DIVMOD_KNUTH
+	bul q;
+	bul r;
+	divmod_knuth(x, m, q, r);
+	return r;
+#else
+	return nmod_native(x, m);
+#endif
+}
+
+inline void mod_ip(bul &x, const bul &m) { x = mod(x, m); }
 
 /// <r = x*x> Return a squared result of input x
 BI_ALWAYS_INLINE void sqr_imp(const u32* a, u32* r, const u32 n) {
@@ -1580,6 +1552,247 @@ inline void divmod_knuth2(const bui& a, const bui& b, bui& quot, bui& rem) {
 	std::copy_n(u.begin() + 2, BI_N, rem.begin());
 }
 
+BI_ALWAYS_INLINE void u32_divmod_imp(const u32* a, u32 na, u32 d, u32* q, u32* r_out) {
+	u32 r = 0;
+	u32 a_lead_pow = highest_limb_imp(a, na);
+	if (a_lead_pow == 0 && a[na - 1] == 0) {
+		*r_out = 0;
+		return;
+	}
+	for (u32 i = na - 1 - a_lead_pow; i < na; ++i)
+		q[i] = u32_divmod_single(r, a[i], d, &r);
+	*r_out = r;
+}
+
+inline void divmod_knuth_imp(const u32* a, const u32 na, const u32* b, const u32 nb, u32* q, const u32 nq, u32* r, const u32 nr) {
+	assert(!bu_is0_imp(b, nb));
+	int cm = cmp_imp_nab(a, na, b, nb);
+	if (cm < 0) {
+		memset(q, 0, nq * BI_SU32);
+		memset(r, 0, nr * BI_SU32);
+		if (nr >= na)
+			memcpy(r + nr - na, a, na * BI_SU32);
+		else
+			memcpy(r, a + na - nr, nr * BI_SU32);
+		return;
+	}
+	if (cm == 0) {
+		memset(q, 0, nq * BI_SU32);
+		q[nq - 1] = 1;
+		memset(r, 0, nr * BI_SU32);
+		return;
+	}
+
+	u32 d_lead_pow = highest_limb_imp(b, nb);
+	if (d_lead_pow == 0 && b[nb - 1] != 0) {
+		memset(q, 0, nq * BI_SU32);
+		u32 r32 = 0;
+		u32_divmod_imp(a, na, b[nb - 1], q, &r32);
+		memset(r, 0, nr * BI_SU32);
+		r[nr - 1] = r32;
+		return;
+	}
+
+	const u32 n = d_lead_pow + 1;
+	const u32 d_start = nb - n;
+
+	std::vector<u32> u(na + 2, 0);
+	std::vector<u32> d(nb, 0);
+	memcpy(d.data(), b, nb * BI_SU32);
+	memcpy(u.data() + 2, a, na * BI_SU32);
+
+	u32 d0 = d[d_start];
+	const u32 norm_shift = d0 == 0 ? 0 : BI_SBU32 - highest_bit(d0);
+
+	if (norm_shift > 0) {
+		shift_left_ip_imp(d.data(), nb, norm_shift);
+		shift_left_ip_imp(u.data(), na + 2, norm_shift);
+	}
+
+	d0 = d[d_start];
+	const u32 d1 = n > 1 ? d[d_start + 1] : 0;
+
+	memset(q, 0, nq * BI_SU32);
+	const u32 u_lead_pow = highest_limb_imp(u.data(), na + 2);
+	int j = (int)u_lead_pow - (int)d_lead_pow + 1;
+
+	while (j-- > 0) {
+		const u32 u_idx = na + 1 - (j + n);
+
+		u32 u_jn = u[u_idx];
+		u32 u_jn1 = u[u_idx + 1];
+		u32 u_jn2 = (u_idx + 2 < na + 2) ? u[u_idx + 2] : 0;
+
+		u64 u_top = ((u64)u_jn << BI_SBU32) | u_jn1;
+		u64 qhat, rhat;
+
+		if (u_jn == d0) {
+			qhat = 0xffffffffULL;
+			rhat = (u64)u_jn1 + d0;
+		} else {
+			qhat = u_top / d0;
+			rhat = u_top % d0;
+		}
+
+		while (rhat < (1ULL << BI_SBU32) && qhat * d1 > (rhat << BI_SBU32) + u_jn2) {
+			--qhat;
+			rhat += d0;
+		}
+
+		u64 borrow = 0;
+		for (u32 i = 0; i < n; ++i) {
+			u32 u_i = u_idx + n - i;
+			u32 d_i = nb - 1 - i;
+
+			u64 sub = qhat * d[d_i] + borrow;
+			borrow = (sub >> BI_SBU32) + (u[u_i] < (u32)sub);
+			u[u_i] -= (u32)sub;
+		}
+
+		bool is_negative = borrow > u[u_idx];
+		u[u_idx] -= (u32)borrow;
+
+		u32 q_idx = nq - 1 - j;
+		if (q_idx < nq)
+			q[q_idx] = (u32)qhat;
+
+		if (is_negative) {
+			if (q_idx < nq)
+				--q[q_idx];
+			u32 carry = add_ip_n_imp(u.data() + u_idx + 1, d.data() + d_start, n);
+			u[u_idx] += carry;
+		}
+	}
+
+	if (norm_shift > 0)
+		shift_right_ip_imp(u.data(), na + 2, norm_shift);
+
+	memset(r, 0, nr * BI_SU32);
+	if (nr >= na)
+		memcpy(r + nr - na, u.data() + 2, na * BI_SU32);
+	else
+		memcpy(r, u.data() + 2 + na - nr, nr * BI_SU32);
+}
+
+template <u32 na, u32 nb, u32 nq, u32 nr>
+void divmod_knuth_template(const u32* a, const u32* b, u32* q, u32* r) {
+	assert(!bu_is0_imp(b, nb));
+	int cm = cmp_imp_nab(a, na, b, nb);
+	if (cm < 0) {
+		std::fill_n(q, nq, 0);
+		std::fill_n(r, nr, 0);
+		if (nr >= na)
+			std::copy_n(a, na, r + nr - na);
+		else
+			std::copy_n(a + na - nr, nr, r);
+		return;
+	}
+	if (cm == 0) {
+		std::fill_n(q, nq, 0);
+		q[nq - 1] = 1;
+		std::fill_n(r, nr, 0);
+		return;
+	}
+
+	u32 d_lead_pow = highest_limb_imp(b, nb);
+	if (d_lead_pow == 0 && b[nb - 1] != 0) {
+		std::fill_n(q, nq, 0);
+		u32 r32 = 0;
+		u32_divmod_imp(a, na, b[nb - 1], q, &r32);
+		std::fill_n(r, nr, 0);
+		r[nr - 1] = r32;
+		return;
+	}
+
+	const u32 n = d_lead_pow + 1;
+	const u32 d_start = nb - n;
+
+	std::array<u32, na + 2> u{};
+	std::array<u32, nb> d{};
+	std::copy_n(b, nb, d.begin());
+	std::copy_n(a, na, u.begin() + 2);
+
+	u32 d0 = d[d_start];
+	const u32 norm_shift = d0 == 0 ? 0 : BI_SBU32 - highest_bit(d0);
+
+	if (norm_shift > 0) {
+		shift_left_ip_imp(d.data(), nb, norm_shift);
+		shift_left_ip_imp(u.data(), na + 2, norm_shift);
+	}
+
+	d0 = d[d_start];
+	const u32 d1 = n > 1 ? d[d_start + 1] : 0;
+
+	std::fill_n(q, nq, 0);
+	const u32 u_lead_pow = highest_limb_imp(u.data(), na + 2);
+	int j = (int)u_lead_pow - (int)d_lead_pow + 1;
+
+	while (j-- > 0) {
+		const u32 u_idx = na + 1 - (j + n);
+
+		u32 u_jn = u[u_idx];
+		u32 u_jn1 = u[u_idx + 1];
+		u32 u_jn2 = (u_idx + 2 < na + 2) ? u[u_idx + 2] : 0;
+
+		u64 u_top = ((u64)u_jn << BI_SBU32) | u_jn1;
+		u64 qhat, rhat;
+
+		if (u_jn == d0) {
+			qhat = 0xffffffffULL;
+			rhat = (u64)u_jn1 + d0;
+		} else {
+			qhat = u_top / d0;
+			rhat = u_top % d0;
+		}
+
+		while (rhat < (1ULL << BI_SBU32) && qhat * d1 > (rhat << BI_SBU32) + u_jn2) {
+			--qhat;
+			rhat += d0;
+		}
+
+		u64 borrow = 0;
+		for (u32 i = 0; i < n; ++i) {
+			u32 u_i = u_idx + n - i;
+			u32 d_i = nb - 1 - i;
+
+			u64 sub = qhat * d[d_i] + borrow;
+			borrow = (sub >> BI_SBU32) + (u[u_i] < (u32)sub);
+			u[u_i] -= (u32)sub;
+		}
+
+		bool is_negative = borrow > u[u_idx];
+		u[u_idx] -= (u32)borrow;
+
+		u32 q_idx = nq - 1 - j;
+		if (q_idx < nq)
+			q[q_idx] = (u32)qhat;
+
+		if (is_negative) {
+			if (q_idx < nq)
+				--q[q_idx];
+			u32 carry = add_ip_n_imp(u.data() + u_idx + 1, d.data() + d_start, n);
+			u[u_idx] += carry;
+		}
+	}
+
+	if (norm_shift > 0)
+		shift_right_ip_imp(u.data(), na + 2, norm_shift);
+
+	std::fill_n(r, nr, 0);
+	if (nr >= na)
+		std::copy_n(u.begin() + 2, na, r + nr - na);
+	else
+		std::copy_n(u.begin() + 2 + na - nr, nr, r);
+}
+
+inline void divmod_knuth(const bul& a, const bui& b, bul& q, bui& r) {
+	divmod_knuth_template<BI_2N, BI_N, BI_2N, BI_N>(a.data(), b.data(), q.data(), r.data());
+}
+
+inline void divmod_knuth(const bul& a, const bul& b, bul& q, bul& r) {
+	divmod_knuth_template<BI_2N, BI_2N, BI_2N, BI_2N>(a.data(), b.data(), q.data(), r.data());
+}
+
 /// Computes x = (2x) in-place.
 BI_ALWAYS_INLINE u32 dbl_ip_n_imp(u32* x, u32 n) {
 	assert(n != 0 && "Cannot double zero-limb.");
@@ -1842,8 +2055,7 @@ inline bool mod_inverse_old(bui a, const bui &m, bui &inv_out) {
 		bul prod{};
 		mul_ref(q, t1, prod);  // prod = q * t1 (2N words)
 
-		// TODO: imp bul divmod_knuth
-		auto qtm_rem = nmod_native(prod, m); // qtm_rem = (prod) % m
+		auto qtm_rem = mod(prod, m); // qtm_rem = (prod) % m
 
 		// t_new = t0 - qtm_rem mod m
 		bui tnew = t0;
@@ -1942,8 +2154,7 @@ inline bool mod_inverse(const bui& a_in, const bui& m, bui& inv_out) {
 		// qt = (q * t1) % m
 		bul prod{};
 		mul_ref(q, t1, prod);
-		// TODO: imp bul divmod_knuth
-		bui qt = nmod_native(prod, m);
+		bui qt = mod(prod, m);
 
 		// tnew = (t0 - qt) mod m
 		bui tnew{};
@@ -2069,8 +2280,7 @@ struct MontgomeryReducer {
 		if (reducerBits > BI_BIT) reducerBits = BI_BIT;
 		reducer = bul_pow2(reducerBits);
 		mask = bui_binary_flood1(reducerBits);
-		// TODO: imp bul divmod_knuth
-		convertedOne = nmod_native(reducer, modulus);
+		convertedOne = mod(reducer, modulus);
 		mod_inverse(convertedOne, modulus, reciprocal); // reducer^-1 mod modulus (fast path: odd m → binary GCD)
 
 		auto tmp = bui_to_bul(reciprocal);
@@ -2369,14 +2579,13 @@ struct MontgomeryReducerCIOS {
 		return t;
 	}
 
-	MontgomeryReducerCIOS(const bui& mod) : modulus(mod) {
+	MontgomeryReducerCIOS(const bui& m) : modulus(m) {
 		assert(get_bit(modulus, 0) && cmp(modulus, bui1()) > 0);
 		n0prime = compute_n0prime(modulus);
 
 		// R mod m
 		bul R = bul_pow2(BI_BIT);
-		// TODO: imp bul divmod_knuth
-		convertedOne = nmod_native(R, modulus);
+		convertedOne = mod(R, modulus);
 
 		// R^2 mod m (normal domain)
 		r2 = convertedOne;
@@ -2538,11 +2747,15 @@ struct MontgomeryReducerCIOS2 {
 			n0_inv = 0u - x;
 		}
 
-		// R = 2^BI_BIT mod m
-		r2 = shift_left_mod(bui1(), BI_BIT, m);
-		// R^2 = R * 2^BI_BIT mod m = 2^{2*BI_BIT} mod m
-		for (u32 i = 0; i < BI_BIT; ++i)
-			dbl_mod_ip(r2, m);
+		r2 = bui1();
+		for (u32 i = 0; i < BI_BIT * 2; ++i)
+			dbl_mod_ip(r2, m); // r2 = 2^(2*BI_BIT) mod mod
+
+		// // R = 2^BI_BIT mod m
+		// r2 = shift_left_mod(bui1(), BI_BIT, m);
+		// // R^2 = R * 2^BI_BIT mod m = 2^{2*BI_BIT} mod m
+		// for (u32 i = 0; i < BI_BIT; ++i)
+		// 	dbl_mod_ip(r2, m);
 	}
 
 	bui mul(const bui& a, const bui& b) const {
@@ -2612,6 +2825,113 @@ struct MontgomeryReducerCIOS2 {
 
 bui pow_mod_mont_cios2(const bui& x, const bui& e, const bui& m) {
 	MontgomeryReducerCIOS2 mr(m);
+	bui base = mr.to_mont(x);
+	bui result = mr.to_mont(bui1());
+	u32 bits = highest_bit(e);
+	while (bits-- > 0) {
+		result = mr.mul(result, result);
+		if (get_bit(e, bits))
+			result = mr.mul(result, base);
+	}
+	return mr.from_mont(result);
+}
+
+struct MontgomeryReducerCIOS3 {
+	bui m;      // modulus
+	u32 n0_inv{};   // -m[LSW]^{-1} mod 2^32
+	bui r2{};
+	MontgomeryReducerCIOS3() = default;
+	explicit MontgomeryReducerCIOS3(const bui& m) : m(m) {
+		assert(m[BI_N - 1] & 1);
+		// Newton iteration for inverse mod 2^32
+		{
+			u32 x{1}, m0{m[BI_N - 1]};
+			x *= 2u - m0 * x;
+			x *= 2u - m0 * x;
+			x *= 2u - m0 * x;
+			x *= 2u - m0 * x;
+			x *= 2u - m0 * x;
+			n0_inv = 0u - x;
+		}
+
+		r2 = bui1();
+		for (u32 i = 0; i < BI_BIT * 2; ++i)
+			dbl_mod_ip(r2, m); // r2 = 2^(2*BI_BIT) mod mod
+
+		// // R = 2^BI_BIT mod m
+		// r2 = shift_left_mod(bui1(), BI_BIT, m);
+		// // R^2 = R * 2^BI_BIT mod m = 2^{2*BI_BIT} mod m
+		// for (u32 i = 0; i < BI_BIT; ++i)
+		// 	dbl_mod_ip(r2, m);
+	}
+
+	bui mul(const bui& a, const bui& b) const {
+		std::array<u32, BI_N + 2> t{};
+
+		for (u32 i = 0; i < BI_N; ++i) {
+			const u32 bi = b[BI_N - 1 - i];
+
+			u64 A, C;
+			u32 t0_new;
+
+			{
+				const u32 a0 = a[BI_N - 1];
+				u64 s = (u64)t[0] + (u64)a0 * bi;
+				A = s >> 32;
+				t0_new = (u32)s;
+			}
+
+			u32 q = (u32)((u64)t0_new * n0_inv);
+
+			{
+				const u32 m0 = m[BI_N - 1];
+				u64 s = (u64)t0_new + (u64)q * m0;
+				C = s >> 32;
+			}
+
+			BI_UNROLL(BI_UNROLL_THRESHOLD)
+			for (u32 j = 1; j < BI_N; ++j) {
+				u32 aj = a[BI_N - 1 - j];
+				u64 s1 = (u64)t[j] + (u64)aj * bi + A;
+				A = s1 >> 32;
+				u32 tj_new = (u32)s1;
+
+				u32 mj = m[BI_N - 1 - j];
+				u64 s2 = (u64)tj_new + (u64)q * mj + C;
+				C = s2 >> 32;
+				t[j - 1] = (u32)s2;
+			}
+
+			u64 s = (u64)t[BI_N] + C + A;
+			t[BI_N - 1] = (u32)s;
+			A = s >> 32;
+
+			s = (u64)t[BI_N + 1] + A;
+			t[BI_N] = (u32)s;
+			t[BI_N + 1] = (u32)(s >> 32);
+		}
+
+		bui r{};
+		for (u32 i = 0; i < BI_N; ++i)
+			r[BI_N - 1 - i] = t[i];
+
+		if (t[BI_N] || t[BI_N + 1] || cmp(r, m) >= 0)
+			sub_ip(r, m);
+
+		return r;
+	}
+
+	BI_ALWAYS_INLINE bui to_mont(const bui& x) const {
+		return mul(mod(x, m), r2);
+	}
+
+	BI_ALWAYS_INLINE bui from_mont(const bui& x) const {
+		return mul(x, bui1());
+	}
+};
+
+bui pow_mod_mont_cios3(const bui& x, const bui& e, const bui& m) {
+	MontgomeryReducerCIOS3 mr(m);
 	bui base = mr.to_mont(x);
 	bui result = mr.to_mont(bui1());
 	u32 bits = highest_bit(e);
