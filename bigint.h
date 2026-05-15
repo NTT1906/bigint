@@ -569,16 +569,16 @@ inline bul shift_left_expand_fused(const bui& x, const u32 k) {
 inline bui shift_left_mod2(const bui& x, const u32 k, const bui& m) {
 	assert(k < BI_BIT * 2 && "Cannot shift left by big amount (k > 2xBI_BIT - 1)");
 	bul p2 = shift_left_expand_fused(x, k);
-	return nmod_native(p2, m);
+	return nmod_native(p2, m); // TODO: imp bul divmod_knuth
 }
 
 // shift left mod (r = x * 2^k mod m)
 inline bui shift_left_mod_bulk(bui x, u32 k, const bui& m) {
-	x = mod_native_deprecated(x, m);
+	x = mod(x, m);
 	while (k > 0) {
 		u32 step = k > BI_BIT ? BI_BIT : k;
 		bul p2 = shift_left_expand_fused(x, step);
-		x = nmod_native(p2, m);
+		x = nmod_native(p2, m); // TODO: imp bul divmod_knuth
 		k -= step;
 	}
 	return x;
@@ -1085,11 +1085,11 @@ inline bul karatsuba(const bui& a, const bui& b) {
 }
 
 inline void mul_mod_ip(bui &a, bui b, const bui &m) {
-	a = mod_native_deprecated(a, m);
-	b = mod_native_deprecated(b, m);
+	a = mod(a, m);
+	b = mod(b, m);
 	bul r{};
 	mul_ref(a, b, r);
-	a = mod_native_deprecated(r, m);
+	a = nmod_native(r, m); // TODO: imp bul divmod_knuth
 }
 
 /// @deprecated
@@ -1828,7 +1828,7 @@ inline bui bui_from_bin(const std::string& s) {
 inline bool mod_inverse_old(bui a, const bui &m, bui &inv_out) {
 	// invalid modulus or zero
 	if (bui_is0(m)) return false;
-	if (cmp(a, m) >= 0) a = mod_native_deprecated(a, m);
+	if (cmp(a, m) >= 0) a = mod(a, m);
 	if (bui_is0(a)) return false; // zero has no inverse
 	bui r0 = m, r1 = a, t0{}, t1 = bui1();
 	while (!bui_is0(r1)) {
@@ -1841,7 +1841,9 @@ inline bool mod_inverse_old(bui a, const bui &m, bui &inv_out) {
 		// compute q * t1 -> bul, then reduce modulo m to get r_qt (bui)
 		bul prod{};
 		mul_ref(q, t1, prod);  // prod = q * t1 (2N words)
-		auto qtm_rem = mod_native_deprecated(prod, m); // qtm_rem = (prod) % m
+
+		// TODO: imp bul divmod_knuth
+		auto qtm_rem = nmod_native(prod, m); // qtm_rem = (prod) % m
 
 		// t_new = t0 - qtm_rem mod m
 		bui tnew = t0;
@@ -1867,7 +1869,7 @@ inline bool mod_inverse_old(bui a, const bui &m, bui &inv_out) {
 inline bool mod_inverse(const bui& a_in, const bui& m, bui& inv_out) {
 	if (bui_is0(m)) return false;
 	bui a = a_in;
-	if (cmp(a, m) >= 0) a = mod_native_deprecated(a, m);
+	if (cmp(a, m) >= 0) a = mod(a, m);
 	if (bui_is0(a)) return false;
 
 	if (get_bit(m, 0)) {
@@ -1940,7 +1942,8 @@ inline bool mod_inverse(const bui& a_in, const bui& m, bui& inv_out) {
 		// qt = (q * t1) % m
 		bul prod{};
 		mul_ref(q, t1, prod);
-		bui qt = mod_native_deprecated(prod, m);
+		// TODO: imp bul divmod_knuth
+		bui qt = nmod_native(prod, m);
 
 		// tnew = (t0 - qt) mod m
 		bui tnew{};
@@ -1963,7 +1966,7 @@ inline bool mod_inverse(const bui& a_in, const bui& m, bui& inv_out) {
 
 inline bool mod_inverse_binary(bui a, const bui& m, bui& inv_out) {
 	if (bui_is0(a) || bui_is0(m)) return false;
-	if (cmp(a, m) >= 0) a = mod_native_deprecated(a, m);
+	if (cmp(a, m) >= 0) a = mod(a, m);
 	if (bui_is0(a)) return false;
 
 	bui u = a;
@@ -2066,7 +2069,8 @@ struct MontgomeryReducer {
 		if (reducerBits > BI_BIT) reducerBits = BI_BIT;
 		reducer = bul_pow2(reducerBits);
 		mask = bui_binary_flood1(reducerBits);
-		convertedOne = mod_native_deprecated(reducer, modulus);
+		// TODO: imp bul divmod_knuth
+		convertedOne = nmod_native(reducer, modulus);
 		mod_inverse(convertedOne, modulus, reciprocal); // reducer^-1 mod modulus (fast path: odd m → binary GCD)
 
 		auto tmp = bui_to_bul(reciprocal);
@@ -2295,12 +2299,7 @@ struct MontgomeryReducerCIOS {
 
 			for (u32 j = 0; j < BI_N; ++j) {
 				u32 tj = BI_N - 1 - j;
-
-				u64 s =
-					(u64)t[tj]
-					+ (u64)a[tj] * bi
-					+ c;
-
+				u64 s = (u64)t[tj] + (u64)a[tj] * bi + c;
 				t[tj] = (u32)s;
 				c = s >> 32;
 			}
@@ -2349,30 +2348,12 @@ struct MontgomeryReducerCIOS {
 
 			// t += a * bi
 			carry += mul_add_acc(t, a, bi);
-			// u64 c = 0;
-			// for (u32 j = 0; j < BI_N; ++j) {
-			// 	const u32 aj = a[BI_N - 1 - j];
-			// 	const u32 tj = BI_N - 1 - j;
-			// 	u64 s = (u64)t[tj] + (u64)aj * bi + c;
-			// 	t[tj] = (u32)s;
-			// 	c = s >> BI_SBU32;
-			// }
-			// carry = (u32)((u64)carry + c);
 
 			// q = t0 * n0' mod 2^32
 			const u32 q = (u32)((u64)t[BI_N - 1] * n0prime);
 
 			// t += m * q
 			carry += mul_add_acc(t, modulus, q);
-			// c = 0;
-			// for (u32 j = 0; j < BI_N; ++j) {
-			// 	const u32 mj = modulus[BI_N - 1 - j];
-			// 	const u32 tj = BI_N - 1 - j;
-			// 	u64 s = (u64)t[tj] + (u64)mj * q + c;
-			// 	t[tj] = (u32)s;
-			// 	c = s >> BI_SBU32;
-			// }
-			// carry = (u32)((u64)carry + c);
 
 			// t >>= 32
 			// TODO: shift_limb_right(t, 1);
@@ -2394,7 +2375,8 @@ struct MontgomeryReducerCIOS {
 
 		// R mod m
 		bul R = bul_pow2(BI_BIT);
-		convertedOne = mod_native_deprecated(R, modulus);
+		// TODO: imp bul divmod_knuth
+		convertedOne = nmod_native(R, modulus);
 
 		// R^2 mod m (normal domain)
 		r2 = convertedOne;
@@ -2402,9 +2384,8 @@ struct MontgomeryReducerCIOS {
 	}
 
 	// convert x -> xR mod m
-	BI_ALWAYS_INLINE bui convertIn(bui x) const {
-		x = mod_native_deprecated(x, modulus);
-		return mul_cios(x, r2);
+	BI_ALWAYS_INLINE bui convertIn(const bui& x) const {
+		return mul_cios(mod(x, modulus), r2);
 	}
 
 	// convert xR -> x
@@ -2519,7 +2500,7 @@ struct MontgomeryReducerSOS {
 	}
 
 	BI_ALWAYS_INLINE bui to_mont(const bui& x) const {
-		return mul(mod_native_deprecated(x, m), r2);
+		return mul(mod(x, m), r2);
 	}
 
 	BI_ALWAYS_INLINE bui from_mont(const bui& x) const {
@@ -2541,11 +2522,11 @@ bui pow_mod_mont_sos(const bui& x, const bui& e, const bui& m) {
 }
 
 struct MontgomeryReducerCIOS2 {
-	bui mod;      // modulus
+	bui m;      // modulus
 	u32 n0_inv{};   // -m[LSW]^{-1} mod 2^32
 	bui r2{};
 	MontgomeryReducerCIOS2() = default;
-	explicit MontgomeryReducerCIOS2(const bui& m) : mod(m) {
+	explicit MontgomeryReducerCIOS2(const bui& m) : m(m) {
 		assert(mod[BI_N - 1] & 1);
 		// Newton iteration for inverse mod 2^32
 		{
@@ -2590,13 +2571,13 @@ struct MontgomeryReducerCIOS2 {
 			const u32 mword = (u32)((u64)t[0] * n0_inv);
 
 			{
-				const u32 m0 = mod[BI_N - 1];
+				const u32 m0 = m[BI_N - 1];
 				u64 s = (u64)t[0] + (u64)mword * m0;
 				carry = s >> 32;
 			}
 
 			for (u32 j = 1; j < BI_N; ++j) {
-				const u32 mj = mod[BI_N - 1 - j];
+				const u32 mj = m[BI_N - 1 - j];
 				u64 s = (u64)t[j] + (u64)mword * mj + carry;
 				t[j - 1] = (u32)s;
 				carry = s >> 32;
@@ -2617,14 +2598,14 @@ struct MontgomeryReducerCIOS2 {
 		for (u32 i = 0; i < BI_N; ++i)
 			r[BI_N - 1 - i] = t[i];
 
-		if (t[BI_N] || t[BI_N + 1] || cmp(r, mod) >= 0)
-			sub_ip(r, mod);
+		if (t[BI_N] || t[BI_N + 1] || cmp(r, m) >= 0)
+			sub_ip(r, m);
 
 		return r;
 	}
 
 	BI_ALWAYS_INLINE bui to_mont(const bui& x) const {
-		return mul(mod_native_deprecated(x, mod), r2);
+		return mul(mod(x, m), r2);
 	}
 
 	BI_ALWAYS_INLINE bui from_mont(const bui& x) const {
