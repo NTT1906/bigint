@@ -48,24 +48,28 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Install CMake 4
+      - name: Install CMake
         uses: jwlawson/actions-setup-cmake@v2
         with:
           cmake-version: '4.0.0'
 
-      # Setup MSYS2 + MinGW GCC on Windows
+      # ----------------------------
+      # MSYS2 (Windows GCC)
+      # ----------------------------
       - name: Setup MSYS2
         if: matrix.compiler == 'mingw'
         uses: msys2/setup-msys2@v2
         with:
           msystem: MINGW64
           update: true
+          cache: true
           install: >-
             mingw-w64-x86_64-gcc
-            mingw-w64-x86_64-cmake
             mingw-w64-x86_64-ninja
 
-      # Verify compilers on Linux + MinGW
+      # ----------------------------
+      # Verify compiler
+      # ----------------------------
       - name: Verify compiler
         if: matrix.compiler != 'msvc'
         shell: bash
@@ -74,7 +78,9 @@ jobs:
           ${{ matrix.cc }} --version
           ${{ matrix.cxx }} --version
 
-      # Configure compiler environment
+      # ----------------------------
+      # Set CC/CXX (Linux + MinGW)
+      # ----------------------------
       - name: Configure environment
         if: matrix.compiler != 'msvc'
         shell: bash
@@ -82,34 +88,18 @@ jobs:
           echo "CC=${{ matrix.cc }}" >> $GITHUB_ENV
           echo "CXX=${{ matrix.cxx }}" >> $GITHUB_ENV
 
-      #
-      # NORMAL BUILDS (Linux + MSVC)
-      #
-
+      # ----------------------------
+      # Configure (Linux + MSVC)
+      # ----------------------------
       - name: Configure CMake (Normal)
         if: matrix.compiler != 'mingw'
         run: >
           cmake -B build
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
 
-      - name: Build (Normal)
-        if: matrix.compiler != 'mingw'
-        run: >
-          cmake --build build
-          --config ${{ env.BUILD_TYPE }}
-
-      - name: Test (Normal)
-        if: matrix.compiler != 'mingw'
-        working-directory: build
-        run: >
-          ctest
-          -C ${{ env.BUILD_TYPE }}
-          --output-on-failure
-
-      #
-      # MINGW BUILDS
-      #
-
+      # ----------------------------
+      # Configure (MinGW)
+      # ----------------------------
       - name: Configure CMake (MinGW)
         if: matrix.compiler == 'mingw'
         shell: msys2 {0}
@@ -118,18 +108,42 @@ jobs:
           -G Ninja
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
 
+      # ----------------------------
+      # Build (Linux + MSVC)
+      # ----------------------------
+      - name: Build (Normal)
+        if: matrix.compiler != 'mingw'
+        run: >
+          cmake --build build
+          --config ${{ env.BUILD_TYPE }}
+
+      # ----------------------------
+      # Build (MinGW)
+      # ----------------------------
       - name: Build (MinGW)
         if: matrix.compiler == 'mingw'
         shell: msys2 {0}
         run: >
           cmake --build build
-          --config ${{ env.BUILD_TYPE }}
 
+      # ----------------------------
+      # Test (Linux + MSVC)
+      # ----------------------------
+      - name: Test (Normal)
+        if: matrix.compiler != 'mingw'
+        working-directory: build
+        run: >
+          ctest
+          -C ${{ env.BUILD_TYPE }}
+          --output-on-failure
+
+      # ----------------------------
+      # Test (MinGW)
+      # ----------------------------
       - name: Test (MinGW)
         if: matrix.compiler == 'mingw'
         shell: msys2 {0}
         working-directory: build
         run: >
           ctest
-          -C ${{ env.BUILD_TYPE }}
           --output-on-failure
