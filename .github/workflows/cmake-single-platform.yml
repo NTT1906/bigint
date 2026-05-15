@@ -37,7 +37,7 @@ jobs:
             os: windows-latest
             compiler: msvc
 
-          # Windows GCC (MinGW)
+          # Windows GCC (MinGW/MSYS2)
           - name: Windows GCC
             os: windows-latest
             compiler: mingw
@@ -53,18 +53,23 @@ jobs:
         with:
           cmake-version: '4.0.0'
 
-      # Install MinGW for Windows GCC builds
-      - name: Setup MinGW
+      # Setup MSYS2 + MinGW GCC on Windows
+      - name: Setup MSYS2
         if: matrix.compiler == 'mingw'
-        uses: egor-tensin/setup-mingw@v2
+        uses: msys2/setup-msys2@v2
         with:
-          platform: x64
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
 
       - name: Verify compiler
         shell: bash
         run: |
           cmake --version
-          
+
           if [ "${{ matrix.compiler }}" = "mingw" ] || \
              [ "${{ matrix.compiler }}" = "gcc" ] || \
              [ "${{ matrix.compiler }}" = "clang" ]; then
@@ -72,7 +77,7 @@ jobs:
             ${{ matrix.cxx }} --version
           fi
 
-      # Configure GCC/Clang/MinGW compilers
+      # Configure GCC/Clang environment
       - name: Configure environment
         if: matrix.compiler != 'msvc'
         shell: bash
@@ -80,18 +85,24 @@ jobs:
           echo "CC=${{ matrix.cc }}" >> $GITHUB_ENV
           echo "CXX=${{ matrix.cxx }}" >> $GITHUB_ENV
 
-      # MSVC uses default Visual Studio generator
+      # Configure
       - name: Configure CMake
+        shell: ${{ matrix.compiler == 'mingw' && 'msys2 {0}' || 'bash' }}
         run: >
           cmake -B build
+          -G Ninja
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
 
+      # Build
       - name: Build
+        shell: ${{ matrix.compiler == 'mingw' && 'msys2 {0}' || 'bash' }}
         run: >
           cmake --build build
           --config ${{ env.BUILD_TYPE }}
 
+      # Test
       - name: Test
+        shell: ${{ matrix.compiler == 'mingw' && 'msys2 {0}' || 'bash' }}
         working-directory: build
         run: >
           ctest
