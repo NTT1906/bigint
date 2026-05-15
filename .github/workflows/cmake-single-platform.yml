@@ -1,6 +1,4 @@
-# This starter workflow is for a CMake project running on a single platform. There is a different starter workflow if you need cross-platform coverage.
-# See: https://github.com/actions/starter-workflows/blob/main/ci/cmake-multi-platform.yml
-name: CMake on a single platform
+name: CMake Multi-Compiler CI
 
 on:
   push:
@@ -9,31 +7,93 @@ on:
     branches: [ "main" ]
 
 env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
 
 jobs:
   build:
-    # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
-    # You can convert this to a matrix build if you need cross-platform coverage.
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    runs-on: ubuntu-latest
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux GCC
+          - name: Linux GCC
+            os: ubuntu-latest
+            compiler: gcc
+            cc: gcc
+            cxx: g++
+
+          # Linux Clang
+          - name: Linux Clang
+            os: ubuntu-latest
+            compiler: clang
+            cc: clang
+            cxx: clang++
+
+          # Windows MSVC
+          - name: Windows MSVC
+            os: windows-latest
+            compiler: msvc
+
+          # Windows GCC (MinGW)
+          - name: Windows GCC
+            os: windows-latest
+            compiler: mingw
+            cc: gcc
+            cxx: g++
 
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout source
+        uses: actions/checkout@v4
 
-    - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      - name: Install CMake 4
+        uses: jwlawson/actions-setup-cmake@v2
+        with:
+          cmake-version: '4.0.0'
 
-    - name: Build
-      # Build your program with the given configuration
-      run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      # Install MinGW for Windows GCC builds
+      - name: Setup MinGW
+        if: matrix.compiler == 'mingw'
+        uses: egor-tensin/setup-mingw@v2
+        with:
+          platform: x64
 
-    - name: Test
-      working-directory: ${{github.workspace}}/build
-      # Execute tests defined by the CMake configuration.
-      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
-      run: ctest -C ${{env.BUILD_TYPE}}
+      - name: Verify compiler
+        shell: bash
+        run: |
+          cmake --version
+          
+          if [ "${{ matrix.compiler }}" = "mingw" ] || \
+             [ "${{ matrix.compiler }}" = "gcc" ] || \
+             [ "${{ matrix.compiler }}" = "clang" ]; then
+            ${{ matrix.cc }} --version
+            ${{ matrix.cxx }} --version
+          fi
 
+      # Configure GCC/Clang/MinGW compilers
+      - name: Configure environment
+        if: matrix.compiler != 'msvc'
+        shell: bash
+        run: |
+          echo "CC=${{ matrix.cc }}" >> $GITHUB_ENV
+          echo "CXX=${{ matrix.cxx }}" >> $GITHUB_ENV
+
+      # MSVC uses default Visual Studio generator
+      - name: Configure CMake
+        run: >
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build
+        run: >
+          cmake --build build
+          --config ${{ env.BUILD_TYPE }}
+
+      - name: Test
+        working-directory: build
+        run: >
+          ctest
+          -C ${{ env.BUILD_TYPE }}
+          --output-on-failure
