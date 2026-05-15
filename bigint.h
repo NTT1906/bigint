@@ -2359,9 +2359,9 @@ struct MontgomeryReducerCIOS {
 			// TODO: shift_limb_right(t, 1);
 			for (u32 j = BI_N - 1; j >= 1; --j) t[j] = t[j - 1];
 			t[0] = carry;
-			if (carry > (1ULL << 32) - 1) {
-				printf("WUT!? %llu\n", carry);
-			}
+			// if (carry > (1ULL << 32) - 1) {
+			// 	printf("WUT!? %llu\n", carry);
+			// }
 			carry >>= 32;
 			// carry = 0;
 		}
@@ -2439,12 +2439,11 @@ struct MontgomeryReducerSOS {
 			x *= 2u - m0 * x;
 			n0_inv = 0u - x;
 		}
-		r2 = bui1();
-		for (u32 i = 0; i < BI_BIT * 2; ++i)
-			dbl_mod_ip(r2, m); // r2 = 2^(2*BI_BIT) mod mod
-		// bui r = shift_left_mod(bui1(), BI_BIT, mod);
-		// r2 = r;
-		// mul_mod_ip(r2, r, mod);
+		// R = 2^BI_BIT mod m
+		r2 = shift_left_mod(bui1(), BI_BIT, m);
+		// R^2 = R * 2^BI_BIT mod m = 2^{2*BI_BIT} mod m
+		for (u32 i = 0; i < BI_BIT; ++i)
+			dbl_mod_ip(r2, m);
 	}
 
 	bui mul(const bui& a, const bui& b) const {
@@ -2527,7 +2526,7 @@ struct MontgomeryReducerCIOS2 {
 	bui r2{};
 	MontgomeryReducerCIOS2() = default;
 	explicit MontgomeryReducerCIOS2(const bui& m) : m(m) {
-		assert(mod[BI_N - 1] & 1);
+		assert(m[BI_N - 1] & 1);
 		// Newton iteration for inverse mod 2^32
 		{
 			u32 x{1}, m0{m[BI_N - 1]};
@@ -2539,13 +2538,11 @@ struct MontgomeryReducerCIOS2 {
 			n0_inv = 0u - x;
 		}
 
-		r2 = bui1();
-		for (u32 i = 0; i < BI_BIT * 2; ++i)
-			dbl_mod_ip(r2, m); // r2 = 2^(2*BI_BIT) mod mod
-
-		// bui r = shift_left_mod(bui1(), BI_BIT, mod);
-		// r2 = r;
-		// mul_mod_ip(r2, r, mod);
+		// R = 2^BI_BIT mod m
+		r2 = shift_left_mod(bui1(), BI_BIT, m);
+		// R^2 = R * 2^BI_BIT mod m = 2^{2*BI_BIT} mod m
+		for (u32 i = 0; i < BI_BIT; ++i)
+			dbl_mod_ip(r2, m);
 	}
 
 	bui mul(const bui& a, const bui& b) const {
