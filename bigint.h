@@ -1,15 +1,13 @@
-#ifndef _BIGINT_H_
-#define _BIGINT_H_
+#ifndef BIGINT_H_
+#define BIGINT_H_
 #include <algorithm>
 #include <array>
 #include <cassert>
-#include <cstdint>
 #include <cstring>
 #include <future>
 #include <string>
 #include <random>
 #include <cctype>
-#include <cstring>
 #include <iostream>
 #include <vector>
 
@@ -21,7 +19,7 @@ typedef uint64_t u64;
 // #endif
 
 // MACRO DETAIL:
-// BI_BIT: fixed size of bigint in bit
+// BI_BIT: fixed size of bigint in bit length
 // BI_N: size of bigint in limb (1 limb = u32 = 32 bit)
 // BI_FORCE_UNROLL: force some loop to unroll when optimize
 // BI_UNROLL_THRESHOLD: unroll threshold
