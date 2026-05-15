@@ -2185,7 +2185,7 @@ struct BarrettReducer {
 
 	// 1024-bit x 1024-bit -> Returns the Top 1024-bits
 	static bul mul_top_1024(const bul& a, const bul& b) {
-		BI_OP_CONSTEXPR u32 N2 = BI_2N;
+		static constexpr u32 N2 = BI_2N;
 		std::array<u32, N2 * 2> r_full{};
 
 		// Standard O(n^2) multiply, but calculating out to 2048 bits
