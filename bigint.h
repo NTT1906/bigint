@@ -1191,7 +1191,7 @@ inline void nmod_native_ip(bul& x, const bui& m) {
 	}
 }
 
-/// <r = x*x> Return squared result of input x
+/// <r = x*x> Return a squared result of input x
 BI_ALWAYS_INLINE void sqr_imp(const u32* a, u32* r, const u32 n) {
 	std::fill_n(r, 2 * n, 0);
 
@@ -1199,18 +1199,12 @@ BI_ALWAYS_INLINE void sqr_imp(const u32* a, u32* r, const u32 n) {
 	for (u32 i = n; i-- > 1;) {
 		if (!a[i]) continue;
 		u64 c = 0;
-		for (u32 j = i; j-- > 0;) { // Notice j strictly stops before i
+		for (u32 j = i; j-- > 0;) {
 			u64 p = (u64)a[i] * a[j] + r[i + j + 1] + c;
 			r[i + j + 1] = (u32)p;
 			c = p >> BI_SBU32;
 		}
-		u32 k = i;
-		while (c) {
-			u64 s = (u64)r[k] + c;
-			r[k] = (u32)s;
-			c = s >> BI_SBU32;
-			if (k-- == 0) break;
-		}
+		r[i] = c;
 	}
 
 	// 2. Double the cross-products (r = r * 2)
@@ -1230,7 +1224,7 @@ BI_ALWAYS_INLINE void sqr_imp(const u32* a, u32* r, const u32 n) {
 	}
 }
 
-/// <r = x*x> Return squared result of input x
+/// <r = x*x> Return a squared result of input x
 inline bul sqr(const bui& a) {
 	bul r{};
 	sqr_imp(a.data(), r.data(), BI_N);
