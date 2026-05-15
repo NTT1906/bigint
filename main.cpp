@@ -1,15 +1,36 @@
 #include <iostream>
-#define BI_BIT 512
+#define BI_BIT 64
 #include "bigint.h"
 
 int main() {
     using std::cout;
     using std::endl;
 
+    // {
+    //     // bui x = bui_from_dec("123456789");
+    //     // bui e = bui_from_dec("65537");
+    //     // bui m = bui_from_dec("1000000007");
+    //     bui x = bui_from_dec("6949805586317758496");
+    //     bui e = bui_from_dec("15425568521676317348");
+    //     bui m = bui_from_dec("16551092499265970731");
+    //     bui r = pow_mod_mont_cios2(x, e, m);
+    //     std::cout << bui_to_dec(r) << '\n'; // 8200633687040324010
+    //     return 0;
+    // }
+
+    bui tt = bui_from_dec("10850230394766384103107228565732700591998183978729776235675428711444172751337127279965246958616283758446800440987816517962513658188119312923410696014659584");
+    cout << "tt = " << bui_to_dec(tt) << '\n';
+
+    bui ta = bui_from_dec("6");
+    bui tb = bui_from_dec("5");
+    bui tq{}, tr{};
+    divmod(ta, tb, tq, tr);
+    cout << "tq = " << bui_to_dec(tq) << ", tr = " << bui_to_dec(tr) << '\n';
+
     // --- create bigints from decimal strings ---
     bui A = bui_from_dec("123456789012345678901234567890");
-    bui B = bui_from_dec("98765432109876543210987654321");
-
+    // bui B = bui_from_dec("98765432109876543210987654321");
+    bui B = bui_from_hex("0x00000008FFFFFFFFFFFFFFFFFFFFFFFF");
     cout << "A (dec) : " << bui_to_dec(A) << "\n";
     cout << "B (dec) : " << bui_to_dec(B) << "\n";
     cout << "A (hex) : " << bui_to_hex(A, true) << "\n";
@@ -50,8 +71,8 @@ int main() {
     bui m = bui_from_dec("1000000000000000000000000000037"); // example prime-like modulus
 
     // reduce values modulo m
-    bui A_mod = mod_native(A, m);
-    bui B_mod = mod_native(B, m);
+    bui A_mod = mod(A, m);
+    bui B_mod = mod(B, m);
     cout << "A mod m = " << bui_to_dec(A_mod) << "\n";
     cout << "B mod m = " << bui_to_dec(B_mod) << "\n";
 
@@ -69,14 +90,14 @@ int main() {
     auto t0 = std::chrono::steady_clock::now();
     bui mont_pow = mr_pow_mod(A_mod, e, m); // mr_pow_mod constructs a MontgomeryReducer internally
     auto t1 = std::chrono::steady_clock::now();
-    auto dur = duration_cast<std::chrono::microseconds>(t1 - t0).count();
+    auto dur = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
     std::cout << "D: " << dur << "\n";
     cout << "Montgomery A^65537 mod m = " << bui_to_dec(mont_pow) << "\n\n";
     // --- Montgomery 2 exponentiation (faster) ---
     t0 = std::chrono::steady_clock::now();
-    bui mont2_pow = mr2_pow_mod(A_mod, e, m); // mr_pow_mod constructs a MontgomeryReducer internally
+    bui mont2_pow = mr_cios_pow_mod(A_mod, e, m); // mr_pow_mod constructs a MontgomeryReducer internally
     t1 = std::chrono::steady_clock::now();
-    dur = duration_cast<std::chrono::microseconds>(t1 - t0).count();
+    dur = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
     std::cout << "D: " << dur << "\n";
     cout << "Montgomery A^65537 mod m = " << bui_to_dec(mont2_pow) << "\n\n";
 
