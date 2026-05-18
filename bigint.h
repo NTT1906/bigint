@@ -419,6 +419,7 @@ BI_ALWAYS_INLINE u32 highest_limb_template(const u32 *x) {
 
 BI_ALWAYS_INLINE u32 highest_limb_imp(const u32 *x, const u32 n) {
 	u32 i = 0;
+#ifndef BI_FORCE_UNROLL
 	if  (n > 16) {
 		for (; i + 3 < n; i += 4) {
 			if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
@@ -429,6 +430,8 @@ BI_ALWAYS_INLINE u32 highest_limb_imp(const u32 *x, const u32 n) {
 			}
 		}
 	}
+#endif
+	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	for (; i < n; ++i)
 		if (x[i] != 0) return n - i - 1;
 	return 0;
