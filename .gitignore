@@ -1,8 +1,88 @@
-.idea
-.zed
-AGENTS.md
-cmake-build-debug
-cmake-*
+# IDEs / Editors
+.idea/
+.vscode/
+.vs/
+.zed/
+
+# Visual Studio
+*.sln
+*.vcxproj*
+*.vcproj*
+*.user
+*.userosscache
+*.suo
+*.opensdf
+*.sdf
+*.ipch
+*.pdb
+*.ilk
+*.idb
+*.obj
+*.pch
+*.rsp
+*.tlog
+*.lastbuildstate
+
+# Visual Studio build folders
+Debug/
+Release/
+x64/
+x86/
+Win32/
+out/
+
+# CMake
+cmake-build-debug/
+cmake-build-release/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+compile_commands.json
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+
+# Ninja
+.ninja_deps
+.ninja_log
+build.ninja
+
+# Executables / binaries
 *.exe
-CMakeFiles
-paper
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.o
+*.obj
+
+# AI / Agent / LLM tooling
+AGENTS.md
+.agent/
+.agents/
+.cursor/
+.copilot/
+.claude/
+.aider/
+.llm/
+.ai/
+.prompt/
+.prompts/
+.memory/
+.memories/
+
+# AI-generated scratch / sandbox dirs
+tmp/
+temp/
+sandbox/
+scratch/
+experiments/
+paper/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
