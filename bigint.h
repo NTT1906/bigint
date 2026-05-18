@@ -267,9 +267,15 @@ void mod_ip(bul &x, const bui &m);
 bul mod(const bul &x, const bul &m);
 void mod_ip(bul &x, const bul &m);
 
+void mul_ref(const bui &a, const bui &b, bul &r);
+void mul_ip(bui &a, const bui &b);
 
 void mul_mod_ip(bui &a, bui b, const bui &m);
-void mul_ref(const bui &a, const bui &b, bul &r);
+void mul_mod_soft_ip(bui &a, const bui& b, const bui &m);
+void sqr_mod_ip(bui &a, const bui &m);
+void sqr_mod_soft_ip(bui &a, const bui &m);
+bul sqr(const bui& a);
+
 bui bui_pow2(u32 k);
 bul bul_pow2(u32 k);
 bui bui_binary_flood1(u32 k);
@@ -905,20 +911,6 @@ BI_ALWAYS_INLINE void mul_imp(const u32* a, const u32* b, u32* r, const u32 n) {
 			c = p >> BI_SBU32;
 		}
 		r[i] = c;
-		// if (c) r[i] = c;
-		// u32 k = i;
-		// u32 counter = 0;
-		// while (c) {
-		// 	counter++;
-		// 	if (counter >= 2) {
-		// 		printf("DEBUG: It did loop a lot!\n");
-		// 	} else if (counter == 1) {
-		// 		printf("DEBUG: It did loop for once\n");
-		// 	}
-		// 	u64 s = (u64)r[k] + c;
-		// 	r[k--] = (u32)s; // k may underflow but carry will be 0 next iter
-		// 	c = s >> BI_SBU32;
-		// }
 	}
 }
 
@@ -942,38 +934,24 @@ BI_ALWAYS_INLINE void mul_imp_fast(const u32* a, const u32* b, u32* r, const u32
 			c = p >> BI_SBU32;
 		}
 		r[i + start_b] = c;
-		// u32 k = i + start_b;
-		// while (c) {
-		// 	if (r[k]) {
-		// 		printf("mul_imp_fast: r_k not 0 (%u)\n", r[k]);
-		// 	}
-		// 	u64 s = (u64)r[k] + c;
-		// 	r[k--] = (u32)s;
-		// 	c = s >> BI_SBU32;
-		// }
 	}
 }
 
-BI_ALWAYS_INLINE void mul_imp2(const u32* a, const u32* b, u32* r, const u32 n) {
-	std::fill_n(r, 2 * n, 0);
-	for (u32 i = 0; i < n; ++i) {
-		if (a[n - 1 - i] == 0) continue;
-		u64 c = 0;
-		u32 k = 2 * n - 1 - i;
-		BI_UNROLL(BI_UNROLL_THRESHOLD)
-		for (u32 j = 0; j < n; ++j) {
-			u64 p = (u64)a[n - 1 - i] * b[n - 1 - j] + r[k] + c;
-			r[k--] = (u32)p;
-			c = p >> BI_SBU32;
-		}
-		r[k] = c;
-		// while (c) {
-		// 	u64 s = (u64)r[k] + c;
-		// 	r[k--] = (u32)s;
-		// 	c = s >> BI_SBU32;
-		// }
-	}
-}
+// BI_ALWAYS_INLINE void mul_imp2(const u32* a, const u32* b, u32* r, const u32 n) {
+// 	std::fill_n(r, 2 * n, 0);
+// 	for (u32 i = 0; i < n; ++i) {
+// 		if (a[n - 1 - i] == 0) continue;
+// 		u64 c = 0;
+// 		u32 k = 2 * n - 1 - i;
+// 		BI_UNROLL(BI_UNROLL_THRESHOLD)
+// 		for (u32 j = 0; j < n; ++j) {
+// 			u64 p = (u64)a[n - 1 - i] * b[n - 1 - j] + r[k] + c;
+// 			r[k--] = (u32)p;
+// 			c = p >> BI_SBU32;
+// 		}
+// 		r[k] = c;
+// 	}
+// }
 
 inline void mul_ref(const bui &a, const bui &b, bul &r) {
 	mul_imp(a.data(), b.data(), r.data(), BI_N);
@@ -995,36 +973,6 @@ inline bui mul_low(const bui& a, const bui& b) {
 	bul r = mul(a, b);
 	return r.low();
 }
-
-// inline bui mul_low_fast(const bui& a, const bui& b) {
-// 	bui r{};
-// 	for (u32 i = 0; i < BI_N; ++i) {
-// 		if (!a[BI_N - 1 - i]) continue;
-// 		u32 c = 0;
-// 		for (u32 j = 0; j < BI_N; ++j) {
-// 			if (i + j >= BI_N) continue;
-// 			u64 p = (u64)a[BI_N - 1 - i] * b[BI_N - 1 - j] + r[BI_N - 1 - (i + j)] + c;
-// 			r[BI_N - 1 - (i + j)] = (u32)p;
-// 			c = p >> BI_SBU32;
-// 		}
-// 	}
-// 	return r;
-// }
-
-// template <u32 N>
-// BI_ALWAYS_INLINE void mul_low_fast_template(const u32 *a, const u32 *b, u32 *r) {
-// 	std::fill_n(r, N, 0);
-// 	for (u32 i = 0; i < N; ++i) {
-// 		u32 ai = a[N - 1 - i];
-// 		if (!ai) continue;
-// 		u32 c{0}, ri{N - 1 - i};
-// 		for (u32 j = 0; j < N - i; ++j) {
-// 			u64 p = (u64)ai * b[N - 1 - j] + r[ri - j] + c;
-// 			r[ri - j] = (u32)p;
-// 			c = p >> BI_SBU32;
-// 		}
-// 	}
-// }
 
 inline bui mul_low_fast(const bui& a, const bui& b) {
 	bui r{};
@@ -1057,7 +1005,7 @@ inline bul mul_low_fast(const bul& a, const bul& b) {
 }
 
 // --- Karatsuba Multiplication ---
-static const u32 KARATSUBA_CUTOFF = 8;
+static constexpr u32 KARATSUBA_CUTOFF = 8;
 
 static void karatsuba_imp(const u32* a, const u32* b, u32* r, u32 n, u32* scratch) {
 	if (n <= KARATSUBA_CUTOFF) {
@@ -1142,11 +1090,28 @@ inline bul karatsuba(const bui& a, const bui& b) {
 }
 
 inline void mul_mod_ip(bui &a, bui b, const bui &m) {
-	a = mod(a, m);
-	b = mod(b, m);
+	mod_ip(a, m);
+	mod_ip(b, m);
 	bul r{};
 	mul_ref(a, b, r);
-	a = mod(r, m); // TODO: imp bul divmod_knuth
+	a = mod(r, m);
+}
+
+inline void mul_mod_soft_ip(bui &a, const bui& b, const bui &m) {
+	bul r{};
+	mul_ref(a, b, r);
+	a = mod(r, m);
+}
+
+inline void sqr_mod_ip(bui &a, const bui &m) {
+	mod_ip(a, m);
+	bul r = sqr(a);
+	a = mod(r, m);
+}
+
+inline void sqr_mod_soft_ip(bui &a, const bui &m) {
+	bul r = sqr(a);
+	a = mod(r, m);
 }
 
 // Do the exact same sliding window trick for the _ip versions:
