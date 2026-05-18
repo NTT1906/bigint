@@ -353,6 +353,7 @@ inline u32 highest_bit(u32 x) {
 
 inline u32 highest_bit(const bui &x) {
 	u32 i = 0;
+#ifndef BI_FORCE_UNROLL
 	for (; i + 3 < BI_N; i += 4) {
 		if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
 			if (x[i  ]) return highest_bit(x[i  ]) + (BI_N - i - 1) * BI_SBU32;
@@ -361,14 +362,16 @@ inline u32 highest_bit(const bui &x) {
 			/* x[i+3] */return highest_bit(x[i+3]) + (BI_N - i - 4) * BI_SBU32;
 		}
 	}
+#endif
+	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	for (; i < BI_N; ++i)
-		if (x[i] != 0)
-			return highest_bit(x[i]) + (BI_N - i - 1) * BI_SBU32;
+		if (x[i] != 0) return highest_bit(x[i]) + (BI_N - i - 1) * BI_SBU32;
 	return 0; // all limbs zero
 }
 
 inline u32 highest_bit(const bul &x) {
 	u32 i = 0;
+#ifndef BI_FORCE_UNROLL
 	for (; i + 3 < BI_2N; i += 4) {
 		if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
 			if (x[i  ]) return highest_bit(x[i  ]) + (BI_2N - i - 1) * BI_SBU32;
@@ -377,25 +380,23 @@ inline u32 highest_bit(const bul &x) {
 			/* x[i+3] */return highest_bit(x[i+3]) + (BI_2N - i - 4) * BI_SBU32;
 		}
 	}
+#endif
+	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	for (; i < BI_2N; ++i)
-		if (x[i] != 0)
-			return highest_bit(x[i]) + (BI_2N - i - 1) * BI_SBU32;
+		if (x[i] != 0) return highest_bit(x[i]) + (BI_2N - i - 1) * BI_SBU32;
 	return 0; // all limbs zero
 }
 
 inline void bitwise_and_ip(bui &a, const bui &b) {
-	for (u32 i = BI_N; i-- > 0;)
-		a[i] &= b[i];
+	for (u32 i = BI_N; i-- > 0;) a[i] &= b[i];
 }
 
 inline void bitwise_or_ip(bui &a, const bui &b) {
-	for (u32 i = BI_N; i-- > 0;)
-		a[i] |= b[i];
+	for (u32 i = BI_N; i-- > 0;) a[i] |= b[i];
 }
 
 inline void bitwise_xor_ip(bui &a, const bui &b) {
-	for (u32 i = BI_N; i-- > 0;)
-		a[i] ^= b[i];
+	for (u32 i = BI_N; i-- > 0;) a[i] ^= b[i];
 }
 
 template <u32 n>
