@@ -10,11 +10,11 @@
 // ============================
 // Prevent optimization
 // ============================
-volatile u32 global_sink = 0;
+volatile uw global_sink = 0;
 
 // Hardware instruction you proved is fastest
-BI_ALWAYS_INLINE u32 u32_divmod_single_hw(u32 hi, u32 lo, u32 b, u32* rem) {
-    u32 q, r;
+BI_ALWAYS_INLINE uw u32_divmod_single_hw(uw hi, uw lo, uw b, uw* rem) {
+    uw q, r;
     __asm__("divl %4"
         : "=a"(q), "=d"(r)
         : "0"(lo), "1"(hi), "rm"(b));
@@ -25,38 +25,38 @@ BI_ALWAYS_INLINE u32 u32_divmod_single_hw(u32 hi, u32 lo, u32 b, u32* rem) {
 // ============================
 // Old Version (Static Loop)
 // ============================
-inline void u32divmod_old(const bui& a, u32 b, bui& q, u32& r) {
+inline void u32divmod_old(const bui& a, uw b, bui& q, uw& r) {
     q = {};
     r = 0;
-    for (u32 i = 0; i < BI_N; ++i)
+    for (uw i = 0; i < BI_N; ++i)
         q[i] = u32_divmod_single_hw(r, a[i], b, &r);
 }
 
-inline void u32divmod_old(const bul &a, u32 d, bul &q, u32& r) {
+inline void u32divmod_old(const bul &a, uw d, bul &q, uw& r) {
     q = {};
     r = 0;
-    for (u32 i = 0; i < BI_N * 2; ++i)
+    for (uw i = 0; i < BI_N * 2; ++i)
         q[i] = u32_divmod_single_hw(r, a[i], d, &r);
 }
 
 // ============================
 // New Version (Dynamic Shrinking)
 // ============================
-inline void u32divmod_new(const bui& a, u32 b, bui& q, u32& r) {
+inline void u32divmod_new(const bui& a, uw b, bui& q, uw& r) {
     q = {};
     r = 0;
-    u32 hl = highest_limb(a);
+    uw hl = highest_limb(a);
     if (hl == 0 && a[BI_N - 1] == 0) return;
-    for (u32 i = BI_N - 1 - hl; i < BI_N; ++i)
+    for (uw i = BI_N - 1 - hl; i < BI_N; ++i)
         q[i] = u32_divmod_single_hw(r, a[i], b, &r);
 }
 
-inline void u32divmod_new(const bul &a, u32 d, bul &q, u32& r) {
+inline void u32divmod_new(const bul &a, uw d, bul &q, uw& r) {
     q = {};
     r = 0;
-    u32 hl = highest_limb(a);
+    uw hl = highest_limb(a);
     if (hl == 0 && a[BI_N * 2 - 1] == 0) return;
-    for (u32 i = BI_N * 2 - 1 - hl; i < BI_N * 2; ++i)
+    for (uw i = BI_N * 2 - 1 - hl; i < BI_N * 2; ++i)
         q[i] = u32_divmod_single_hw(r, a[i], d, &r);
 }
 
@@ -81,7 +81,7 @@ int main() {
 
     std::vector<bui> a_data(NUM_TESTS);
     std::vector<bul> big_data(NUM_TESTS);
-    std::vector<u32> d_data(NUM_TESTS);
+    std::vector<uw> d_data(NUM_TESTS);
 
     std::cout << "Generating varying-length inputs...\n";
 
@@ -91,21 +91,21 @@ int main() {
         bul temp_big; randomize_ip(temp_big);
 
         // Randomly truncate the length to simulate real-world numbers
-        u32 active_limbs_bui = (rng() % BI_N) + 1;
-        u32 active_limbs_bul = (rng() % (BI_N * 2)) + 1;
+        uw active_limbs_bui = (rng() % BI_N) + 1;
+        uw active_limbs_bul = (rng() % (BI_N * 2)) + 1;
 
         // Clear the top limbs to create leading zeros
         a_data[i] = {};
-        for(u32 j = BI_N - active_limbs_bui; j < BI_N; ++j) {
+        for(uw j = BI_N - active_limbs_bui; j < BI_N; ++j) {
             a_data[i][j] = temp_a[j];
         }
 
         big_data[i] = {};
-        for(u32 j = (BI_N * 2) - active_limbs_bul; j < BI_N * 2; ++j) {
+        for(uw j = (BI_N * 2) - active_limbs_bul; j < BI_N * 2; ++j) {
             big_data[i][j] = temp_big[j];
         }
 
-        u32 d = rng();
+        uw d = rng();
         if (d == 0) d = 3;
         d_data[i] = d;
     }
@@ -113,7 +113,7 @@ int main() {
     std::cout << "Running correctness check...\n";
     for (int i = 0; i < NUM_TESTS; ++i) {
         bui q1, q2;
-        u32 r1, r2;
+        uw r1, r2;
         u32divmod_old(a_data[i], d_data[i], q1, r1);
         u32divmod_new(a_data[i], d_data[i], q2, r2);
 
@@ -128,7 +128,7 @@ int main() {
     // bui benchmark
     // =========================
     {
-        bui q; u32 r;
+        bui q; uw r;
 
         auto start_old = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
@@ -158,7 +158,7 @@ int main() {
 
         auto start_old = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
-            u32 r;
+            uw r;
             u32divmod_old(big_data[i], d_data[i], q, r);
             global_sink ^= q[(BI_N * 2) - 1] ^ r;
         }
@@ -166,7 +166,7 @@ int main() {
 
         auto start_new = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
-            u32 r;
+            uw r;
             u32divmod_new(big_data[i], d_data[i], q, r);
             global_sink ^= q[(BI_N * 2) - 1] ^ r;
         }

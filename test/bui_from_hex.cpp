@@ -47,7 +47,7 @@ std::string generate_edge_case_hex(std::mt19937& gen) {
 
 inline bui bui_from_hex_old(const std::string& s) {
     assert(!s.empty() && "bui_from_hex: empty string");
-    u32 i = 0;
+    uw i = 0;
     // skip leading spaces
     while (i < s.size() && isspace(s[i])) ++i;
     // optional "0x" or "0X" prefix
@@ -65,7 +65,7 @@ inline bui bui_from_hex_old(const std::string& s) {
         if (val < 0) break;
         any_digit = true;
         mul_ip(out, n16);
-        tmp[BI_N - 1] = (u32)val;
+        tmp[BI_N - 1] = (uw)val;
         add_ip(out, tmp);
     }
     assert(any_digit && "bui_from_hex: no digits found");
@@ -115,8 +115,8 @@ int main() {
     std::cout << "--- Benchmarking (" << BENCH_ITERATIONS << " iters x "
               << DATASET_SIZE << " strings) ---\n\n";
 
-    u32 checksum_old = 0;
-    u32 checksum_new = 0;
+    uw checksum_old = 0;
+    uw checksum_new = 0;
 
     // --- Bench Old ---
     auto start_old = std::chrono::high_resolution_clock::now();

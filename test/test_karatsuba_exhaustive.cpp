@@ -12,7 +12,7 @@
 static int passed = 0;
 static int failed = 0;
 
-static const u32 interesting[] = {
+static const uw interesting[] = {
 	0x00000000, 0x00000001, 0x00000002, 0x00000003,
 	0x000000FF, 0x00000100, 0x7FFFFFFF, 0x80000000,
 	0x80000001, 0xFFFFFFFE, 0xFFFFFFFF,
@@ -22,15 +22,15 @@ static const u32 interesting[] = {
 static constexpr int N_INTERESTING = sizeof(interesting) / sizeof(interesting[0]);
 
 static std::mt19937 rng(42);
-static u32 rand_u32() {
-	return (u32)rng();
+static uw rand_u32() {
+	return (uw)rng();
 }
 
-static void fill_rand(u32* x, u32 n) {
-	for (u32 i = 0; i < n; ++i) x[i] = rand_u32();
+static void fill_rand(uw* x, uw n) {
+	for (uw i = 0; i < n; ++i) x[i] = rand_u32();
 }
 
-static void fill_edge(u32* x, u32 n, int edge_type) {
+static void fill_edge(uw* x, uw n, int edge_type) {
 	switch (edge_type % 6) {
 	case 0: std::fill_n(x, n, 0u); break;
 	case 1: std::fill_n(x, n, 0xFFFFFFFFu); break;
@@ -41,16 +41,16 @@ static void fill_edge(u32* x, u32 n, int edge_type) {
 	}
 }
 
-static bool test_karatsuba_imp_n(const u32* a, const u32* b, u32 n) {
-	std::vector<u32> r_kara(2 * n, 0xDEADBEEF);
-	std::vector<u32> r_mul(2 * n, 0xDEADBEEF);
-	u32 scratch_limbs = 6 * n + 16;
-	std::vector<u32> scratch(scratch_limbs, 0);
+static bool test_karatsuba_imp_n(const uw* a, const uw* b, uw n) {
+	std::vector<uw> r_kara(2 * n, 0xDEADBEEF);
+	std::vector<uw> r_mul(2 * n, 0xDEADBEEF);
+	uw scratch_limbs = 6 * n + 16;
+	std::vector<uw> scratch(scratch_limbs, 0);
 
 	karatsuba_imp(a, b, r_kara.data(), n, scratch.data());
 	mul_imp(a, b, r_mul.data(), n);
 
-	return memcmp(r_kara.data(), r_mul.data(), 2 * n * sizeof(u32)) == 0;
+	return memcmp(r_kara.data(), r_mul.data(), 2 * n * sizeof(uw)) == 0;
 }
 
 static bool test_karatsuba_pub(const bui& a, const bui& b) {
@@ -62,8 +62,8 @@ static bool test_karatsuba_pub(const bui& a, const bui& b) {
 static void run_exhaustive_small() {
 	std::cout << "--- Exhaustive tests for small n (interesting values) ---\n";
 
-	for (u32 n = 1; n <= 2; ++n) {
-		std::vector<u32> a(n), b(n);
+	for (uw n = 1; n <= 2; ++n) {
+		std::vector<uw> a(n), b(n);
 
 		auto try_all = [&](int& iter) {
 			for (int ai = 0; ai < N_INTERESTING; ++ai) {
@@ -110,14 +110,14 @@ static void run_exhaustive_small() {
 static void run_varied_n() {
 	std::cout << "--- Testing varied n (random + edge cases) ---\n";
 
-	u32 ns[] = {1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 13, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129, BI_N};
+	uw ns[] = {1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 13, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129, BI_N};
 
-	for (u32 n : ns) {
+	for (uw n : ns) {
 		if (n > BI_N) continue;
 
 		const int TRIALS = (n <= 8) ? 50000 : (n <= 32) ? 20000 : (n <= 128) ? 5000 : 1000;
 
-		std::vector<u32> a(n), b(n);
+		std::vector<uw> a(n), b(n);
 		int ok = 0;
 
 		for (int t = 0; t < TRIALS; ++t) {
@@ -133,9 +133,9 @@ static void run_varied_n() {
 				++ok;
 			} else {
 				std::cout << "FAIL: n=" << n << " trial=" << t << "\n  a=[";
-				for (u32 i = 0; i < n; ++i) std::cout << std::hex << a[i] << " ";
+				for (uw i = 0; i < n; ++i) std::cout << std::hex << a[i] << " ";
 				std::cout << "]\n  b=[";
-				for (u32 i = 0; i < n; ++i) std::cout << b[i] << " ";
+				for (uw i = 0; i < n; ++i) std::cout << b[i] << " ";
 				std::cout << "]" << std::dec << "\n";
 				failed += 1;
 				return;
@@ -156,7 +156,7 @@ static void run_public_api() {
 	for (int t = 0; t < TRIALS; ++t) {
 		bui a{}, b{};
 		if (t % 10 == 0) {
-			u32 edge_a[BI_N], edge_b[BI_N];
+			uw edge_a[BI_N], edge_b[BI_N];
 			fill_edge(edge_a, BI_N, t);
 			fill_edge(edge_b, BI_N, t + 1);
 			std::copy_n(edge_a, BI_N, a.data());
@@ -195,8 +195,8 @@ static void run_scratch_consistency() {
 
 		// Manually call karatsuba_imp with a fixed scratch
 		bul r2{};
-		u32 scratch_limbs = 6 * BI_N + 16;
-		std::vector<u32> scratch(scratch_limbs, 0);
+		uw scratch_limbs = 6 * BI_N + 16;
+		std::vector<uw> scratch(scratch_limbs, 0);
 		karatsuba_imp(a.data(), b.data(), r2.data(), BI_N, scratch.data());
 
 		if (cmp(r1, r2) == 0) {

@@ -51,7 +51,7 @@ std::string generate_edge_case_dec(std::mt19937& gen) {
 
 inline bui bui_from_dec_old(const std::string& s) {
     assert(!s.empty() && "bui_from_dec: empty string");
-    u32 i = 0;
+    uw i = 0;
     // skip leading spaces and optional '+'
     while (isspace(s[i])) ++i;
     if (s[i] == '+') ++i;
@@ -117,8 +117,8 @@ int main() {
     std::cout << "--- Benchmarking (" << BENCH_ITERATIONS << " iters x "
               << DATASET_SIZE << " strings) ---\n\n";
 
-    u32 checksum_old = 0;
-    u32 checksum_new = 0;
+    uw checksum_old = 0;
+    uw checksum_new = 0;
 
     auto start_old = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < BENCH_ITERATIONS; ++i) {

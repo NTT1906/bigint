@@ -9,18 +9,18 @@
 #define BI_BIT 4096
 // #define BI_BIT 256
 #include "../bigint.h"
-volatile u32 global_sink = 0;
+volatile uw global_sink = 0;
 
-BI_ALWAYS_INLINE void mul_imp2(const u32* a, const u32* b, u32* r, const u32 n) {
+BI_ALWAYS_INLINE void mul_imp2(const uw* a, const uw* b, uw* r, const uw n) {
 	std::fill_n(r, 2 * n, 0);
-	for (u32 i = 0; i < n; ++i) {
+	for (uw i = 0; i < n; ++i) {
 		if (a[n - 1 - i] == 0) continue;
-		u64 c = 0;
-		u32 k = 2 * n - 1 - i;
+		udw c = 0;
+		uw k = 2 * n - 1 - i;
 		BI_UNROLL(BI_UNROLL_THRESHOLD)
-		for (u32 j = 0; j < n; ++j) {
-			u64 p = (u64)a[n - 1 - i] * b[n - 1 - j] + r[k] + c;
-			r[k--] = (u32)p;
+		for (uw j = 0; j < n; ++j) {
+			udw p = (udw)a[n - 1 - i] * b[n - 1 - j] + r[k] + c;
+			r[k--] = (uw)p;
 			c = p >> BI_SBU32;
 		}
 		r[k] = c;
@@ -42,7 +42,7 @@ int main() {
     std::vector<bul> r_vec(DATASET_SIZE, bul{});
 
     std::mt19937 gen(123456);
-    std::uniform_int_distribution<u32> val_dist(1, 0xFFFFFFFF);
+    std::uniform_int_distribution<uw> val_dist(1, 0xFFFFFFFF);
 
     std::cout << "[+] Generating " << DATASET_SIZE << " edge-case test objects...\n";
     for (int i = 0; i < DATASET_SIZE; ++i) {
@@ -64,12 +64,12 @@ int main() {
             a_vec[i][BI_N / 2] = val_dist(gen); // Throw something in the middle
         } else {
             // Edge Case 4: Random lengths
-            u32 active_limbs_a = (gen() % BI_N) + 1;
-            u32 active_limbs_b = (gen() % BI_N) + 1;
+            uw active_limbs_a = (gen() % BI_N) + 1;
+            uw active_limbs_b = (gen() % BI_N) + 1;
 
-            for(u32 k = 0; k < active_limbs_a; ++k)
+            for(uw k = 0; k < active_limbs_a; ++k)
                 a_vec[i][BI_N - 1 - k] = val_dist(gen);
-            for(u32 k = 0; k < active_limbs_b; ++k)
+            for(uw k = 0; k < active_limbs_b; ++k)
                 b_vec[i][BI_N - 1 - k] = val_dist(gen);
         }
     }
@@ -78,17 +78,17 @@ int main() {
     // Validation
     // ========================================================================
     std::cout << "[+] Validating correctness...\n";
-    std::vector<u32> r_ref(BI_N * 2, 0);
-    std::vector<u32> r_fast(BI_N * 2, 0);
-    std::vector<u32> r_2(BI_N * 2, 0);
+    std::vector<uw> r_ref(BI_N * 2, 0);
+    std::vector<uw> r_fast(BI_N * 2, 0);
+    std::vector<uw> r_2(BI_N * 2, 0);
 
     for (int i = 0; i < DATASET_SIZE; ++i) {
         mul_imp(a_vec[i].data(), b_vec[i].data(), r_ref.data(), BI_N);
         mul_imp_fast(a_vec[i].data(), b_vec[i].data(), r_fast.data(), BI_N);
         mul_imp2(a_vec[i].data(), b_vec[i].data(), r_2.data(), BI_N);
 
-        bool fast_fail = memcmp(r_ref.data(), r_fast.data(), BI_N * 2 * sizeof(u32)) != 0;
-        bool imp2_fail = memcmp(r_ref.data(), r_2.data(), BI_N * 2 * sizeof(u32)) != 0;
+        bool fast_fail = memcmp(r_ref.data(), r_fast.data(), BI_N * 2 * sizeof(uw)) != 0;
+        bool imp2_fail = memcmp(r_ref.data(), r_2.data(), BI_N * 2 * sizeof(uw)) != 0;
 
         if (fast_fail || imp2_fail) {
             std::cerr << "\n[!] VALIDATION FAILED! PROGRAM HALTED.\n";

@@ -10,22 +10,22 @@
 // ============================
 // Prevent optimization
 // ============================
-volatile u32 global_sink = 0;
+volatile uw global_sink = 0;
 
 // ============================
 // Soft version
 // ============================
-BI_ALWAYS_INLINE u32 u32_divmod_single_soft(u32 hi, u32 lo, u32 b, u32* rem) {
-    u64 dividend = (u64)hi << 32 | lo;
-    *rem = (u32)(dividend % b);
-    return (u32)(dividend / b);
+BI_ALWAYS_INLINE uw u32_divmod_single_soft(uw hi, uw lo, uw b, uw* rem) {
+    udw dividend = (udw)hi << 32 | lo;
+    *rem = (uw)(dividend % b);
+    return (uw)(dividend / b);
 }
 
 // ============================
 // HW version (divl)
 // ============================
-BI_ALWAYS_INLINE u32 u32_divmod_single_hw(u32 hi, u32 lo, u32 b, u32* rem) {
-    u32 q, r;
+BI_ALWAYS_INLINE uw u32_divmod_single_hw(uw hi, uw lo, uw b, uw* rem) {
+    uw q, r;
     __asm__("divl %4"
         : "=a"(q), "=d"(r)
         : "0"(lo), "1"(hi), "rm"(b));
@@ -36,33 +36,33 @@ BI_ALWAYS_INLINE u32 u32_divmod_single_hw(u32 hi, u32 lo, u32 b, u32* rem) {
 // ============================
 // bui version
 // ============================
-inline void u32divmod_soft(const bui& a, u32 b, bui& q, u32& r) {
+inline void u32divmod_soft(const bui& a, uw b, bui& q, uw& r) {
     q = {};
     r = 0;
-    for (u32 i = 0; i < BI_N; ++i)
+    for (uw i = 0; i < BI_N; ++i)
         q[i] = u32_divmod_single_soft(r, a[i], b, &r);
 }
 
-inline void u32divmod_hw(const bui& a, u32 b, bui& q, u32& r) {
+inline void u32divmod_hw(const bui& a, uw b, bui& q, uw& r) {
     q = {};
     r = 0;
-    for (u32 i = 0; i < BI_N; ++i)
+    for (uw i = 0; i < BI_N; ++i)
         q[i] = u32_divmod_single_hw(r, a[i], b, &r);
 }
 
 // ============================
 // bul version
 // ============================
-inline u32 u32_divmod_soft(const bul &a, u32 d, bul &q) {
-    u32 r = 0;
-    for (u32 i = 0; i < BI_N * 2; ++i)
+inline uw u32_divmod_soft(const bul &a, uw d, bul &q) {
+    uw r = 0;
+    for (uw i = 0; i < BI_N * 2; ++i)
         q[i] = u32_divmod_single_soft(r, a[i], d, &r);
     return r;
 }
 
-inline u32 u32_divmod_hw(const bul &a, u32 d, bul &q) {
-    u32 r = 0;
-    for (u32 i = 0; i < BI_N * 2; ++i)
+inline uw u32_divmod_hw(const bul &a, uw d, bul &q) {
+    uw r = 0;
+    for (uw i = 0; i < BI_N * 2; ++i)
         q[i] = u32_divmod_single_hw(r, a[i], d, &r);
     return r;
 }
@@ -89,7 +89,7 @@ int main() {
 
     std::vector<bui> a_data(NUM_TESTS);
     std::vector<bul> big_data(NUM_TESTS);
-    std::vector<u32> d_data(NUM_TESTS);
+    std::vector<uw> d_data(NUM_TESTS);
 
     std::cout << "Generating inputs + edge cases...\n";
 
@@ -97,7 +97,7 @@ int main() {
         randomize_ip(a_data[i]);
         randomize_ip(big_data[i]);
 
-        u32 d = rng();
+        uw d = rng();
         if (d == 0) d = 3;
 
         // edge cases
@@ -112,7 +112,7 @@ int main() {
 
     for (int i = 0; i < NUM_TESTS; ++i) {
         bui q1, q2;
-        u32 r1, r2;
+        uw r1, r2;
 
         u32divmod_soft(a_data[i], d_data[i], q1, r1);
         u32divmod_hw(a_data[i], d_data[i], q2, r2);
@@ -130,7 +130,7 @@ int main() {
     // =========================
     {
         bui q;
-        u32 r;
+        uw r;
 
         auto start_soft = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
@@ -160,14 +160,14 @@ int main() {
 
         auto start_soft = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
-            u32 r = u32_divmod_soft(big_data[i], d_data[i], q);
+            uw r = u32_divmod_soft(big_data[i], d_data[i], q);
             global_sink ^= q[0] ^ r;
         }
         auto end_soft = std::chrono::high_resolution_clock::now();
 
         auto start_hw = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
-            u32 r = u32_divmod_hw(big_data[i], d_data[i], q);
+            uw r = u32_divmod_hw(big_data[i], d_data[i], q);
             global_sink ^= q[0] ^ r;
         }
         auto end_hw = std::chrono::high_resolution_clock::now();

@@ -32,7 +32,7 @@ bool is_prime_miller_rabin(const bui& n, int k = 40) {
     bui n_minus_3 = sub(n, b3);
 
     bui d = n_minus_1;
-    u32 s = 0;
+    uw s = 0;
 
     // Shift right until d is odd
     while (!get_bit(d, 0)) {
@@ -60,7 +60,7 @@ bool is_prime_miller_rabin(const bui& n, int k = 40) {
         }
 
         bool composite = true;
-        for (u32 r = 1; r < s; ++r) {
+        for (uw r = 1; r < s; ++r) {
             // x = x^2 mod n (Using blazing fast Montgomery multiplication!)
             x = mr.multiply(x, x);
 
@@ -85,9 +85,9 @@ static bool has_small_factor(const bui &n) {
 	   43,47,53,59,61,67,71,73,79,83,89,97
    };
 	for (int p : SMALL_PRIMES) {
-		u32 r = 0; bui tmp;
-		u32divmod(n, (u32)p, tmp, r);
-		if (r == 0) return cmp(n, bui_from_u32((u32)p)) != 0;
+		uw r = 0; bui tmp;
+		u32divmod(n, (uw)p, tmp, r);
+		if (r == 0) return cmp(n, bui_from_u32((uw)p)) != 0;
 	}
 	return false;
 }
@@ -114,7 +114,7 @@ int main() {
     auto start = std::chrono::high_resolution_clock::now();
 
     bool res;
-    for (u32 i = 0; i < iter; ++i) {
+    for (uw i = 0; i < iter; ++i) {
         res = is_prime_miller_rabin(p, 40); // 40 rounds
     }
 
