@@ -1379,6 +1379,70 @@ inline bui pow_mod(bui x, const bui& e, const bui &m) {
 	return r;
 }
 
+// Return pow_mod (x^e % m)
+inline bui pow_mod2(bui x, const bui& e, const bui &m) {
+	mod_ip(x, m);
+	bui r = bui1();
+	u32 hb = highest_bit(e);
+	for (u32 i = 0; i < hb; ++i) {
+		if (get_bit(e, i))
+			mul_mod_soft_ip(r, x, m);
+		sqr_mod_soft_ip(x, m);
+	}
+	return r;
+}
+
+// Return pow_mod (x^e % m) using sliding window exponentiation
+inline bui pow_mod_window(bui x, const bui& e, const bui &m) {
+	mod_ip(x, m);
+
+	u32 hb = highest_bit(e);
+	if (hb <= 1) {
+		if (hb == 1 && get_bit(e, 0)) return x;
+		return bui1();
+	}
+
+	u32 w = 4;
+	if (hb > 200) w = 5;
+	if (hb > 600) w = 6;
+	if (hb > 1200) w = 7;
+
+	const u32 tsz = 1u << (w - 1);
+	std::vector<bui> table(tsz);
+	table[0] = x;
+	{
+		bui x2 = x;
+		sqr_mod_soft_ip(x2, m);
+		for (u32 i = 1; i < tsz; ++i) {
+			table[i] = table[i - 1];
+			mul_mod_soft_ip(table[i], x2, m);
+		}
+	}
+
+	bui r = bui1();
+	u32 i = hb;
+	while (i-- > 0) {
+		if (!get_bit(e, i)) {
+			sqr_mod_soft_ip(r, m);
+			continue;
+		}
+		u32 s = i >= w ? i - w + 1 : 0;
+		while (s < i && !get_bit(e, s)) ++s;
+		u32 len = i - s + 1;
+		u32 v = 0;
+		for (u32 j = 0; j < len; ++j)
+			v = (v << 1) | get_bit(e, i - j);
+
+		for (u32 j = 0; j < len; ++j)
+			sqr_mod_soft_ip(r, m);
+		mul_mod_soft_ip(r, table[v >> 1], m);
+
+		i = s;
+	}
+
+	return r;
+}
+
 // Knuth Algorithm D
 // Donald E. Knuth, The Art of Computer Programming, Volume 2: Seminumerical Algorithms
 // Section: 4.3.1, Algorithm D (Division of large integers).
@@ -2391,116 +2455,116 @@ inline bui mr_pow_mod(bui x, const bui& e, const bui& m) {
 	return mr.convertOut(r);
 }
 
-/**
- * @brief Barrett modular arithmetic helper for fixed-size big integers.
- * Precomputes mu = floor(2^1024 / m) to replace expensive division
- * with multiplication and bit shifts. Ideal for when the modulus
- * is fixed across many operations.
- */
-struct BarrettReducer {
-	bui modulus;
-	bul mu{}; // Precomputed 2^1024 / m
-	BarrettReducer(const bui& m) : modulus(m) {
-		assert(cmp(m, bui1()) > 0 && "Modulus must be >= 2 for Barrett reduction");
-		mu = compute_mu(m);
-	}
-
-	// Precomputes \mu = 2^{1024} / m
-	static bul compute_mu(const bui& m) {
-		bul q{};
-		bul r{}; // Using bul for remainder to prevent overflow during shift_left_ip
-		bul m_bul = bui_to_bul(m);
-
-		// 1. Calculate exactly how many bits we can safely skip
-		u32 m_bits = highest_bit(m) + 1;
-
-		// 2. Fast-forward the remainder to 2^(m_bits)
-		set_bit_ip(r, m_bits, 1);
-
-		// 3. Run the loop only for the remaining bits (usually ~512 iterations instead of 1024)
-		for (int i = BI_BIT * 2 - m_bits; i >= 0; --i) {
-			if (cmp(r, m_bul) >= 0) {
-				sub_ip(r, m_bul);
-				set_bit_ip(q, i, 1);
-			}
-			if (i > 0)
-				shift_left_ip(r, 1);
-		}
-		return q;
-	}
-
-	// 1024-bit x 1024-bit -> Returns the Top 1024-bits
-	static bul mul_top_1024(const bul& a, const bul& b) {
-		static constexpr u32 N2 = BI_2N;
-		std::array<u32, N2 * 2> r_full{};
-
-		// Standard O(n^2) multiply, but calculating out to 2048 bits
-		for (u32 i = 0; i < N2; ++i) {
-			if (!a[N2 - 1 - i]) continue;
-			u32 c = 0;
-			for (u32 j = 0; j < N2; ++j) {
-				u64 p = (u64)a[N2 - 1 - i] * b[N2 - 1 - j] + r_full[N2 * 2 - 1 - (i + j)] + c;
-				r_full[N2 * 2 - 1 - (i + j)] = (u32)p;
-				c = (u32)(p >> BI_SBU32);
-			}
-			r_full[N2 * 2 - 1 - (i + N2)] = c;
-		}
-
-		bul r{};
-		// Extract the upper 1024 bits (the high N2 limbs)
-		for (u32 i = 0; i < N2; ++i) {
-			r[i] = r_full[i];
-		}
-		return r;
-	}
-
-	// Reduces a double-width integer (bul) down to single-width (bui) mod m
-	bui reduce(bul x) const {
-		// 1. q_est = (x * \mu) / 2^1024
-		bul q_est = mul_top_1024(x, mu);
-
-		// 2. q_m = q_est * m \pmod{2^{1024}}
-		bul m_bul = bui_to_bul(modulus);
-		bul q_m = mul_low_fast(q_est, m_bul);
-
-		// 3. r_est = x - q_m
-		// Because q_est <= exact_q, x >= q_m, so this will never underflow safely
-		sub_ip(x, q_m);
-
-		bui r_low = x.low();
-		bui r_high = x.high();
-
-		// 4. Mathematical guarantee: r_est is either r or r + m.
-		// Therefore, at most one subtraction is needed!
-		if (!bui_is0(r_high) || cmp(r_low, modulus) >= 0)
-			sub_ip(r_low, modulus);
-
-		return r_low;
-	}
-
-	bui multiply(const bui& x, const bui& y) const {
-		return reduce(mul(x, y));
-	}
-
-	bui pow(bui x, const bui& e) const {
-		bui r = bui1();
-		x = reduce(bui_to_bul(x));
-		u32 hb1 = highest_bit(e);
-		while (hb1-- > 0) {
-			r = multiply(r, r);
-			if (get_bit(e, hb1))
-				r = multiply(r, x);
-		}
-		return r;
-	}
-};
-
-// Convenience wrapper matching your mr_pow_mod / mr2_pow_mod style
-inline bui barrett_pow_mod(const bui& x, const bui& e, const bui& m) {
-	if (cmp(m, bui1()) <= 0) return bui0(); // Edge case guard
-	BarrettReducer br(m);
-	return br.pow(x, e);
-}
+// /**
+//  * @brief Barrett modular arithmetic helper for fixed-size big integers.
+//  * Precomputes mu = floor(2^1024 / m) to replace expensive division
+//  * with multiplication and bit shifts. Ideal for when the modulus
+//  * is fixed across many operations.
+//  */
+// struct BarrettReducer {
+// 	bui modulus;
+// 	bul mu{}; // Precomputed 2^1024 / m
+// 	BarrettReducer(const bui& m) : modulus(m) {
+// 		assert(cmp(m, bui1()) > 0 && "Modulus must be >= 2 for Barrett reduction");
+// 		mu = compute_mu(m);
+// 	}
+//
+// 	// Precomputes \mu = 2^{1024} / m
+// 	static bul compute_mu(const bui& m) {
+// 		bul q{};
+// 		bul r{}; // Using bul for remainder to prevent overflow during shift_left_ip
+// 		bul m_bul = bui_to_bul(m);
+//
+// 		// 1. Calculate exactly how many bits we can safely skip
+// 		u32 m_bits = highest_bit(m) + 1;
+//
+// 		// 2. Fast-forward the remainder to 2^(m_bits)
+// 		set_bit_ip(r, m_bits, 1);
+//
+// 		// 3. Run the loop only for the remaining bits (usually ~512 iterations instead of 1024)
+// 		for (int i = BI_BIT * 2 - m_bits; i >= 0; --i) {
+// 			if (cmp(r, m_bul) >= 0) {
+// 				sub_ip(r, m_bul);
+// 				set_bit_ip(q, i, 1);
+// 			}
+// 			if (i > 0)
+// 				shift_left_ip(r, 1);
+// 		}
+// 		return q;
+// 	}
+//
+// 	// 1024-bit x 1024-bit -> Returns the Top 1024-bits
+// 	static bul mul_top_1024(const bul& a, const bul& b) {
+// 		static constexpr u32 N2 = BI_2N;
+// 		std::array<u32, N2 * 2> r_full{};
+//
+// 		// Standard O(n^2) multiply, but calculating out to 2048 bits
+// 		for (u32 i = 0; i < N2; ++i) {
+// 			if (!a[N2 - 1 - i]) continue;
+// 			u32 c = 0;
+// 			for (u32 j = 0; j < N2; ++j) {
+// 				u64 p = (u64)a[N2 - 1 - i] * b[N2 - 1 - j] + r_full[N2 * 2 - 1 - (i + j)] + c;
+// 				r_full[N2 * 2 - 1 - (i + j)] = (u32)p;
+// 				c = (u32)(p >> BI_SBU32);
+// 			}
+// 			r_full[N2 * 2 - 1 - (i + N2)] = c;
+// 		}
+//
+// 		bul r{};
+// 		// Extract the upper 1024 bits (the high N2 limbs)
+// 		for (u32 i = 0; i < N2; ++i) {
+// 			r[i] = r_full[i];
+// 		}
+// 		return r;
+// 	}
+//
+// 	// Reduces a double-width integer (bul) down to single-width (bui) mod m
+// 	bui reduce(bul x) const {
+// 		// 1. q_est = (x * \mu) / 2^1024
+// 		bul q_est = mul_top_1024(x, mu);
+//
+// 		// 2. q_m = q_est * m \pmod{2^{1024}}
+// 		bul m_bul = bui_to_bul(modulus);
+// 		bul q_m = mul_low_fast(q_est, m_bul);
+//
+// 		// 3. r_est = x - q_m
+// 		// Because q_est <= exact_q, x >= q_m, so this will never underflow safely
+// 		sub_ip(x, q_m);
+//
+// 		bui r_low = x.low();
+// 		bui r_high = x.high();
+//
+// 		// 4. Mathematical guarantee: r_est is either r or r + m.
+// 		// Therefore, at most one subtraction is needed!
+// 		if (!bui_is0(r_high) || cmp(r_low, modulus) >= 0)
+// 			sub_ip(r_low, modulus);
+//
+// 		return r_low;
+// 	}
+//
+// 	bui multiply(const bui& x, const bui& y) const {
+// 		return reduce(mul(x, y));
+// 	}
+//
+// 	bui pow(bui x, const bui& e) const {
+// 		bui r = bui1();
+// 		x = reduce(bui_to_bul(x));
+// 		u32 hb1 = highest_bit(e);
+// 		while (hb1-- > 0) {
+// 			r = multiply(r, r);
+// 			if (get_bit(e, hb1))
+// 				r = multiply(r, x);
+// 		}
+// 		return r;
+// 	}
+// };
+//
+// // Convenience wrapper matching your mr_pow_mod / mr2_pow_mod style
+// inline bui barrett_pow_mod(const bui& x, const bui& e, const bui& m) {
+// 	if (cmp(m, bui1()) <= 0) return bui0(); // Edge case guard
+// 	BarrettReducer br(m);
+// 	return br.pow(x, e);
+// }
 
 // t += x * y_i
 BI_ALWAYS_INLINE static u32 mul_add_acc(bui& t, const bui& x, const u32 y) {
@@ -2515,161 +2579,9 @@ BI_ALWAYS_INLINE static u32 mul_add_acc(bui& t, const bui& x, const u32 y) {
 	return (u32)c;
 }
 
-// CIOS-based Montgomery reducer (fixed R = 2^(32*BI_N) = 2^BI_BIT)
-struct MontgomeryReducerCIOS {
-	bui modulus;        // odd, > 1
-	u32 n0prime{};      // -m^{-1} mod 2^32
-	bui convertedOne{}; // R mod m
-	bui r2{};           // R^2 mod m (normal domain), used for convertIn
-
-	static BI_ALWAYS_INLINE u32 compute_n0prime(const bui& m) {
-		u32 x{1}, m0{m[BI_N - 1]};
-		// inverse mod 2^32
-		x *= 2u - m0 * x;
-		x *= 2u - m0 * x;
-		x *= 2u - m0 * x;
-		x *= 2u - m0 * x;
-		x *= 2u - m0 * x;
-		return 0u - x; // -m^{-1} mod 2^32
-	}
-
-	BI_ALWAYS_INLINE bui mul_cios(const bui& a, const bui& b) const {
-		std::array<u32, BI_N> t{};
-		u64 top = 0;
-
-		for (u32 i = 0; i < BI_N; ++i) {
-			u32 bi = b[BI_N - 1 - i];
-
-			// t += a * bi
-			u64 c = 0;
-
-			for (u32 j = 0; j < BI_N; ++j) {
-				u32 tj = BI_N - 1 - j;
-				u64 s = (u64)t[tj] + (u64)a[tj] * bi + c;
-				t[tj] = (u32)s;
-				c = s >> 32;
-			}
-
-			u64 s = top + c;
-			top = (u32)s;
-
-			// q = least-significant limb * n0prime
-			u32 q = (u32)((u64)t[BI_N - 1] * n0prime);
-
-			// t += q * modulus
-			c = 0;
-
-			for (u32 j = 0; j < BI_N; ++j) {
-				u32 tj = BI_N - 1 - j;
-				u64 sj = (u64)t[tj] + (u64)modulus[tj] * q + c;
-				t[tj] = (u32)sj;
-				c = sj >> 32;
-			}
-
-			s = top + c;
-			top = (u32)s;
-
-			// divide by beta
-			for (u32 j = BI_N - 1; j > 0; --j)
-				t[j] = t[j - 1];
-			t[0] = (u32)top;
-			top = 0;
-		}
-
-		bui r{};
-		for (u32 i = 0; i < BI_N; ++i)
-			r[i] = t[i];
-
-		if (cmp(r, modulus) >= 0)
-			sub_ip(r, modulus);
-
-		return r;
-	}
-
-	BI_ALWAYS_INLINE bui mul_cios_old(const bui& a, const bui& b) const {
-		bui t{};
-		u64 carry = 0;
-		for (u32 i = 0; i < BI_N; ++i) {
-			const u32 bi = b[BI_N - 1 - i];
-
-			// t += a * bi
-			carry += mul_add_acc(t, a, bi);
-
-			// q = t0 * n0' mod 2^32
-			const u32 q = (u32)((u64)t[BI_N - 1] * n0prime);
-
-			// t += m * q
-			carry += mul_add_acc(t, modulus, q);
-
-			// t >>= 32
-			// TODO: shift_limb_right(t, 1);
-			for (u32 j = BI_N - 1; j >= 1; --j) t[j] = t[j - 1];
-			t[0] = carry;
-			// if (carry > (1ULL << 32) - 1) {
-			// 	printf("WUT!? %llu\n", carry);
-			// }
-			carry >>= 32;
-			// carry = 0;
-		}
-		if (cmp(t, modulus) >= 0) sub_ip(t, modulus);
-		return t;
-	}
-
-	MontgomeryReducerCIOS(const bui& m) : modulus(m) {
-		assert(get_bit(modulus, 0) && cmp(modulus, bui1()) > 0);
-		n0prime = compute_n0prime(modulus);
-
-		// R mod m
-		bul R = bul_pow2(BI_BIT);
-		convertedOne = mod(R, modulus);
-
-		// R^2 mod m (normal domain)
-		r2 = convertedOne;
-		mul_mod_ip(r2, convertedOne, modulus);
-	}
-
-	// convert x -> xR mod m
-	BI_ALWAYS_INLINE bui convertIn(const bui& x) const {
-		return mul_cios(mod(x, modulus), r2);
-	}
-
-	// convert xR -> x
-	BI_ALWAYS_INLINE bui convertOut(const bui& x) const {
-		return mul_cios(x, bui1());
-	}
-
-	bui multiply(const bui& x, const bui& y) const {
-		return mul_cios(x, y);
-	}
-
-	// Montgomery exponentiation: returns Montgomery-domain result
-	bui pow(const bui& x, const bui& e) const {
-		bui r = convertedOne;
-		bui base = x;
-		u32 hb = highest_bit(e);
-		for (u32 i = 0; i < hb; ++i) {
-			if (get_bit(e, i))
-				r = multiply(r, base);
-			base = multiply(base, base);
-		}
-		return r;
-	}
-};
-
-inline bui mr_cios_pow_mod(const bui& x, const bui& e, const bui& m) {
-	if (!is_valid_modulus(m)) return pow_mod(x, e, m);
-	MontgomeryReducerCIOS mr(m);
-	bui xm = mr.convertIn(x);
-	bui rm = mr.pow(xm, e);
-	printf("rm= %s\n", bui_to_dec(rm).c_str());
-	auto out = mr.convertOut(rm);
-	printf(" m= %s\n", bui_to_dec(out).c_str());
-	return mr.convertOut(rm);
-}
-
 struct MontgomeryReducerSOS {
-	bui m;      // modulus
-	u32 n0_inv{};   // -m[LSW]^{-1} mod 2^32
+	bui m;
+	u32 n0_inv{}; // -m[LSW]^{-1} mod 2^32
 	bui r2{};
 	MontgomeryReducerSOS() = default;
 	explicit MontgomeryReducerSOS(const bui& m) : m(m) {
@@ -2752,7 +2664,7 @@ struct MontgomeryReducerSOS {
 	}
 };
 
-bui pow_mod_mont_sos(const bui& x, const bui& e, const bui& m) {
+inline bui pow_mod_mont_sos(const bui& x, const bui& e, const bui& m) {
 	MontgomeryReducerSOS mr(m);
 	bui base = mr.to_mont(x);
 	bui result = mr.to_mont(bui1());
@@ -2859,7 +2771,7 @@ struct MontgomeryReducerCIOS2 {
 	}
 };
 
-bui pow_mod_mont_cios2(const bui& x, const bui& e, const bui& m) {
+inline bui pow_mod_mont_cios2(const bui& x, const bui& e, const bui& m) {
 	MontgomeryReducerCIOS2 mr(m);
 	bui base = mr.to_mont(x);
 	bui result = mr.to_mont(bui1());
@@ -2873,13 +2785,12 @@ bui pow_mod_mont_cios2(const bui& x, const bui& e, const bui& m) {
 }
 
 struct MontgomeryReducerCIOS3 {
-	bui m;      // modulus
-	u32 n0_inv{};   // -m[LSW]^{-1} mod 2^32
+	bui m;
+	u32 n0_inv{};
 	bui r2{};
 	MontgomeryReducerCIOS3() = default;
 	explicit MontgomeryReducerCIOS3(const bui& m) : m(m) {
 		assert(m[BI_N - 1] & 1);
-		// Newton iteration for inverse mod 2^32
 		{
 			u32 x{1}, m0{m[BI_N - 1]};
 			x *= 2u - m0 * x;
@@ -2889,7 +2800,6 @@ struct MontgomeryReducerCIOS3 {
 			x *= 2u - m0 * x;
 			n0_inv = 0u - x;
 		}
-
 		r2 = bui1();
 		for (u32 i = 0; i < BI_BIT * 2; ++i)
 			dbl_mod_ip(r2, m); // r2 = 2^(2*BI_BIT) mod mod
@@ -2957,6 +2867,62 @@ struct MontgomeryReducerCIOS3 {
 		return r;
 	}
 
+	bui sqr(const bui& a) const {
+		std::array<u32, BI_N + 2> t{};
+
+		for (u32 i = 0; i < BI_N; ++i) {
+			const u32 bi = a[BI_N - 1 - i];
+
+			u64 A, C;
+			u32 t0_new;
+
+			{
+				const u32 a0 = a[BI_N - 1];
+				u64 s = (u64)t[0] + (u64)a0 * bi;
+				A = s >> 32;
+				t0_new = (u32)s;
+			}
+
+			u32 q = (u32)((u64)t0_new * n0_inv);
+
+			{
+				const u32 m0 = m[BI_N - 1];
+				u64 s = (u64)t0_new + (u64)q * m0;
+				C = s >> 32;
+			}
+
+			BI_UNROLL(BI_UNROLL_THRESHOLD)
+			for (u32 j = 1; j < BI_N; ++j) {
+				u32 aj = a[BI_N - 1 - j];
+				u64 s1 = (u64)t[j] + (u64)aj * bi + A;
+				A = s1 >> 32;
+				u32 tj_new = (u32)s1;
+
+				u32 mj = m[BI_N - 1 - j];
+				u64 s2 = (u64)tj_new + (u64)q * mj + C;
+				C = s2 >> 32;
+				t[j - 1] = (u32)s2;
+			}
+
+			u64 s = (u64)t[BI_N] + C + A;
+			t[BI_N - 1] = (u32)s;
+			A = s >> 32;
+
+			s = (u64)t[BI_N + 1] + A;
+			t[BI_N] = (u32)s;
+			t[BI_N + 1] = (u32)(s >> 32);
+		}
+
+		bui r{};
+		for (u32 i = 0; i < BI_N; ++i)
+			r[BI_N - 1 - i] = t[i];
+
+		if (t[BI_N] || t[BI_N + 1] || cmp(r, m) >= 0)
+			sub_ip(r, m);
+
+		return r;
+	}
+
 	BI_ALWAYS_INLINE bui to_mont(const bui& x) const {
 		return mul(mod(x, m), r2);
 	}
@@ -2966,7 +2932,7 @@ struct MontgomeryReducerCIOS3 {
 	}
 };
 
-bui pow_mod_mont_cios3(const bui& x, const bui& e, const bui& m) {
+inline bui pow_mod_mont_cios3(const bui& x, const bui& e, const bui& m) {
 	MontgomeryReducerCIOS3 mr(m);
 	bui base = mr.to_mont(x);
 	bui result = mr.to_mont(bui1());
@@ -2977,6 +2943,55 @@ bui pow_mod_mont_cios3(const bui& x, const bui& e, const bui& m) {
 			result = mr.mul(result, base);
 	}
 	return mr.from_mont(result);
+}
+
+// Return pow_mod (x^e % m) using sliding window + Montgomery CIOS3
+inline bui pow_mod_mont_window(const bui& x, const bui& e, const bui& m) {
+	MontgomeryReducerCIOS3 mr(m);
+
+	u32 hb = highest_bit(e);
+	if (hb <= 1) {
+		if (hb == 1 && get_bit(e, 0)) return mod(x, m);
+		return bui1();
+	}
+
+	u32 w = 4;
+	if (hb > 200) w = 5;
+	if (hb > 600) w = 6;
+	if (hb > 1200) w = 7;
+
+	const u32 tsz = 1u << (w - 1);
+	std::vector<bui> table(tsz);
+	bui base = mr.to_mont(x);
+	table[0] = base;
+	bui base2 = mr.mul(base, base);
+	for (u32 i = 1; i < tsz; ++i)
+		table[i] = mr.mul(table[i - 1], base2);
+
+	bui r = mr.to_mont(bui1());
+	u32 i = hb;
+	while (i-- > 0) {
+		if (!get_bit(e, i)) {
+			r = mr.mul(r, r);
+			continue;
+		}
+
+		u32 s = i >= w ? i - w + 1 : 0;
+		while (s < i && !get_bit(e, s)) ++s;
+
+		u32 len = i - s + 1;
+		u32 v = 0;
+		for (u32 j = 0; j < len; ++j)
+			v = (v << 1) | get_bit(e, i - j);
+
+		for (u32 j = 0; j < len; ++j)
+			r = mr.mul(r, r);
+		r = mr.mul(r, table[v >> 1]);
+
+		i = s;
+	}
+
+	return mr.from_mont(r);
 }
 
 #endif
