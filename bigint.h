@@ -8,7 +8,6 @@
 #include <string>
 #include <random>
 #include <cctype>
-#include <iostream>
 #include <vector>
 
 typedef uint32_t u32;
