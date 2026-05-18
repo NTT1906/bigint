@@ -2588,41 +2588,33 @@ struct MontgomeryReducerSOS {
 
 	bui mul(const bui& a, const bui& b) const {
 		u32 t[BI_2N + 2]{};
+		mul_imp(a.data(), b.data(), t, BI_N);
+		 // for (u32 i = 0; i < BI_N; ++i) {
+		// 	u32 ai = a[BI_N - 1 - i];
+		// 	u32 c = 0;
+		// 	for (u32 j = 0; j < BI_N; ++j) {
+		// 		u64 s = (u64)t[i + j] + (u64)ai * b[BI_N - 1 - j] + c;
+		// 		t[i + j] = (u32)s;
+		// 		c = s >> BI_SBU32;
+		// 	}
+		// 	t[i + BI_N] = c;
+		// }
 		for (u32 i = 0; i < BI_N; ++i) {
-			u32 ai = a[BI_N - 1 - i];
-			u64 c = 0;
+			u32 mword = (u32)((u64)t[i] * n0_inv);
+			u32 c = 0;
+
 			for (u32 j = 0; j < BI_N; ++j) {
-				u64 s = (u64)t[i + j] + (u64)ai * b[BI_N - 1 - j] + c;
+				u64 s = (u64)t[i + j] + (u64)mword * m[BI_N - 1 - j] + c;
 				t[i + j] = (u32)s;
-				c = s >> 32;
+				c = s >> BI_SBU32;
 			}
+
 			u32 k = i + BI_N;
 			while (c) {
 				// if (c > (1ULL << 32) - 1) {
 				// 	printf("WUT!? %llu\n", c);
 				// }
 				u64 s = (u64)t[k] + c;
-				t[k++] = (u32)s;
-				c = s >> 32;
-			}
-		}
-
-		for (u32 i = 0; i < BI_N; ++i) {
-			u32 mword = (u32)((u64)t[i] * n0_inv);
-			u64 carry = 0;
-
-			for (u32 j = 0; j < BI_N; ++j) {
-				u64 s = (u64)t[i + j] + (u64)mword * m[BI_N - 1 - j] + carry;
-				t[i + j] = (u32)s;
-				c = s >> BI_SBU32;
-			}
-
-			u32 k = i + BI_N;
-			while (carry) {
-				// if (carry > (1ULL << 32) - 1) {
-				// 	printf("WUT!? %llu\n", carry);
-				// }
-				u64 s = (u64)t[k] + carry;
 				t[k++] = (u32)s;
 				c = s >> BI_SBU32;
 			}
@@ -2850,49 +2842,61 @@ struct MontgomeryReducerCIOS3 {
 		return r;
 	}
 
+	// TODO: create a working mont sqr
 	bui sqr(const bui& a) const {
 		std::array<u32, BI_N + 2> t{};
-
 		for (u32 i = 0; i < BI_N; ++i) {
-			const u32 bi = a[BI_N - 1 - i];
-
-			u64 A, C;
-			u32 t0_new;
-
+			u64 C;
+			u64 p = 0;
 			{
-				const u32 a0 = a[BI_N - 1];
-				u64 s = (u64)t[0] + (u64)a0 * bi;
-				A = s >> 32;
-				t0_new = (u32)s;
+				u64 s = (u64)t[i] + (u64)a[BI_N - 1 - i] * 2;
+				t[i] = (u32)s;
+				C = s >> BI_SBU32;
 			}
+			for (u32 j = i + 1; j < BI_N; ++j) {
+				u64 prod = (u64)a[BI_N - 1 - j] * a[BI_N - 1 - i];
 
-			u32 q = (u32)((u64)t0_new * n0_inv);
+				// 2 * a[BI_N - 1 - j] * a[BI_N - 1 - i]
+				u64 low = prod << 1;
+				u32 high = (u32)(prod >> 63);
 
-			{
-				const u32 m0 = m[BI_N - 1];
-				u64 s = (u64)t0_new + (u64)q * m0;
-				C = s >> 32;
+				// + t[j]
+				u64 old = low;
+				low += t[j];
+				if (low < old) high++;
+
+				// + C
+				old = low;
+				low += C;
+				if (low < old) high++;
+
+				// + (p << 32)
+				u64 upper = p << 32;
+
+				old = low;
+				low += upper;
+				if (low < old) high++;
+
+				// split result
+				t[j] = (u32)low;
+				C    = (u32)(low >> BI_SBU32);
+				p    = high;
 			}
-
-			BI_UNROLL(BI_UNROLL_THRESHOLD)
-			for (u32 j = 1; j < BI_N; ++j) {
-				u32 aj = a[BI_N - 1 - j];
-				u64 s1 = (u64)t[j] + (u64)aj * bi + A;
-				A = s1 >> 32;
-				u32 tj_new = (u32)s1;
-
-				u32 mj = m[BI_N - 1 - j];
-				u64 s2 = (u64)tj_new + (u64)q * mj + C;
-				C = s2 >> 32;
-				t[j - 1] = (u32)s2;
+			u64 A = C;
+			u32 mi = t[0] * n0_inv;
+			u64 zz = (u64)mi * m[BI_N - 1] + t[BI_N - 1];
+			C = (u32)(zz >> BI_SBU32);
+			for (int j = 1; j < BI_N; j++) {
+				zz = (u64)mi * m[BI_N - 1 - j] + t[j] + C;
+				t[j - 1] = (u32)zz;
+				C = (u32)(zz >> BI_SBU32);
 			}
-
 			u64 s = (u64)t[BI_N] + C + A;
 			t[BI_N - 1] = (u32)s;
 			A = s >> BI_SBU32;
 			s = (u64)t[BI_N + 1] + A;
 			t[BI_N] = (u32)s;
-			t[BI_N + 1] = (u32)(s >> 32);
+			t[BI_N + 1] = (u32)(s >> BI_SBU32);
 		}
 
 		bui r{};
