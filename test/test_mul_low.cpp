@@ -150,3 +150,20 @@ int main() {
 
     return 0;
 }
+
+// D:\code\clion\rsa\bigint\test\test_mul_low.exe
+// ========================================================
+//  MUL_LOW_FAST BENCHMARK (BI_BIT = 4096)
+// ========================================================
+//
+// Pre-generating 500000 inputs & injecting edge cases...
+// Running correctness verification...
+// [SUCCESS] All results match!
+//
+// --------------------------------------------------------------------------
+// Operation           Row (ns/call)     u128 (ns/call)    Speedup
+// --------------------------------------------------------------------------
+// mul_low_fast        2531.62           6250.12           0.41x
+// --------------------------------------------------------------------------
+//
+// Process finished with exit code 0

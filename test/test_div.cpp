@@ -16,10 +16,10 @@ bul random_bul() {
 
 void print_fail(const std::string& name, const bui& a, const bui& b, const bui& res, const bui& expected) {
     std::cerr << "\n[!] TEST FAILED in " << name << "!\n";
-    std::cerr << "A = " << bui_to_hex(a) << "\n";
-    std::cerr << "B = " << bui_to_hex(b) << "\n";
-    std::cerr << "Result   = " << bui_to_hex(res) << "\n";
-    std::cerr << "Expected = " << bui_to_hex(expected) << "\n";
+    std::cerr << "A = " << bui_to_dec(a) << "\n";
+    std::cerr << "B = " << bui_to_dec(b) << "\n";
+    std::cerr << "Result   = " << bui_to_dec(res) << "\n";
+    std::cerr << "Expected = " << bui_to_dec(expected) << "\n";
     exit(1);
 }
 
@@ -54,7 +54,7 @@ int main() {
 
         // 1. Run Old mod_native
         auto start = std::chrono::high_resolution_clock::now();
-        bui rem_old = mod_native(a, b);
+        bui rem_old = mod_native_deprecated(a, b);
         auto end = std::chrono::high_resolution_clock::now();
         time_old += std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
@@ -105,7 +105,7 @@ int main() {
 
         // --- VERIFICATION 3: Test BUL % BUI Overloads ---
         bul a_bul = random_bul();
-        bui rem_bul_old = mod_native(a_bul, b);
+        bui rem_bul_old = mod_native_deprecated(a_bul, b);
         bui rem_bul_new = nmod_native(a_bul, b);
 
         if (cmp(rem_bul_old, rem_bul_new) != 0) {

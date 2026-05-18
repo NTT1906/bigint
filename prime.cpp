@@ -27,7 +27,7 @@ static void poly_mul_mod_ip(Poly &A, const Poly &B, const bui& m) {
 			if (b_skips[j]) continue;
 			bui p = A[i];
 			mul_mod_ip(p, B[j], m);
-			add_mod_ip(C[(i + j) % POLY_R], p, m);
+			add_redc_ip(C[(i + j) % POLY_R], p, m);
 		}
 	}
 	A = C;
@@ -45,7 +45,7 @@ static void poly_sqr_mod_ip(Poly &A, const bui& m) {
 			if (a_skips[j]) continue;
 			bui p = A[i];
 			mul_mod_ip(p, A[j], m);
-			add_mod_ip(C[(i + j) % POLY_R], p, m);
+			add_redc_ip(C[(i + j) % POLY_R], p, m);
 		}
 	}
 	A = C;
@@ -271,7 +271,7 @@ bui get_random_base(const bui& n, const bui& n_minus_3) {
 
 	// a % (n-3) gives [0, n-4]
 	// Then +2 gives [2, n-2]
-	a = mod_native(a, n_minus_3);
+	a = mod_native_deprecated(a, n_minus_3);
 	add_ip(a, bui_from_u32(2));
 
 	return a;
