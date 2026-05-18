@@ -135,6 +135,9 @@ struct bui {
 struct bul {
 	std::array<u32, BI_2N> limbs{};
 	bul() = default;
+	explicit bul(const bui& low) {
+		std::copy_n(low.begin(), BI_N, limbs.begin() + BI_N);
+	}
 	bul(const bui& high, const bui& low) {
 		std::copy_n(high.begin(), BI_N, limbs.begin());
 		std::copy_n(low.begin(), BI_N, limbs.begin() + BI_N);
@@ -142,6 +145,8 @@ struct bul {
 
 	bui& high() { return *reinterpret_cast<bui*>(limbs.data()); }
 	bui& low() { return *reinterpret_cast<bui*>(limbs.data() + BI_N); }
+	bui high_copy() { return high(); }
+	bui low_copy() { return low(); }
 	const bui& high() const { return *reinterpret_cast<const bui*>(&limbs[0]); }
 	const bui& low() const { return *reinterpret_cast<const bui*>(&limbs[BI_N]); }
 
