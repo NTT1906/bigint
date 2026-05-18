@@ -225,11 +225,34 @@ bool bul_is0(const bul& x);
 int cmp(const bui& a, const bui& b);
 int cmp(const bul& a, const bul& b);
 int cmp(const bul& a, const bui& b);
+
+void add_one_ip(bui &x);
+void add_one_ip(bul &x);
+void sub_one_ip(bui &x);
+void sub_one_ip(bul &x);
 void add_ip(bui& a, const bui& b);
 void add_ip(bul& a, const bul& b);
 void sub_ip(bui& a, const bui& b);
-void add_mod_ip(bui& a, const bui &b, const bui &m);
+void sub_ip(bul& a, const bul& b);
+bui add(bui a, const bui& b);
+bul add(bul a, const bul& b);
+bul add(const bui& a, const bul& b);
+bul add(const bul& a, const bui& b);
+bui sub(bui a, const bui& b);
+bul sub(bul a, const bul& b);
+void add_mod_soft_ip(bui &a, const bui &b, const bui &m);
+void add_mod_soft_ip(bul &a, const bul &b, const bul &m);
+void add_mod_ip(bui &a, const bui &b, const bui &m);
+void add_mod_ip(bul &a, const bul &b, const bul &m);
+void sub_mod_soft_ip(bui &a, const bui &b, const bui &m);
+void sub_mod_soft_ip(bul &a, const bul &b, const bul &m);
 void sub_mod_ip(bui &a, const bui &b, const bui &m);
+void sub_mod_ip(bul &a, const bul &b, const bul &m);
+void add_redc_ip(bui& a, const bui &b, const bui &m);
+void add_redc_ip(bul &a, const bul &b, const bul &m);
+void sub_redc_ip(bui &a, const bui &b, const bui &m);
+void sub_redc_ip(bul &a, const bul &b, const bul &m);
+
 bui nmod_native(bui x, const bui &m);
 bui nmod_native(bul x, const bui &m);
 void divmod_knuth(const bui &a, const bui& b, bui& quot, bui& rem);
@@ -761,17 +784,21 @@ BI_ALWAYS_INLINE u32 add_ip_n_imp(u32* a, const u32* b, u32 n) {
 }
 
 // Add 1 to big int
-BI_ALWAYS_INLINE void add_one_ip(u32* x, u32 n) { while (n-- > 0 && !++x[n]); }
-BI_ALWAYS_INLINE void sub_one_ip(u32* x, u32 n) { while (n-- > 0 && !x[n]--); }
+BI_ALWAYS_INLINE void add_one_ip_imp(u32* x, u32 n) { while (n-- > 0 && !++x[n]); }
+BI_ALWAYS_INLINE void sub_one_ip_imp(u32* x, u32 n) { while (n-- > 0 && !x[n]--); }
+
+inline void add_one_ip(bui &x) { add_one_ip_imp(x.data(), BI_N); }
+inline void sub_one_ip(bui &x) { sub_one_ip_imp(x.data(), BI_N); }
+inline void add_one_ip(bul &x) { add_one_ip_imp(x.data(), BI_2N); }
+inline void sub_one_ip(bul &x) { sub_one_ip_imp(x.data(), BI_2N); }
 
 inline void add_ip_n(u32* a, const u32* b, const u32 n) { add_ip_n_imp(a, b, n); }
-
-// a += b;
-inline void add_ip(bui& a, const bui& b) { add_ip_n_imp(a.data(), b.data(), BI_N); }
 
 [[nodiscard]] inline u32 add_ip_carry(bui &a, const bui &b) { return add_ip_n_imp(a.data(), b.data(), BI_N); }
 [[nodiscard]] inline u32 add_ip_carry(bul &a, const bul &b) { return add_ip_n_imp(a.data(), b.data(), BI_2N); }
 
+// a += b;
+inline void add_ip(bui& a, const bui& b) { add_ip_n_imp(a.data(), b.data(), BI_N); }
 // a += b
 inline void add_ip(bul& a, const bul& b) { add_ip_n_imp(a.data(), b.data(), BI_2N); }
 
@@ -782,16 +809,29 @@ inline void add_n(const u32* a, const u32* b, u32* r, const u32 n) {
 }
 
 // r = a + b
-inline bui add(bui a, const bui& b) {
-	add_ip(a, b);
-	return a;
-}
+inline bui add(bui a, const bui& b) { add_ip(a, b); return a; }
+inline bul add(bul a, const bul& b) { add_ip(a, b); return a; }
+inline bul add(const bui& a, const bul& b) { bul t{a}; add_ip(t, b); return t; }
+inline bul add(const bul& a, const bui& b) { return add(b, a); }
 
-// a = (a + b) % m
-inline void add_mod_ip(bui &a, const bui &b, const bui &m) {
+// add_mod without pre-modulo-ed a
+inline void add_mod_soft_ip(bui &a, const bui &b, const bui &m) { add_ip(a, b); mod_ip(a, m); }
+// add_mod without pre-modulo-ed a
+inline void add_mod_soft_ip(bul &a, const bul &b, const bul &m) { add_ip(a, b); mod_ip(a, m); }
+inline void add_mod_ip(bui &a, const bui &b, const bui &m) { mod_ip(a, m); add_mod_soft_ip(a, b, m); }
+inline void add_mod_ip(bul &a, const bul &b, const bul &m) { mod_ip(a, m); add_mod_soft_ip(a, b, m); }
+
+// a = (a + b) redc m
+inline void add_redc_ip(bui &a, const bui &b, const bui &m) {
 	if (add_ip_n_imp(a.data(), b.data(), BI_N) || cmp(a, m) >= 0) {
 		sub_ip(a, m);
 	}
+}
+
+// a = (a + b) redc m
+inline void add_redc_ip(bul &a, const bul &b, const bul &m) {
+	if (add_ip_n_imp(a.data(), b.data(), BI_2N) || cmp(a, m) >= 0)
+		sub_ip(a, m);
 }
 
 BI_ALWAYS_INLINE u32 sub_ip_n_imp(u32* a, const u32* b, u32 n) {
@@ -812,13 +852,9 @@ BI_ALWAYS_INLINE u32 sub_ip_n_imp(u32* a, const u32* b, u32 n) {
 }
 
 // a -= b; // assume a > b
-inline void sub_ip(bui& a, const bui& b) {
-	sub_ip_n_imp(a.data(), b.data(), BI_N);
-}
+inline void sub_ip(bui& a, const bui& b) { sub_ip_n_imp(a.data(), b.data(), BI_N); }
 
-inline void sub_ip(bul& a, const bul& b) {
-	sub_ip_n_imp(a.data(), b.data(), BI_2N);
-}
+inline void sub_ip(bul& a, const bul& b) { sub_ip_n_imp(a.data(), b.data(), BI_2N); }
 
 // a -= b; // assume a > b
 inline void sub_n(const u32* a, const u32* b, u32* r, u32 n) {
@@ -826,16 +862,32 @@ inline void sub_n(const u32* a, const u32* b, u32* r, u32 n) {
 	sub_ip_n_imp(r, b, n);
  }
 
-inline bui sub(bui a, const bui& b) {
-	sub_ip(a, b);
-	return a;
-}
+inline bui sub(bui a, const bui& b) { sub_ip(a, b); return a; }
+inline bul sub(bul a, const bul& b) { sub_ip(a, b); return a; }
 
-inline void sub_mod_ip(bui& a, const bui& b, const bui& m) {
+// sub_mod without pre-modulo-ed a
+inline void sub_mod_soft_ip(bui &a, const bui &b, const bui &m) { sub_ip(a, b); mod_ip(a, m); }
+// sub_mod without pre-modulo-ed a
+inline void sub_mod_soft_ip(bul &a, const bul &b, const bul &m) { sub_ip(a, b); mod_ip(a, m); }
+inline void sub_mod_ip(bui &a, const bui &b, const bui &m) { mod_ip(a, m); sub_mod_soft_ip(a, b, m); }
+inline void sub_mod_ip(bul &a, const bul &b, const bul &m) { mod_ip(a, m); sub_mod_soft_ip(a, b, m); }
+
+inline void sub_redc_ip(bui& a, const bui& b, const bui& m) {
 	if (cmp(a, b) >= 0) {
 		sub_ip(a, b);
 	} else {
 		bui t = m, bb = b;
+		sub_ip(bb, a); // bb = b - a
+		sub_ip(t, bb); // t = m - (b - a)
+		a = t;
+	}
+}
+
+inline void sub_redc_ip(bul& a, const bul& b, const bul& m) {
+	if (cmp(a, b) >= 0) {
+		sub_ip(a, b);
+	} else {
+		bul t = m, bb = b;
 		sub_ip(bb, a); // bb = b - a
 		sub_ip(t, bb); // t = m - (b - a)
 		a = t;
