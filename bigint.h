@@ -26,18 +26,18 @@ typedef uint64_t u64;
 // BI_NFORCE_UNROLL: force not to unroll
 
 #define BI_SU32 sizeof(u32) // 4
-#define BI_SBU32 32
+#define BI_SBU32 32 // BI_SU32 * 8
 
 #ifndef BI_BIT
 #define BI_BIT 512
 #endif
 #ifndef BI_N
-#define BI_N (BI_BIT / 32)
+#define BI_N (BI_BIT / BI_SBU32)
 #endif
 
 #define BI_2N (BI_N * 2)
 
-static_assert(BI_BIT > 0 && BI_BIT % 32 == 0, "BI_BIT must be positive and divisible by 32");
+static_assert(BI_BIT > 0 && BI_BIT % BI_SBU32 == 0, "BI_BIT must be positive and divisible by 32");
 
 #define BI_FORCE_UNROLL
 #ifdef BI_FORCE_UNROLL
@@ -950,9 +950,7 @@ BI_ALWAYS_INLINE void mul_imp_fast(const u32* a, const u32* b, u32* r, const u32
 // 	}
 // }
 
-inline void mul_ref(const bui &a, const bui &b, bul &r) {
-	mul_imp(a.data(), b.data(), r.data(), BI_N);
-}
+inline void mul_ref(const bui &a, const bui &b, bul &r) { mul_imp(a.data(), b.data(), r.data(), BI_N); }
 
 /// maybe mul_low_fast is better
 inline void mul_ip(bui &a, const bui &b) {
@@ -1069,9 +1067,11 @@ static void karatsuba_imp(const u32* a, const u32* b, u32* r, u32 n, u32* scratc
 		if (z1_raw[i] < br) { z1_raw[i] = 0xFFFFFFFF; } else { z1_raw[i] -= br; br = 0; }
 	}
 
-	// z1 = z1_raw[2..2+2*other-1], add to r[half..half+2*other-1]
-	carry = add_ip_n_imp(r + half, z1_raw + 2, 2 * other);
-	for (int i = (int)half - 1; carry && i >= 0; --i) {
+	// z1 = z1_raw[1..2+2*other-1] (2*other+1 limbs incl. carry limb z1_raw[1])
+	// add to r[z1_start-1..z1_start-1+2*other]
+	u32 z1_start = 3 * half - n;  // = 2*n - 3*other
+	carry = add_ip_n_imp(r + z1_start - 1, z1_raw + 1, 2 * other + 1);
+	for (int i = (int)z1_start - 2; carry && i >= 0; --i) {
 		u64 s = (u64)r[i] + carry;
 		r[i] = (u32)s;
 		carry = (u32)(s >> BI_SBU32);
@@ -2842,68 +2842,90 @@ struct MontgomeryReducerCIOS3 {
 		return r;
 	}
 
-	// TODO: create a working mont sqr
 	bui sqr(const bui& a) const {
-		std::array<u32, BI_N + 2> t{};
-		for (u32 i = 0; i < BI_N; ++i) {
-			u64 C;
-			u64 p = 0;
-			{
-				u64 s = (u64)t[i] + (u64)a[BI_N - 1 - i] * 2;
+		// Algorithm 5 from the paper needs m[N - 1] <= (D - 1) / 4 - 1.
+		// With 32-bit words and big-endian storage, that is m[0] <= 0x3fffffff.
+		if (m[0] <= 0x3fffffffu) {
+			std::array<u32, BI_N + 2> t{};
+
+			for (u32 i = 0; i < BI_N; ++i) {
+				const u32 ai = a[BI_N - 1 - i];
+
+				u64 s = (u64)ai * ai + t[i];
 				t[i] = (u32)s;
-				C = s >> BI_SBU32;
+				u32 C = (u32)(s >> BI_SBU32);
+				u32 p = 0;
+
+				for (u32 j = i + 1; j < BI_N; ++j) {
+					const u64 prod = (u64)a[BI_N - 1 - j] * ai;
+					const u32 lo = (u32)(prod << 1);
+					const u64 hi = prod >> 31;
+
+					s = (u64)lo + t[j] + C;
+					t[j] = (u32)s;
+
+					const u64 next = hi + p + (s >> BI_SBU32);
+					C = (u32)next;
+					p = (u32)(next >> BI_SBU32);
+				}
+
+				const u64 A = ((u64)p << BI_SBU32) | C;
+				const u32 q = (u32)((u64)t[0] * n0_inv);
+
+				s = (u64)t[0] + (u64)q * m[BI_N - 1];
+				C = (u32)(s >> BI_SBU32);
+
+				for (u32 j = 1; j < BI_N; ++j) {
+					s = (u64)q * m[BI_N - 1 - j] + t[j] + C;
+					t[j - 1] = (u32)s;
+					C = (u32)(s >> BI_SBU32);
+				}
+
+				s = A + C;
+				t[BI_N - 1] = (u32)s;
+				t[BI_N] = (u32)(s >> BI_SBU32);
+				t[BI_N + 1] = 0;
 			}
-			for (u32 j = i + 1; j < BI_N; ++j) {
-				u64 prod = (u64)a[BI_N - 1 - j] * a[BI_N - 1 - i];
 
-				// 2 * a[BI_N - 1 - j] * a[BI_N - 1 - i]
-				u64 low = prod << 1;
-				u32 high = (u32)(prod >> 63);
+			bui r{};
+			for (u32 i = 0; i < BI_N; ++i)
+				r[BI_N - 1 - i] = t[i];
 
-				// + t[j]
-				u64 old = low;
-				low += t[j];
-				if (low < old) high++;
+			if (t[BI_N] || t[BI_N + 1] || cmp(r, m) >= 0)
+				sub_ip(r, m);
 
-				// + C
-				old = low;
-				low += C;
-				if (low < old) high++;
+			return r;
+		}
 
-				// + (p << 32)
-				u64 upper = p << 32;
+		bul prod = ::sqr(a);
+		std::array<u32, BI_2N + 2> t{};
+		for (u32 i = 0; i < BI_2N; ++i)
+			t[i] = prod[BI_2N - 1 - i];
 
-				old = low;
-				low += upper;
-				if (low < old) high++;
+		for (u32 i = 0; i < BI_N; ++i) {
+			u32 q = (u32)((u64)t[i] * n0_inv);
+			u64 carry = 0;
 
-				// split result
-				t[j] = (u32)low;
-				C    = (u32)(low >> BI_SBU32);
-				p    = high;
+			BI_UNROLL(BI_UNROLL_THRESHOLD)
+			for (u32 j = 0; j < BI_N; ++j) {
+				u64 s = (u64)t[i + j] + (u64)q * m[BI_N - 1 - j] + carry;
+				t[i + j] = (u32)s;
+				carry = s >> BI_SBU32;
 			}
-			u64 A = C;
-			u32 mi = t[0] * n0_inv;
-			u64 zz = (u64)mi * m[BI_N - 1] + t[BI_N - 1];
-			C = (u32)(zz >> BI_SBU32);
-			for (int j = 1; j < BI_N; j++) {
-				zz = (u64)mi * m[BI_N - 1 - j] + t[j] + C;
-				t[j - 1] = (u32)zz;
-				C = (u32)(zz >> BI_SBU32);
+
+			u32 k = i + BI_N;
+			while (carry) {
+				u64 s = (u64)t[k] + carry;
+				t[k++] = (u32)s;
+				carry = s >> BI_SBU32;
 			}
-			u64 s = (u64)t[BI_N] + C + A;
-			t[BI_N - 1] = (u32)s;
-			A = s >> BI_SBU32;
-			s = (u64)t[BI_N + 1] + A;
-			t[BI_N] = (u32)s;
-			t[BI_N + 1] = (u32)(s >> BI_SBU32);
 		}
 
 		bui r{};
 		for (u32 i = 0; i < BI_N; ++i)
-			r[BI_N - 1 - i] = t[i];
+			r[BI_N - 1 - i] = t[i + BI_N];
 
-		if (t[BI_N] || t[BI_N + 1] || cmp(r, m) >= 0)
+		if (t[BI_2N] || t[BI_2N + 1] || cmp(r, m) >= 0)
 			sub_ip(r, m);
 
 		return r;
@@ -2924,7 +2946,7 @@ inline bui pow_mod_mont_cios3(const bui& x, const bui& e, const bui& m) {
 	bui result = mr.to_mont(bui1());
 	u32 bits = highest_bit(e);
 	while (bits-- > 0) {
-		result = mr.mul(result, result);
+		result = mr.sqr(result);
 		if (get_bit(e, bits))
 			result = mr.mul(result, base);
 	}
@@ -2950,7 +2972,7 @@ inline bui pow_mod_mont_window(const bui& x, const bui& e, const bui& m) {
 	std::vector<bui> table(tsz);
 	bui base = mr.to_mont(x);
 	table[0] = base;
-	bui base2 = mr.mul(base, base);
+	bui base2 = mr.sqr(base);
 	for (u32 i = 1; i < tsz; ++i)
 		table[i] = mr.mul(table[i - 1], base2);
 
@@ -2958,7 +2980,7 @@ inline bui pow_mod_mont_window(const bui& x, const bui& e, const bui& m) {
 	u32 i = hb;
 	while (i-- > 0) {
 		if (!get_bit(e, i)) {
-			r = mr.mul(r, r);
+			r = mr.sqr(r);
 			continue;
 		}
 
@@ -2971,7 +2993,7 @@ inline bui pow_mod_mont_window(const bui& x, const bui& e, const bui& m) {
 			v = (v << 1) | get_bit(e, i - j);
 
 		for (u32 j = 0; j < len; ++j)
-			r = mr.mul(r, r);
+			r = mr.sqr(r);
 		r = mr.mul(r, table[v >> 1]);
 
 		i = s;

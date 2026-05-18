@@ -32,7 +32,7 @@ int main() {
     std::cout << "        MUL_IMP BENCHMARK REPORT (BI_BIT = " << BI_BIT << ")\n";
     std::cout << "========================================================\n\n";
 
-    const int DATASET_SIZE = 10000;
+    const int DATASET_SIZE = 5000;
     const int BENCH_ITERATIONS = 500; // Tune this depending on BI_BIT size to save time
 
     std::vector<bui> a_vec(DATASET_SIZE, bui{});
