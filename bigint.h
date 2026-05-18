@@ -432,20 +432,15 @@ BI_ALWAYS_INLINE u32 highest_limb_imp(const u32 *x, const u32 n) {
 	}
 #endif
 	BI_UNROLL(BI_UNROLL_THRESHOLD)
-	for (; i < n; ++i)
-		if (x[i] != 0) return n - i - 1;
+	for (; i < n; ++i) if (x[i] != 0) return n - i - 1;
 	return 0;
 }
 
 // find the highest (MSB) limb
-inline u32 highest_limb(const bui &x) {
-	return highest_limb_template<BI_N>(x.data());
-}
+inline u32 highest_limb(const bui &x) { return highest_limb_template<BI_N>(x.data()); }
 
 // find the highest (MSB) limb
-inline u32 highest_limb(const bul &x) {
-	return highest_limb_template<BI_2N>(x.data());
-}
+inline u32 highest_limb(const bul &x) { return highest_limb_template<BI_2N>(x.data()); }
 
 // Shift left by `l` whole 32-bit limbs (big-endian).
 // x[0] = MSW, x[BI_N - 1] = LSW.
@@ -456,10 +451,7 @@ inline u32 highest_limb(const bul &x) {
 // Equivalent to division by 2^(32*l).
 inline void shift_limb_left(bui &x, const u32 l) {
 	if (l == 0) return;
-	if (l >= BI_N) {
-		x = {};
-		return;
-	}
+	if (l >= BI_N) { x = {}; return; }
 	std::copy(x.begin() + l, x.end(), x.begin());
 	std::fill(x.end() - l, x.end(), 0);
 }
@@ -473,10 +465,7 @@ inline void shift_limb_left(bui &x, const u32 l) {
 // Equivalent to division by 2^(32*l).
 inline void shift_limb_right(bui &x, const u32 l) {
 	if (l == 0) return;
-	if (l >= BI_N) {
-		x = {};
-		return;
-	}
+	if (l >= BI_N) { x = {}; return; }
 	std::copy_backward(x.begin(), x.end() - l, x.end());
 	std::fill_n(x.begin(), l, 0);
 }
@@ -490,10 +479,7 @@ inline void shift_limb_right(bui &x, const u32 l) {
 // Equivalent to division by 2^(32*l).
 inline void shift_limb_left(bul &x, const u32 l) {
 	if (l == 0) return;
-	if (l >= BI_2N) {
-		x = {};
-		return;
-	}
+	if (l >= BI_2N) { x = {}; return; }
 	std::copy(x.begin() + l, x.end(), x.begin());
 	std::fill(x.end() - l, x.end(), 0);
 }
@@ -507,10 +493,7 @@ inline void shift_limb_left(bul &x, const u32 l) {
 // Equivalent to division by 2^(32*l).
 inline void shift_limb_right(bul &x, const u32 l) {
 	if (l == 0) return;
-	if (l >= BI_2N) {
-		x = {};
-		return;
-	}
+	if (l >= BI_2N) { x = {}; return; }
 	std::copy_backward(x.begin(), x.end() - l, x.end());
 	std::fill_n(x.begin(), l, 0);
 }
@@ -536,13 +519,9 @@ BI_ALWAYS_INLINE void shift_left_ip_imp(u32 *x, const u32 n, const u32 k) {
 	}
 }
 
-inline void shift_left_ip(bui &x, const u32 k) {
-	shift_left_ip_imp(x.data(), BI_N, k);
-}
+inline void shift_left_ip(bui &x, const u32 k) { shift_left_ip_imp(x.data(), BI_N, k); }
 
-inline void shift_left_ip(bul &x, const u32 k) {
-	shift_left_ip_imp(x.data(), BI_2N, k);
-}
+inline void shift_left_ip(bul &x, const u32 k) { shift_left_ip_imp(x.data(), BI_2N, k); }
 
 // shift left (r = x * 2^k)
 inline bui shift_left(bui x, const u32 k) {
@@ -1017,7 +996,7 @@ inline bul mul_low_fast(const bul& a, const bul& b) {
 		for (u32 j = 0; j < BI_2N - i; ++j) {
 			u64 s = (u64)ai * b[BI_2N - 1 - j] + r[ri - j] + c;
 			r[ri - j] = (u32)s;
-			c = s >> 32;
+			c = s >> BI_SBU32;
 		}
 	}
 	return r;
@@ -1059,7 +1038,7 @@ static void karatsuba_imp(const u32* a, const u32* b, u32* r, u32 n, u32* scratc
 	for (int i = (int)(other - half) - 1; carry && i >= 0; --i) {
 		u64 s = (u64)sum_a[1 + i] + carry;
 		sum_a[1 + i] = (u32)s;
-		carry = (u32)(s >> 32);
+		carry = (u32)(s >> BI_SBU32);
 	}
 	sum_a[0] = carry;
 
@@ -1069,7 +1048,7 @@ static void karatsuba_imp(const u32* a, const u32* b, u32* r, u32 n, u32* scratc
 	for (int i = (int)(other - half) - 1; carry && i >= 0; --i) {
 		u64 s = (u64)sum_b[1 + i] + carry;
 		sum_b[1 + i] = (u32)s;
-		carry = (u32)(s >> 32);
+		carry = (u32)(s >> BI_SBU32);
 	}
 	sum_b[0] = carry;
 
@@ -1095,7 +1074,7 @@ static void karatsuba_imp(const u32* a, const u32* b, u32* r, u32 n, u32* scratc
 	for (int i = (int)half - 1; carry && i >= 0; --i) {
 		u64 s = (u64)r[i] + carry;
 		r[i] = (u32)s;
-		carry = (u32)(s >> 32);
+		carry = (u32)(s >> BI_SBU32);
 	}
 }
 
@@ -2051,7 +2030,7 @@ inline void mul_u32_add_ip(bui& x, u32 multiplier, u32 addition) {
 	while (i-- > 0) {
 		u64 p = (u64)x[i] * multiplier + c;
 		x[i] = (u32)p;
-		c = p >> 32;
+		c = p >> BI_SBU32;
 	}
 }
 
@@ -2635,7 +2614,7 @@ struct MontgomeryReducerSOS {
 			for (u32 j = 0; j < BI_N; ++j) {
 				u64 s = (u64)t[i + j] + (u64)mword * m[BI_N - 1 - j] + carry;
 				t[i + j] = (u32)s;
-				carry = s >> 32;
+				c = s >> BI_SBU32;
 			}
 
 			u32 k = i + BI_N;
@@ -2645,7 +2624,7 @@ struct MontgomeryReducerSOS {
 				// }
 				u64 s = (u64)t[k] + carry;
 				t[k++] = (u32)s;
-				carry = s >> 32;
+				c = s >> BI_SBU32;
 			}
 		}
 
@@ -2721,13 +2700,13 @@ struct MontgomeryReducerCIOS2 {
 				const u32 aj = a[BI_N - 1 - j];
 				u64 s = (u64)t[j] + (u64)aj * bi + carry;
 				t[j] = (u32)s;
-				carry = s >> 32;
+				carry = s >> BI_SBU32;
 			}
 
 			{
 				u64 s = (u64)t[BI_N] + carry;
 				t[BI_N] = (u32)s;
-				t[BI_N + 1] = (u32)(s >> 32);
+				t[BI_N + 1] = (u32)(s >> BI_SBU32);
 			}
 
 			const u32 mword = (u32)((u64)t[0] * n0_inv);
@@ -2735,24 +2714,24 @@ struct MontgomeryReducerCIOS2 {
 			{
 				const u32 m0 = m[BI_N - 1];
 				u64 s = (u64)t[0] + (u64)mword * m0;
-				carry = s >> 32;
+				carry = s >> BI_SBU32;
 			}
 
 			for (u32 j = 1; j < BI_N; ++j) {
 				const u32 mj = m[BI_N - 1 - j];
 				u64 s = (u64)t[j] + (u64)mword * mj + carry;
 				t[j - 1] = (u32)s;
-				carry = s >> 32;
+				carry = s >> BI_SBU32;
 			}
 
 			{
 				u64 s = (u64)t[BI_N] + carry;
 				t[BI_N - 1] = (u32)s;
-				carry = s >> 32;
+				carry = s >> BI_SBU32;
 
 				s = (u64)t[BI_N + 1] + carry;
 				t[BI_N] = (u32)s;
-				t[BI_N + 1] = (u32)(s >> 32);
+				t[BI_N + 1] = (u32)(s >> BI_SBU32);
 			}
 		}
 
@@ -2827,7 +2806,7 @@ struct MontgomeryReducerCIOS3 {
 			{
 				const u32 a0 = a[BI_N - 1];
 				u64 s = (u64)t[0] + (u64)a0 * bi;
-				A = s >> 32;
+				A = s >> BI_SBU32;
 				t0_new = (u32)s;
 			}
 
@@ -2836,29 +2815,29 @@ struct MontgomeryReducerCIOS3 {
 			{
 				const u32 m0 = m[BI_N - 1];
 				u64 s = (u64)t0_new + (u64)q * m0;
-				C = s >> 32;
+				C = s >> BI_SBU32;
 			}
 
 			BI_UNROLL(BI_UNROLL_THRESHOLD)
 			for (u32 j = 1; j < BI_N; ++j) {
 				u32 aj = a[BI_N - 1 - j];
 				u64 s1 = (u64)t[j] + (u64)aj * bi + A;
-				A = s1 >> 32;
+				A = s1 >> BI_SBU32;
 				u32 tj_new = (u32)s1;
 
 				u32 mj = m[BI_N - 1 - j];
 				u64 s2 = (u64)tj_new + (u64)q * mj + C;
-				C = s2 >> 32;
+				C = s2 >> BI_SBU32;
 				t[j - 1] = (u32)s2;
 			}
 
 			u64 s = (u64)t[BI_N] + C + A;
 			t[BI_N - 1] = (u32)s;
-			A = s >> 32;
+			A = s >> BI_SBU32;
 
 			s = (u64)t[BI_N + 1] + A;
 			t[BI_N] = (u32)s;
-			t[BI_N + 1] = (u32)(s >> 32);
+			t[BI_N + 1] = (u32)(s >> BI_SBU32);
 		}
 
 		bui r{};
@@ -2910,8 +2889,7 @@ struct MontgomeryReducerCIOS3 {
 
 			u64 s = (u64)t[BI_N] + C + A;
 			t[BI_N - 1] = (u32)s;
-			A = s >> 32;
-
+			A = s >> BI_SBU32;
 			s = (u64)t[BI_N + 1] + A;
 			t[BI_N] = (u32)s;
 			t[BI_N + 1] = (u32)(s >> 32);
