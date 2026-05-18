@@ -2,9 +2,9 @@ name: CMake Multi-Compiler CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "llimb" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "llimb" ]
 
 env:
   BUILD_TYPE: Release
