@@ -443,6 +443,13 @@ inline u32 highest_limb(const bul &x) {
 	return highest_limb_template<BI_2N>(x.data());
 }
 
+// Shift left by `l` whole 32-bit limbs (big-endian).
+// x[0] = MSW, x[BI_N - 1] = LSW.
+//
+// Example (n = 5, l = 2):
+//   [a0 a1 a2 a3 a4] -> [a2 a3 a4 0 0]
+//
+// Equivalent to division by 2^(32*l).
 inline void shift_limb_left(bui &x, const u32 l) {
 	if (l == 0) return;
 	if (l >= BI_N) {
@@ -453,6 +460,13 @@ inline void shift_limb_left(bui &x, const u32 l) {
 	std::fill(x.end() - l, x.end(), 0);
 }
 
+// Shift right by `l` whole 32-bit limbs (big-endian).
+// x[0] = MSW, x[2*BI_N - 1] = LSW.
+//
+// Example (n = 5, l = 1):
+//   [a0 a1 a2 a3 a4] -> [0 a0 a1 a2 a3]
+//
+// Equivalent to division by 2^(32*l).
 inline void shift_limb_right(bui &x, const u32 l) {
 	if (l == 0) return;
 	if (l >= BI_N) {
@@ -463,12 +477,13 @@ inline void shift_limb_right(bui &x, const u32 l) {
 	std::fill_n(x.begin(), l, 0);
 }
 
-// Big long: shift left by l whole limbs (each limb is 32 bits) in big‑endian representation.
-// Storage is [x[0] = MSW, ..., x[2*BI_N-1] = LSW].
-// eg: n = 5, l = 1
-//   before: index	0	1	2	3	4
-//           value	a0	a1	a2	a3	a4
-//   after:			a1	a2	a3	a4	0 // multiplied by 2^(32*l)
+// Shift left by `l` whole 32-bit limbs (big-endian).
+// x[0] = MSW, x[2*BI_N - 1] = LSW.
+//
+// Example (n = 5, l = 2):
+//   [a0 a1 a2 a3 a4] -> [a2 a3 a4 0 0]
+//
+// Equivalent to division by 2^(32*l).
 inline void shift_limb_left(bul &x, const u32 l) {
 	if (l == 0) return;
 	if (l >= BI_2N) {
@@ -651,22 +666,19 @@ BI_ALWAYS_INLINE void shift_right_ip_imp(u32 *x, const u32 n, const u32 k) {
 }
 
 // Big int: shift right in-place (x /= 2^k)
-inline void shift_right_ip(bui& x, const u32 k) {
-	shift_right_ip_imp(x.data(), BI_N, k);
-}
-
+inline void shift_right_ip(bui& x, const u32 k) { shift_right_ip_imp(x.data(), BI_N, k); }
 // Big long: shift right in-place (x /= 2^k)
-inline void shift_right_ip(bul& x, const u32 k) {
-	shift_right_ip_imp(x.data(), BI_2N, k);
-}
+inline void shift_right_ip(bul& x, const u32 k) { shift_right_ip_imp(x.data(), BI_2N, k); }
 
 // Checking if input bigint is zero
 BI_ALWAYS_INLINE bool bu_is0_imp(const u32 *x, u32 n) {
-	// some optimization bs (loop unroll)
+#ifdef BI_NFORCE_UNROLL
 	while (n >= 4) {
 		n -= 4;
 		if (x[n] | x[n+1] | x[n+2] | x[n+3]) return false;
 	}
+#endif
+	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
 		if (x[n] != 0) return false;
 	return true;
@@ -674,25 +686,24 @@ BI_ALWAYS_INLINE bool bu_is0_imp(const u32 *x, u32 n) {
 
 // Checking if input bui is zero
 inline bool bui_is0(const bui &x) { return bu_is0_imp(x.data(), BI_N); }
-
 // Checking if input bui is zero
 inline bool bul_is0(const bul &x) { return bu_is0_imp(x.data(), BI_2N); }
 
 // Return low-part of bul as bui
-inline bui bul_low(const bul& x) {
-	return x.low();
-	// bui r{};
-	// std::copy(x.begin() + BI_N, x.end(), r.begin());
-	// return r;
-}
-
+inline bui bul_low(const bul& x) { return x.low(); }
 // Return high-part of bul as bui
-inline bui bul_high(const bul& x) {
-	return x.high();
-	// bui r{};
-	// std::copy_n(x.begin(), BI_N, r.begin());
-	// return r;
-}
+inline bui bul_high(const bul& x) { return x.high(); }
+
+// inline bui bul_low(const bul& x) {
+// 	bui r{};
+// 	std::copy(x.begin() + BI_N, x.end(), r.begin());
+// 	return r;
+// }
+// inline bui bul_high(const bul& x) {
+// 	bui r{};
+// 	std::copy_n(x.begin(), BI_N, r.begin());
+// 	return r;
+// }
 
 // Return new bul with low-part being input bui x
 inline bul bui_to_bul(const bui& x) {
@@ -780,6 +791,7 @@ BI_ALWAYS_INLINE u32 add_ip_n_imp(u32* a, const u32* b, u32 n) {
 	return c;
 #else
 	u32 c = 0;
+	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0) {
 		u64 s = (u64)a[n] + b[n] + c;
 		a[n] = (u32)s;
@@ -843,11 +855,13 @@ inline void add_redc_ip(bul &a, const bul &b, const bul &m) {
 BI_ALWAYS_INLINE u32 sub_ip_n_imp(u32* a, const u32* b, u32 n) {
 #if BI_USE_HW_INTRIN
 	unsigned char br = 0;
+	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
 		br = _subborrow_u32(br, a[n], b[n], &a[n]);
 	return br;
 #else
 	u32 br = 0;
+	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0) {
 		u64 d = (u64)a[n] - b[n] - br;
 		a[n] = (u32)d;
@@ -957,6 +971,7 @@ inline void mul_ref(const bui &a, const bui &b, bul &r) {
 	mul_imp(a.data(), b.data(), r.data(), BI_N);
 }
 
+/// maybe mul_low_fast is better
 inline void mul_ip(bui &a, const bui &b) {
 	bul r{};
 	mul_ref(a, b, r);
