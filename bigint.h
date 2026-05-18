@@ -10,8 +10,11 @@
 #include <cctype>
 #include <vector>
 
-#if defined(__x86_64__) || defined(__amd64__) || defined(_M_AMD64) || \
-	defined(__aarch64__) || defined(_M_ARM64) || defined(__LP64__) || defined(_WIN64)
+// #define BI_UW_FORCE_32
+
+#if (defined(__x86_64__) || defined(__amd64__) || defined(_M_AMD64) || \
+	defined(__aarch64__) || defined(_M_ARM64) || defined(__LP64__) || \
+	defined(_WIN64)) && !defined(BI_UW_FORCE_32)
 	#define BI_UW_ARCH64 1
 #else
 	#define BI_UW_ARCH64 0
@@ -21,10 +24,10 @@
 #if defined(BI_UW_FORCE_32)
 	typedef uint32_t uw;
 	typedef uint64_t udw;
-	#define UW_BITS 32
-	#define UW_MAX UINT32_MAX
-	#define UDW_BITS 64
-	#define UDW_MAX UINT64_MAX
+	#define BI_UW_BITS 32
+	#define BI_UW_MAX UINT32_MAX
+	#define BI_UDW_BITS 64
+	#define BI_UDW_MAX UINT64_MAX
 // GCC/Clang on 64-bit: native __int128
 #elif BI_UW_ARCH64 && (defined(__SIZEOF_INT128__) || defined(__GNUC__) || defined(__clang__))
 	typedef uint64_t uw;
@@ -324,11 +327,11 @@ uw dbl_ip_n_imp(uw* x, uw n);
 void dbl_ip(bui &x);
 void dbl_ip(bul &x);
 
-uw u32_divmod_bul(const bul &a, uw d, bul &q);
-void u32_divmod(const bui &a, uw b, bui &q, uw &r);
-void u32_divmod(const bul &a, uw b, bul &q, uw &r);
-uw u32_mod(bui x, uw m);
-uw u32_mod(bul x, uw m);
+uw uw_divmod_bul(const bul &a, uw d, bul &q);
+void uw_divmod(const bui &a, uw b, bui &q, uw &r);
+void uw_divmod(const bul &a, uw b, bul &q, uw &r);
+uw uw_mod(bui x, uw m);
+uw uw_mod(bul x, uw m);
 
 BI_ALWAYS_INLINE bui bui0() { return bui::zero(); }
 BI_ALWAYS_INLINE bui bui1() { return bui::one(); }
@@ -809,7 +812,7 @@ BI_ALWAYS_INLINE uw add_ip_n_imp(uw* a, const uw* b, uw n) {
 	unsigned char c = 0;
 	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
-#ifdef BI_UW_ARCH64
+#if BI_UW_ARCH64 == 1
 		c = _addcarry_u64(c, a[n], b[n], &a[n]);
 #else
 		c = _addcarry_u32(c, a[n], b[n], &a[n]);
@@ -883,7 +886,7 @@ BI_ALWAYS_INLINE uw sub_ip_n_imp(uw* a, const uw* b, uw n) {
 	unsigned char br = 0;
 	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
-#ifdef BI_UW_ARCH64
+#if BI_UW_ARCH64 == 1
 		br = _subborrow_u64(br, a[n], b[n], &a[n]);
 #else
 		br = _subborrow_u32(br, a[n], b[n], &a[n]);
@@ -1305,56 +1308,65 @@ inline void divmod(const bul& a, const bui& b, bui &q, bul &r) {
 	}
 }
 
-BI_ALWAYS_INLINE uw u32_divmod_single(uw hi, uw lo, uw b, uw* rem) {
-#if (defined(__GNUC__) || defined(__clang__)) && (defined(__i386__) || defined(__x86_64__))
+BI_ALWAYS_INLINE uw uw_divmod_single(uw hi, uw lo, uw b, uw* rem) {
+#if defined(__GNUC__) || defined(__clang__)
 	uw q, r;
-	__asm__("divl %4"
-			: "=a"(q), "=d"(r)
-			: "0"(lo), "1"(hi), "rm"(b));
+#if BI_UW_BITS == 64
+	__asm__("divq %4" : "=a"(q), "=d"(r) : "0"(lo), "1"(hi), "rm"(b));
+#else
+	__asm__("divl %4" : "=a"(q), "=d"(r) : "0"(lo), "1"(hi), "rm"(b));
+#endif
 	*rem = r;
 	return q;
-#elif defined(_MSC_VER) && (defined(_M_AMD64) || defined(_M_IX86))
-	return _udiv64((((udw)hi) << 32) | lo, b, rem);
+#elif defined(_MSC_VER) && defined(_M_AMD64)
+#if BI_UW_BITS == 64
+	uw r;
+	uw q = _udiv128(hi, lo, b, &r);
+	*rem = r;
+	return q;
 #else
-	udw dividend = ((udw)hi << 32) | lo;
+	return _udiv64((((udw)hi) << 32) | lo, b, rem);
+#endif
+#else
+	udw dividend = ((udw)hi << BI_SBU32) | lo;
 	*rem = (uw)(dividend % b);
 	return (uw)(dividend / b);
 #endif
 }
 
-inline void u32_divmod(const bui& a, const uw b, bui& q, uw& r) {
+inline void uw_divmod(const bui& a, const uw b, bui& q, uw& r) {
 	q = {};
 	r = 0;
 	uw hl = highest_limb(a);
 	if (hl == 0 && a[BI_N - 1] == 0) return;
 	for (int i = BI_N - 1 - hl; i < BI_N; ++i)
-		q[i] = u32_divmod_single(r, a[i], b, &r);
+		q[i] = uw_divmod_single(r, a[i], b, &r);
 }
 
-inline uw u32_mod(bui x, const uw m) {
+inline uw uw_mod(bui x, const uw m) {
 	uw hl = highest_limb(x);
 	if (hl == 0 && x[BI_N - 1] == 0) return 0;
 	uw r = 0;
 	for (int i = BI_N - 1 - hl; i < BI_N; ++i)
-		x[i] = u32_divmod_single(r, x[i], m, &r);
+		x[i] = uw_divmod_single(r, x[i], m, &r);
 	return r;
 }
 
-inline void u32_divmod(const bul &a, const uw b, bul &q, uw& r) {
+inline void uw_divmod(const bul &a, const uw b, bul &q, uw& r) {
 	q = {};
 	r = 0;
 	uw hl = highest_limb(a);
 	if (hl == 0 && a[BI_2N - 1] == 0) return;
 	for (uw i = BI_2N - 1 - hl; i < BI_2N; ++i)
-		q[i] = u32_divmod_single(r, a[i], b, &r);
+		q[i] = uw_divmod_single(r, a[i], b, &r);
 }
 
-inline uw u32_mod(bul x, const uw m) {
+inline uw uw_mod(bul x, const uw m) {
 	uw r = 0;
 	uw hl = highest_limb(x);
 	if (hl == 0 && x[BI_2N - 1] == 0) return 0;
 	for (uw i = BI_2N - 1 - hl; i < BI_2N; ++i)
-		x[i] = u32_divmod_single(r, x[i], m, &r);
+		x[i] = uw_divmod_single(r, x[i], m, &r);
 	return r;
 }
 
@@ -1494,7 +1506,7 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 	// 2. Fast path for single-limb divisor (n = 1)
 	if (highest_limb(b) == 0 && b[BI_N - 1] != 0) {
 		uw r32 = 0;
-		u32_divmod(a, b[BI_N - 1], quot, r32);
+		uw_divmod(a, b[BI_N - 1], quot, r32);
 		rem = {};
 		rem[BI_N - 1] = r32;
 		return;
@@ -1600,7 +1612,7 @@ inline void divmod_knuth2(const bui& a, const bui& b, bui& quot, bui& rem) {
 	uw d_lead_pow = highest_limb(b);
 	if (d_lead_pow == 0 && b[BI_N - 1] != 0) {
 		uw r32 = 0;
-		u32_divmod(a, b[BI_N - 1], quot, r32);
+		uw_divmod(a, b[BI_N - 1], quot, r32);
 		rem = {};
 		rem[BI_N - 1] = r32;
 		return;
@@ -1682,7 +1694,7 @@ inline void divmod_knuth2(const bui& a, const bui& b, bui& quot, bui& rem) {
 	std::copy_n(u.begin() + 2, BI_N, rem.begin());
 }
 
-BI_ALWAYS_INLINE void u32_divmod_imp(const uw* a, uw na, uw d, uw* q, uw* r_out) {
+BI_ALWAYS_INLINE void uw_divmod_imp(const uw* a, uw na, uw d, uw* q, uw* r_out) {
 	uw r = 0;
 	uw a_lead_pow = highest_limb_imp(a, na);
 	if (a_lead_pow == 0 && a[na - 1] == 0) {
@@ -1690,7 +1702,7 @@ BI_ALWAYS_INLINE void u32_divmod_imp(const uw* a, uw na, uw d, uw* q, uw* r_out)
 		return;
 	}
 	for (uw i = na - 1 - a_lead_pow; i < na; ++i)
-		q[i] = u32_divmod_single(r, a[i], d, &r);
+		q[i] = uw_divmod_single(r, a[i], d, &r);
 	*r_out = r;
 }
 
@@ -1717,7 +1729,7 @@ inline void divmod_knuth_imp(const uw* a, const uw na, const uw* b, const uw nb,
 	if (d_lead_pow == 0 && b[nb - 1] != 0) {
 		memset(q, 0, nq * BI_SU32);
 		uw r32 = 0;
-		u32_divmod_imp(a, na, b[nb - 1], q, &r32);
+		uw_divmod_imp(a, na, b[nb - 1], q, &r32);
 		memset(r, 0, nr * BI_SU32);
 		r[nr - 1] = r32;
 		return;
@@ -1828,7 +1840,7 @@ void divmod_knuth_template(const uw* a, const uw* b, uw* q, uw* r) {
 	if (d_lead_pow == 0 && b[nb - 1] != 0) {
 		std::fill_n(q, nq, 0);
 		uw r32 = 0;
-		u32_divmod_imp(a, na, b[nb - 1], q, &r32);
+		uw_divmod_imp(a, na, b[nb - 1], q, &r32);
 		std::fill_n(r, nr, 0);
 		r[nr - 1] = r32;
 		return;
@@ -1964,7 +1976,7 @@ inline std::string bui_to_dec(const bui& x) {
 	while (!bui_is0(n)) {
 		BI_OP_CONSTEXPR uw BASE = 1000000000u;
 		uw r;
-		u32_divmod(n, BASE, q, r);
+		uw_divmod(n, BASE, q, r);
 		parts.push_back(r);
 		n = q;
 	}
@@ -1991,7 +2003,7 @@ inline std::string bul_to_dec(const bul& x) {
 	while (!bul_is0(n)) {
 		BI_OP_CONSTEXPR uw BASE = 1000000000u;
 		uw r;
-		u32_divmod(n, BASE, q, r);
+		uw_divmod(n, BASE, q, r);
 		parts.push_back(r);
 		n = q;
 	}
@@ -2057,7 +2069,7 @@ inline std::string bui_to_bin(const bui& x) {
 // Divide a double-width big-int (bul, MSW at index 0) by a 32-bit divisor.
 // q = a / d (quotient), returns remainder r = a % d.
 // Requires: d != 0
-inline uw u32_divmod_bul(const bul &a, uw d, bul &q) {
+inline uw uw_divmod_bul(const bul &a, uw d, bul &q) {
 	udw rem = 0;
 	for (uw i = 0; i < BI_2N; ++i) q[i] = 0;
 	for (uw i = 0; i < BI_2N; ++i) {
@@ -2071,7 +2083,7 @@ inline uw u32_divmod_bul(const bul &a, uw d, bul &q) {
 }
 
 // Lightweight O(N) multiply and add for a 32-bit multiplier
-inline void mul_u32_add_ip(bui& x, uw multiplier, uw addition) {
+inline void mul_uw_add_ip(bui& x, uw multiplier, uw addition) {
 	udw c = addition;
 	uw i = BI_N;
 	while (i-- > 0) {
@@ -2101,14 +2113,14 @@ inline bui bui_from_dec(const std::string& s) {
 		chunk_multiplier *= 10;
 		//flush the chunk to bui when hit 1E9
 		if (chunk_multiplier == 1000000000u) {
-			mul_u32_add_ip(out, chunk_multiplier, chunk);
+			mul_uw_add_ip(out, chunk_multiplier, chunk);
 			chunk = 0;
 			chunk_multiplier = 1;
 		}
 	}
 	// flush remaining
 	if (chunk_multiplier > 1) {
-		mul_u32_add_ip(out, chunk_multiplier, chunk);
+		mul_uw_add_ip(out, chunk_multiplier, chunk);
 	}
 	return out;
 }
