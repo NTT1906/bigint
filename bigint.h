@@ -93,7 +93,7 @@ static_assert(BI_BIT > 0 && BI_BIT % BI_SBU32 == 0, "BI_BIT must be positive and
 #endif
 #if defined(_MSC_VER)
 #define BI_DO_PRAGMA(x) __pragma(x)
-#define BI_UNROLL(n) BI_DO_PRAGMA(loop(unroll, n))
+#define BI_UNROLL(n)
 #elif defined(__clang__)
 #define BI_DO_PRAGMA(x) _Pragma(#x)
 #define BI_UNROLL(n) BI_DO_PRAGMA(clang loop unroll_count(n))
@@ -824,10 +824,20 @@ BI_ALWAYS_INLINE uw add_ip_n_imp(uw* a, const uw* b, uw n) {
 	unsigned char c = 0;
 	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
-#if BI_UW_ARCH64 == 1
-		c = _addcarry_u64(c, a[n], b[n], &a[n]);
+#if BI_UW_BITS == 64
+		c = _addcarry_u64(
+			c,
+			static_cast<unsigned long long>(a[n]),
+			static_cast<unsigned long long>(b[n]),
+			reinterpret_cast<unsigned long long*>(&a[n])
+		);
 #else
-		c = _addcarry_u32(c, a[n], b[n], &a[n]);
+		c = _addcarry_u32(
+			c,
+			static_cast<unsigned int>(a[n]),
+			static_cast<unsigned int>(b[n]),
+			reinterpret_cast<unsigned int*>(&a[n])
+		);
 #endif
 	return c;
 #else
@@ -898,10 +908,20 @@ BI_ALWAYS_INLINE uw sub_ip_n_imp(uw* a, const uw* b, uw n) {
 	unsigned char br = 0;
 	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
-#if BI_UW_ARCH64 == 1
-		br = _subborrow_u64(br, a[n], b[n], &a[n]);
+#if BI_UW_BITS == 64
+		br = _subborrow_u64(
+			br,
+			static_cast<unsigned long long>(a[n]),
+			static_cast<unsigned long long>(b[n]),
+			reinterpret_cast<unsigned long long*>(&a[n])
+		);
 #else
-		br = _subborrow_u32(br, a[n], b[n], &a[n]);
+		br = _subborrow_u32(
+			br,
+			static_cast<unsigned int>(a[n]),
+			static_cast<unsigned int>(b[n]),
+			reinterpret_cast<unsigned int*>(&a[n])
+		);
 #endif
 	return br;
 #else
