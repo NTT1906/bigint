@@ -3,14 +3,19 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cstdint>
 #include <cstring>
 #include <future>
-#include <string>
-#include <random>
 #include <cctype>
+#include <random>
+#include <string>
+#include <type_traits>
 #include <vector>
 
 // #define BI_UW_FORCE_32
+
+typedef uint32_t u32;
+typedef uint64_t u64;
 
 #if (defined(__x86_64__) || defined(__amd64__) || defined(_M_AMD64) || \
 	defined(__aarch64__) || defined(_M_ARM64) || defined(__LP64__) || \
@@ -19,7 +24,6 @@
 #else
 	#define BI_UW_ARCH64 0
 #endif
-
 // Override: force 32-bit limbs
 #if defined(BI_UW_FORCE_32)
 	typedef uint32_t uw;
@@ -28,30 +32,31 @@
 	#define BI_UW_MAX UINT32_MAX
 	#define BI_UDW_BITS 64
 	#define BI_UDW_MAX UINT64_MAX
-// GCC/Clang on 64-bit: native __int128
-#elif BI_UW_ARCH64 && (defined(__SIZEOF_INT128__) || defined(__GNUC__) || defined(__clang__))
+// 64-bit compilers with native unsigned __int128 support.
+#elif BI_UW_ARCH64 && defined(__SIZEOF_INT128__)
 	typedef uint64_t uw;
 	typedef unsigned __int128 udw;
 	#define BI_UW_BITS 64
 	#define BI_UW_MAX UINT64_MAX
-	#define UDW_BITS 128
-	#define UDW_MAX (((udw)~0))
-// MSVC x64: no __int128, use _umul128 intrinsics
+	#define BI_UDW_BITS 128
+	#define BI_UDW_MAX (((udw)~0))
+// MSVC x64 has no native unsigned __int128. The algorithms below rely on
+// arithmetic on the double-width type, so keep limbs at 32 bits here.
 #elif defined(_MSC_VER) && defined(_M_AMD64)
-	typedef uint64_t uw;
-	typedef struct { uw lo, hi; } udw;
-	#define BI_UW_BITS 64
-	#define BI_UW_MAX UINT64_MAX
-	#define UDW_BITS 128
-	#define UDW_MAX (((udw)~0))
+	typedef uint32_t uw;
+	typedef uint64_t udw;
+	#define BI_UW_BITS 32
+	#define BI_UW_MAX UINT32_MAX
+	#define BI_UDW_BITS 64
+	#define BI_UDW_MAX UINT64_MAX
 // 32-bit or unknown
 #else
 	typedef uint32_t uw;
 	typedef uint64_t udw;
 	#define BI_UW_BITS 32
 	#define BI_UW_MAX UINT32_MAX
-	#define UDW_BITS 64
-	#define UDW_MAX UINT64_MAX
+	#define BI_UDW_BITS 64
+	#define BI_UDW_MAX UINT64_MAX
 #endif
 #define BI_UW_BYTES (BI_UW_BITS / 8)
 
@@ -79,7 +84,7 @@
 
 #define BI_2N (BI_N * 2)
 
-static_assert(BI_BIT > 0 && BI_BIT % BI_SBU32 == 0, "BI_BIT must be positive and divisible by 32");
+static_assert(BI_BIT > 0 && BI_BIT % BI_SBU32 == 0, "BI_BIT must be positive and divisible by BI_UW_BITS");
 
 #define BI_FORCE_UNROLL
 #ifdef BI_FORCE_UNROLL
@@ -140,6 +145,7 @@ static_assert(BI_BIT > 0 && BI_BIT % BI_SBU32 == 0, "BI_BIT must be positive and
 #endif
 
 #ifdef BI_FORCE_NO_USE_HW_INTRIN
+#undef BI_USE_HW_INTRIN
 #define BI_USE_HW_INTRIN 0
 #endif
 
@@ -343,7 +349,7 @@ BI_ALWAYS_INLINE bul bul_from_u32(const uw x) { return bul::from_u32(x); }
 inline uw get_bit(const uw num, const uw pos) { return num >> pos & 1; }
 
 inline uw set_bit(const uw num, const uw pos, const uw val) {
-	if (pos >= 32) return num;
+	if (pos >= BI_SBU32) return num;
 	uw mask = (uw)1 << pos;
 	return (num & ~mask) | (val & 1u ? mask : 0u);
 }
@@ -358,13 +364,13 @@ inline uw get_bit(const bui &a, const uw pos) {
 inline void set_bit_ip(bui &a, const uw pos, const uw val) {
 	assert(pos < BI_N * BI_SBU32 && "Cannot set bit outside the scope of the big integer");
 	uw k = BI_N - 1 - pos / BI_SBU32;
-	a[k] = set_bit(a[k], pos % 32, val);
+	a[k] = set_bit(a[k], pos % BI_SBU32, val);
 }
 
 inline void set_bit_ip(bul &a, const uw pos, const uw val) {
 	assert(pos < BI_2N * BI_SBU32 && "Cannot set bit outside the scope of the big integer");
 	uw k = BI_2N - 1 - pos / BI_SBU32;
-	a[k] = set_bit(a[k], pos % 32, val);
+	a[k] = set_bit(a[k], pos % BI_SBU32, val);
 }
 
 inline bui set_bit(bui a, const uw pos, const uw val) {
@@ -375,20 +381,26 @@ inline bui set_bit(bui a, const uw pos, const uw val) {
 inline uw highest_bit(uw x) {
 #if defined(__GNUC__) || defined(__clang__)
 	if (x == 0) return 0;
-	return BI_SBU32 - __builtin_clz(x); // GCC fallback
-#elif defined(_MSC_VER) && defined(BI_USE_HW_INTRIN)
-	return BI_SBU32 - __lzcnt(x);
+	if constexpr (BI_UW_BITS == 64)
+		return BI_SBU32 - __builtin_clzll((unsigned long long)x);
+	return BI_SBU32 - __builtin_clz((unsigned int)x);
 #elif defined(_MSC_VER)
+	if (x == 0) return 0;
+#if BI_UW_BITS == 64 && defined(_WIN64)
+	unsigned long idx;
+	if (_BitScanReverse64(&idx, x)) return static_cast<uw>(idx + 1);
+#else
 	unsigned long idx;
 	if (_BitScanReverse(&idx, x)) return static_cast<uw>(idx + 1);
+#endif
 	return 0;
 #else
 	uw pos = 0;
-	if (x >= (1u << 16)) { x >>= 16; pos += 16; }
-	if (x >= (1u << 8))  { x >>= 8;  pos += 8;  }
-	if (x >= (1u << 4))  { x >>= 4;  pos += 4;  }
-	if (x >= (1u << 2))  { x >>= 2;  pos += 2;  }
-	if (x >= (1u << 1))  {           pos += 1;  }
+	if (x >= ((uw)1 << 16)) { x >>= 16; pos += 16; }
+	if (x >= ((uw)1 << 8))  { x >>= 8;  pos += 8;  }
+	if (x >= ((uw)1 << 4))  { x >>= 4;  pos += 4;  }
+	if (x >= ((uw)1 << 2))  { x >>= 2;  pos += 2;  }
+	if (x >= ((uw)1 << 1))  {           pos += 1;  }
 	return pos + 1;
 #endif
 }
@@ -1309,7 +1321,7 @@ inline void divmod(const bul& a, const bui& b, bui &q, bul &r) {
 }
 
 BI_ALWAYS_INLINE uw uw_divmod_single(uw hi, uw lo, uw b, uw* rem) {
-#if defined(__GNUC__) || defined(__clang__)
+#if (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
 	uw q, r;
 #if BI_UW_BITS == 64
 	__asm__("divq %4" : "=a"(q), "=d"(r) : "0"(lo), "1"(hi), "rm"(b));
@@ -1393,8 +1405,8 @@ inline bui bui_binary_flood1(const uw k) {
 	bui r{};
 	uw l = k / BI_SBU32;
 	uw b = k % BI_SBU32;
-	if (l) std::fill_n(r.data() + BI_N - l, l, 0xffffffffu);
-	if (l < BI_N) r[BI_N - 1 - l] = (1u << b) - 1;
+	if (l) std::fill_n(r.data() + BI_N - l, l, BI_UW_MAX);
+	if (l < BI_N) r[BI_N - 1 - l] = b ? (((uw)1 << b) - 1) : 0;
 	return r;
 }
 
@@ -1404,8 +1416,8 @@ inline bul bul_binary_flood1(const uw k) {
 	bul r{};
 	uw l = k / BI_SBU32;
 	uw b = k % BI_SBU32;
-	if (l) std::fill_n(r.data() + BI_2N - l, l, 0xffffffffu);
-	if (l < BI_2N) r[BI_2N - 1 - l] = (1u << b) - 1;
+	if (l) std::fill_n(r.data() + BI_2N - l, l, BI_UW_MAX);
+	if (l < BI_2N) r[BI_2N - 1 - l] = b ? (((uw)1 << b) - 1) : 0;
 	return r;
 }
 
@@ -1548,7 +1560,7 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 
 		// calculate initial guess
 		if (u_jn == d0) {
-			qhat = 0xFFFFFFFFULL;
+			qhat = BI_UW_MAX;
 			rhat = (udw)u_jn1 + d0;
 		} else {
 			qhat = r_top / d0;
@@ -1651,7 +1663,7 @@ inline void divmod_knuth2(const bui& a, const bui& b, bui& quot, bui& rem) {
 		udw qhat, rhat;
 
 		if (u_jn == d0) {
-			qhat = 0xffffffffULL;
+			qhat = BI_UW_MAX;
 			rhat = (udw)u_jn1 + d0;
 		} else {
 			qhat = u_top / d0;
@@ -1769,7 +1781,7 @@ inline void divmod_knuth_imp(const uw* a, const uw na, const uw* b, const uw nb,
 		udw qhat, rhat;
 
 		if (u_jn == d0) {
-			qhat = 0xffffffffULL;
+			qhat = BI_UW_MAX;
 			rhat = (udw)u_jn1 + d0;
 		} else {
 			qhat = u_top / d0;
@@ -1880,7 +1892,7 @@ void divmod_knuth_template(const uw* a, const uw* b, uw* q, uw* r) {
 		udw qhat, rhat;
 
 		if (u_jn == d0) {
-			qhat = 0xffffffffULL;
+			qhat = BI_UW_MAX;
 			rhat = (udw)u_jn1 + d0;
 		} else {
 			qhat = u_top / d0;
@@ -2073,8 +2085,8 @@ inline uw uw_divmod_bul(const bul &a, uw d, bul &q) {
 	udw rem = 0;
 	for (uw i = 0; i < BI_2N; ++i) q[i] = 0;
 	for (uw i = 0; i < BI_2N; ++i) {
-		rem = (rem << 32) | (udw)a[i]; // bring down next limb
-		// quotient limb fits in 32 bits because rem < d * 2^32 here
+		rem = (rem << BI_SBU32) | (udw)a[i]; // bring down next limb
+		// quotient limb fits in one limb because rem < d * 2^BI_SBU32 here
 		uw qi = (uw)(rem / d);
 		q[i] = qi;
 		rem = rem - (udw)qi * (udw)d; // rem = rem % d
@@ -2168,10 +2180,10 @@ inline bui bui_from_bin(const std::string& s) {
 		uw limb_val = 0;
 		uw shift = 0;
 
-		while (str_idx >= start_idx && shift < 32) {
+		while (str_idx >= start_idx && shift < BI_SBU32) {
 			char c = s[str_idx--];
 			if (c == '_' || isspace(c)) continue;
-			if (c == '1') limb_val |= (1u << shift);
+			if (c == '1') limb_val |= ((uw)1 << shift);
 			if (c == '0' || c == '1') shift++;
 		}
 		out[limb_idx--] = limb_val;
