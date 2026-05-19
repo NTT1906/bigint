@@ -16,6 +16,8 @@
 
 typedef uint32_t u32;
 typedef uint64_t u64;
+typedef unsigned long long ull;
+typedef unsigned int uint;
 
 #if (defined(__x86_64__) || defined(__amd64__) || defined(_M_AMD64) || \
 	defined(__aarch64__) || defined(_M_ARM64) || defined(__LP64__) || \
@@ -819,38 +821,60 @@ inline bui random_odd() {
 	return x;
 }
 
-BI_ALWAYS_INLINE uw add_ip_n_imp(uw* a, const uw* b, uw n) {
+BI_ALWAYS_INLINE unsigned char i_addcarry(unsigned char c, uw a, uw b, uw* p) {
 #if BI_USE_HW_INTRIN
+#if BI_UW_BITS == 64
+	return _addcarry_u64(c, (ull)a, (ull)b, reinterpret_cast<ull*>(&p));
+#else
+	return _addcarry_u32(c, (uint)a, (uint)b, reinterpret_cast<uint*>(&p));
+#endif
+#else
+	udw s = (udw)a[n] + b[n] + c;
+	a[n] = (uw)s;
+	return s >> BI_SBU32;
+#endif
+}
+
+BI_ALWAYS_INLINE uw add_ip_n_imp(uw* a, const uw* b, uw n) {
 	unsigned char c = 0;
 	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
-#if BI_UW_BITS == 64
-		c = _addcarry_u64(
-			c,
-			static_cast<unsigned long long>(a[n]),
-			static_cast<unsigned long long>(b[n]),
-			reinterpret_cast<unsigned long long*>(&a[n])
-		);
-#else
-		c = _addcarry_u32(
-			c,
-			static_cast<unsigned int>(a[n]),
-			static_cast<unsigned int>(b[n]),
-			reinterpret_cast<unsigned int*>(&a[n])
-		);
-#endif
+		c = i_addcarry(c, a[n], b[n], &a[n]);
 	return c;
-#else
-	uw c = 0;
-	BI_UNROLL(BI_UNROLL_THRESHOLD)
-	while (n-- > 0) {
-		udw s = (udw)a[n] + b[n] + c;
-		a[n] = (uw)s;
-		c = s >> BI_SBU32;
-	}
-	return c;
-#endif
 }
+
+// BI_ALWAYS_INLINE uw add_ip_n_imp(uw* a, const uw* b, uw n) {
+// #if BI_USE_HW_INTRIN
+// 	unsigned char c = 0;
+// 	BI_UNROLL(BI_UNROLL_THRESHOLD)
+// 	while (n-- > 0)
+// #if BI_UW_BITS == 64
+// 		c = _addcarry_u64(
+// 			c,
+// 			static_cast<unsigned long long>(a[n]),
+// 			static_cast<unsigned long long>(b[n]),
+// 			reinterpret_cast<unsigned long long*>(&a[n])
+// 		);
+// #else
+// 		c = _addcarry_u32(
+// 			c,
+// 			static_cast<unsigned int>(a[n]),
+// 			static_cast<unsigned int>(b[n]),
+// 			reinterpret_cast<unsigned int*>(&a[n])
+// 		);
+// #endif
+// 	return c;
+// #else
+// 	uw c = 0;
+// 	BI_UNROLL(BI_UNROLL_THRESHOLD)
+// 	while (n-- > 0) {
+// 		udw s = (udw)a[n] + b[n] + c;
+// 		a[n] = (uw)s;
+// 		c = s >> BI_SBU32;
+// 	}
+// 	return c;
+// #endif
+// }
 
 // Add 1 to big int
 BI_ALWAYS_INLINE void add_one_ip_imp(uw* x, uw n) { while (n-- > 0 && !++x[n]); }
