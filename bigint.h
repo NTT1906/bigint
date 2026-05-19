@@ -824,14 +824,14 @@ inline bui random_odd() {
 BI_ALWAYS_INLINE unsigned char i_addcarry(unsigned char c, uw a, uw b, uw* p) {
 #if BI_USE_HW_INTRIN
 #if BI_UW_BITS == 64
-	return _addcarry_u64(c, (ull)a, (ull)b, reinterpret_cast<ull*>(&p));
+	return _addcarry_u64(c, (ull)a, (ull)b, reinterpret_cast<ull*>(p));
 #else
-	return _addcarry_u32(c, (uint)a, (uint)b, reinterpret_cast<uint*>(&p));
+	return _addcarry_u32(c, (uint)a, (uint)b, reinterpret_cast<uint*>(p));
 #endif
 #else
-	udw s = (udw)a[n] + b[n] + c;
-	a[n] = (uw)s;
-	return s >> BI_SBU32;
+	udw s = (udw)a + b + c;
+	*p = (uw)s;
+	return (unsigned char)(s >> BI_SBU32);
 #endif
 }
 
@@ -927,37 +927,26 @@ inline void add_redc_ip(bul &a, const bul &b, const bul &m) {
 		sub_ip(a, m);
 }
 
-BI_ALWAYS_INLINE uw sub_ip_n_imp(uw* a, const uw* b, uw n) {
+BI_ALWAYS_INLINE unsigned char i_subborrow(unsigned char c, uw a, uw b, uw* p) {
 #if BI_USE_HW_INTRIN
+#if BI_UW_BITS == 64
+	return _subborrow_u64(c, (ull)a, (ull)b, reinterpret_cast<ull*>(p));
+#else
+	return _subborrow_u32(c, (uint)a, (uint)b, reinterpret_cast<uint*>(p));
+#endif
+#else
+	udw s = (udw)a - b - c;
+	*p = (uw)s;
+	return (unsigned char)(s >> BI_SBU32);
+#endif
+}
+
+BI_ALWAYS_INLINE uw sub_ip_n_imp(uw* a, const uw* b, uw n) {
 	unsigned char br = 0;
 	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
-#if BI_UW_BITS == 64
-		br = _subborrow_u64(
-			br,
-			static_cast<unsigned long long>(a[n]),
-			static_cast<unsigned long long>(b[n]),
-			reinterpret_cast<unsigned long long*>(&a[n])
-		);
-#else
-		br = _subborrow_u32(
-			br,
-			static_cast<unsigned int>(a[n]),
-			static_cast<unsigned int>(b[n]),
-			reinterpret_cast<unsigned int*>(&a[n])
-		);
-#endif
+		i_subborrow(br, a[n], b[n], &a[n]);
 	return br;
-#else
-	uw br = 0;
-	BI_UNROLL(BI_UNROLL_THRESHOLD)
-	while (n-- > 0) {
-		udw d = (udw)a[n] - b[n] - br;
-		a[n] = (uw)d;
-		br = d >> BI_SBU32 & 1; // br occurs if 32nd bit is 1
-	}
-	return br;
-#endif
 }
 
 // a -= b; // assume a > b
