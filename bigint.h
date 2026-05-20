@@ -42,8 +42,7 @@ typedef unsigned int uint;
 	#define BI_UDW_BITS 128
 	#define BI_UDW_MAX (((udw)~0))
 #elif defined(_MSC_VER) && defined(_M_AMD64)
-// MSVC x64 has no native unsigned __int128. The algorithms below rely on
-// arithmetic on the double-width type, so keep limbs at 32 bits here.
+// MSVC x64 has no native unsigned __int128. Emulate the double-width type.
 	typedef u64 uw;
 	struct udw {
 	    uw high;
@@ -1022,7 +1021,7 @@ BI_ALWAYS_INLINE uw sub_ip_n_imp(uw* a, const uw* b, uw n) {
 	unsigned char br = 0;
 	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
-		i_subborrow(br, a[n], b[n], &a[n]);
+		br = i_subborrow(br, a[n], b[n], &a[n]);
 	return br;
 }
 
@@ -2851,7 +2850,7 @@ struct MontgomeryReducerCIOS2 {
 			x *= 2u - m0 * x;
 			x *= 2u - m0 * x;
 			x *= 2u - m0 * x;
-#if BI_UW_BYTES == 64
+#if BI_UW_BITS == 64
 			x *= 2u - m0 * x;
 #endif
 			n0_inv = 0u - x;
@@ -3029,7 +3028,8 @@ struct MontgomeryReducerCIOS3 {
 	bui sqr(const bui& a) const {
 		// Algorithm 5 from the paper needs m[N - 1] <= (D - 1) / 4 - 1.
 		// With 32-bit words and big-endian storage, that is m[0] <= 0x3fffffff.
-		if (m[0] <= 0x3fffffffu) {
+		// This specialized form is only valid for 32-bit limbs.
+		if constexpr (BI_UW_BITS == 32) if (m[0] <= 0x3fffffffu) {
 			std::array<uw, BI_N + 2> t{};
 
 			for (uw i = 0; i < BI_N; ++i) {
