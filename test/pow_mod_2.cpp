@@ -8,7 +8,7 @@
 #include <cmath>
 
 #ifndef BI_BIT
-#define BI_BIT (64)
+#define BI_BIT_WIDTH (64)
 #endif
 #ifndef DATASET_SIZE
 #define DATASET_SIZE 5
@@ -46,7 +46,7 @@ static bui random_bui(std::mt19937& gen) {
 
 static void force_bit_size(bui& x, uw bits, std::mt19937& gen) {
 	if (bits == 0) { x = {}; return; }
-	if (bits > BI_BIT) bits = BI_BIT;
+	if (bits > BI_BIT_WIDTH) bits = BI_BIT_WIDTH;
 	uw nlimbs = (bits + 31) / 32;
 	uw zero_limbs = BI_N - nlimbs;
 	for (uw i = 0; i < zero_limbs; ++i)
@@ -187,7 +187,7 @@ double bench_pow(Fn fn, const std::vector<bui>& base, const std::vector<bui>& ex
 }
 
 int main() {
-	std::cout << "POW_MOD CATEGORY BENCHMARK REPORT (BI_BIT = " << BI_BIT << ")\n";
+	std::cout << "POW_MOD CATEGORY BENCHMARK REPORT (BI_BIT = " << BI_BIT_WIDTH << ")\n";
 
 	std::vector<PowCase> cases;
 	cases.push_back(make_case("random_full", DATASET_SIZE));

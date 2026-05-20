@@ -7,7 +7,7 @@
 
 // Adjust BI_BIT if needed for your local setup
 // #define BI_BIT 24000
-#define BI_BIT 4096
+#define BI_BIT_WIDTH 4096
 #define BI_NFORCE_UNROLL
 #include "../bigint.h"
 
@@ -38,7 +38,7 @@ BI_UNROLL(BI_UNROLL_THRESHOLD)
 // New Implementations (Fixed indices + Compile-time routing)
 // ========================================================================
 inline uw highest_bit_new_bui(const bui &x) {
-    if BI_OP_CONSTEXPR (BI_N <= 16) {
+    if BI_CONSTEXPR (BI_N <= 16) {
         for (uw i = 0; i < BI_N; ++i)
            if (x[i] != 0) return highest_bit(x[i]) + (BI_N - i - 1) * BI_SBU32;
         return 0;
@@ -59,7 +59,7 @@ inline uw highest_bit_new_bui(const bui &x) {
 }
 
 inline uw highest_bit_new_bul(const bul &x) {
-    if BI_OP_CONSTEXPR (BI_2N <= 16) {
+    if BI_CONSTEXPR (BI_2N <= 16) {
         for (uw i = 0; i < BI_2N; ++i)
            if (x[i] != 0) return highest_bit(x[i]) + (BI_2N - i - 1) * BI_SBU32;
         return 0;
@@ -84,7 +84,7 @@ inline uw highest_bit_new_bul(const bul &x) {
 // ========================================================================
 int main() {
     std::cout << "========================================================\n";
-    std::cout << "      HIGHEST_BIT BENCHMARK REPORT (BI_BIT = " << BI_BIT << ")\n";
+    std::cout << "      HIGHEST_BIT BENCHMARK REPORT (BI_BIT = " << BI_BIT_WIDTH << ")\n";
     std::cout << "========================================================\n\n";
 
     const int DATASET_SIZE = 10000;

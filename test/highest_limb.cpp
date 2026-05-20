@@ -5,7 +5,7 @@
 #include <iomanip>
 
 // Adjust BI_BIT if needed for your local setup
-#define BI_BIT (4096 * 10)
+#define BI_BIT_WIDTH (4096 * 10)
 #include "../bigint.h"
 
 // ========================================================================
@@ -33,7 +33,7 @@ inline uw highest_limb_old_bul(const bul &x) {
 // ========================================================================
 int main() {
     std::cout << "========================================================\n";
-    std::cout << "     HIGHEST_LIMB BENCHMARK REPORT (BI_BIT = " << BI_BIT << ")\n";
+    std::cout << "     HIGHEST_LIMB BENCHMARK REPORT (BI_BIT = " << BI_BIT_WIDTH << ")\n";
     std::cout << "========================================================\n\n";
 
     // const int DATASET_SIZE = 10000;

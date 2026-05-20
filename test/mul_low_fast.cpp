@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <random>
 
-#define BI_BIT 512
+#define BI_BIT_WIDTH 512
 #include "../bigint.h"
 
 struct BenchResult {
@@ -31,7 +31,7 @@ inline bui mul_low_fast_old(const bui& a, const bui& b) {
 
 int main() {
     std::cout << "========================================================\n";
-    std::cout << " MUL_LOW_FAST OLD vs NEW (BI_BIT = " << BI_BIT << ")\n";
+    std::cout << " MUL_LOW_FAST OLD vs NEW (BI_BIT = " << BI_BIT_WIDTH << ")\n";
     std::cout << "========================================================\n\n";
 
     const int NUM_TESTS = 300000;

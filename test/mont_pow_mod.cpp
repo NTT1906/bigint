@@ -5,13 +5,13 @@
 #include <iomanip>
 #include <cstring>
 
-#define BI_BIT 512
+#define BI_BIT_WIDTH 512
 #include "../bigint.h"
 
 volatile uw global_sink = 0;
 
 int main() {
-    std::cout << "POW_MOD BENCHMARK REPORT (BI_BIT = " << BI_BIT << ")\n";
+    std::cout << "POW_MOD BENCHMARK REPORT (BI_BIT = " << BI_BIT_WIDTH << ")\n";
 
     // const int DATASET_SIZE = 50;
     const int DATASET_SIZE = 10;

@@ -140,27 +140,23 @@ typedef unsigned int uint;
 // #define NDEBUG
 // #endif
 
-// MACRO DETAIL:
-// BI_BIT: fixed size of bigint in bit length
-// BI_N: size of bigint in limb (1 limb = u32 = 32 bit)
-// BI_FORCE_UNROLL: force some loop to unroll when optimize
-// BI_UNROLL_THRESHOLD: unroll threshold
-// BI_UNROLL(n): unroll pragma
-// BI_NFORCE_UNROLL: force not to unroll
-
-#ifndef BI_BIT
-#define BI_BIT 512
+#ifndef BI_BIT_WIDTH
+#define BI_BIT_WIDTH 512
 #endif
 #ifndef BI_N
-#define BI_N (BI_BIT / BI_UW_BITS)
+#define BI_N (BI_BIT_WIDTH / BI_UW_BITS)
+#endif
+
+#ifndef BI_BIT_WIDTH
+#define BI_BIT_WIDTH (BI_N * BI_UW_BITS)
 #endif
 
 #define BI_2N (BI_N * 2)
 
-static_assert(BI_BIT > 0 && BI_BIT % BI_UW_BITS == 0, "BI_BIT must be positive and divisible by BI_UW_BITS");
+static_assert(BI_BIT_WIDTH > 0 && BI_BIT_WIDTH % BI_UW_BITS == 0, "BI_BIT_WIDTH must be positive and divisible by BI_UW_BITS");
 
-#define BI_FORCE_UNROLL
-#ifdef BI_FORCE_UNROLL
+#define BI_USE_UNROLL_PRAGMAS
+#ifdef BI_USE_UNROLL_PRAGMAS
 #ifndef BI_UNROLL_THRESHOLD
 	#define BI_UNROLL_THRESHOLD 16
 #endif
@@ -181,7 +177,7 @@ static_assert(BI_BIT > 0 && BI_BIT % BI_UW_BITS == 0, "BI_BIT must be positive a
 #endif
 #endif
 
-#ifdef BI_NFORCE_UNROLL
+#ifdef BI_NUSE_UNROLL_PRAGMAS
 #define BI_UNROLL(n)
 #endif
 
@@ -203,25 +199,25 @@ static_assert(BI_BIT > 0 && BI_BIT % BI_UW_BITS == 0, "BI_BIT must be positive a
 #if defined(_MSC_VER) && (defined(_M_AMD64) || defined(_M_IX86))
 // MSVC on x86/x64
 #include <intrin.h>
-#define BI_USE_HW_INTRIN 1
+#define BI_USE_HW_INTRINSICS 1
 #elif (defined(__GNUC__) || defined(__clang__)) && (defined(__x86_64__) || defined(__i386__))
 // GCC or Clang on x86/x64
 #include <x86intrin.h>
-#define BI_USE_HW_INTRIN 1
+#define BI_USE_HW_INTRINSICS 1
 #else
 // Fallback for ARM (Apple Silicon), embedded, or unknown architectures
-#define BI_USE_HW_INTRIN 0
+#define BI_USE_HW_INTRINSICS 0
 #endif
 
 #if !defined(_MSC_VER) && defined(__cpp_constexpr)
-#define BI_OP_CONSTEXPR constexpr
+#define BI_CONSTEXPR constexpr
 #else
-#define BI_OP_CONSTEXPR
+#define BI_CONSTEXPR
 #endif
 
-#ifdef BI_FORCE_NO_USE_HW_INTRIN
-#undef BI_USE_HW_INTRIN
-#define BI_USE_HW_INTRIN 0
+#ifdef BI_DISABLE_HW_INTRINSICS
+#undef BI_USE_HW_INTRINSICS
+#define BI_USE_HW_INTRINSICS 0
 #endif
 
 // big endian: data[0] = MSW
@@ -244,12 +240,12 @@ struct bui {
 	auto end() const { return limbs.end(); }
 	auto size() const { return limbs.size(); }
 
-	BI_OP_CONSTEXPR static bui zero() { return {}; }
-	BI_OP_CONSTEXPR static bui one() {
+	BI_CONSTEXPR static bui zero() { return {}; }
+	BI_CONSTEXPR static bui one() {
 		bui r{}; r.limbs[BI_N - 1] = 1;
 		return r;
 	}
-	BI_OP_CONSTEXPR static bui from_u32(const uw x) {
+	BI_CONSTEXPR static bui from_u32(const uw x) {
 		bui r{}; r.limbs[BI_N - 1] = x;
 		return r;
 	}
@@ -283,12 +279,12 @@ struct bul {
 	auto end() const { return limbs.end(); }
 	auto size() const { return limbs.size(); }
 
-	BI_OP_CONSTEXPR static bul zero() { return {}; }
-	BI_OP_CONSTEXPR static bul one() {
+	BI_CONSTEXPR static bul zero() { return {}; }
+	BI_CONSTEXPR static bul one() {
 		bul r{}; r.limbs[BI_2N - 1] = 1;
 		return r;
 	}
-	BI_OP_CONSTEXPR static bul from_u32(const uw x) {
+	BI_CONSTEXPR static bul from_u32(const uw x) {
 		bul r{}; r.limbs[BI_2N - 1] = x;
 		return r;
 	}
@@ -481,7 +477,7 @@ inline uw highest_bit(uw x) {
 
 inline uw highest_bit(const bui &x) {
 	uw i = 0;
-#ifndef BI_FORCE_UNROLL
+#ifndef BI_USE_UNROLL_PRAGMAS
 	for (; i + 3 < BI_N; i += 4) {
 		if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
 			if (x[i  ]) return highest_bit(x[i  ]) + (BI_N - i - 1) * BI_UW_BITS;
@@ -499,7 +495,7 @@ inline uw highest_bit(const bui &x) {
 
 inline uw highest_bit(const bul &x) {
 	uw i = 0;
-#ifndef BI_FORCE_UNROLL
+#ifndef BI_USE_UNROLL_PRAGMAS
 	for (; i + 3 < BI_2N; i += 4) {
 		if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
 			if (x[i  ]) return highest_bit(x[i  ]) + (BI_2N - i - 1) * BI_UW_BITS;
@@ -547,7 +543,7 @@ BI_ALWAYS_INLINE uw highest_limb_template(const uw *x) {
 
 BI_ALWAYS_INLINE uw highest_limb_imp(const uw *x, const uw n) {
 	uw i = 0;
-#ifndef BI_FORCE_UNROLL
+#ifndef BI_USE_UNROLL_PRAGMAS
 	if  (n > 16) {
 		for (; i + 3 < n; i += 4) {
 			if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
@@ -653,7 +649,7 @@ inline void shift_left_ip(bul &x, const uw k) { shift_left_ip_imp(x.data(), BI_2
 
 // shift left (r = x * 2^k)
 inline bui shift_left(bui x, const uw k) {
-	assert(k < BI_BIT - 1 && "Cannot shift left by big amount (k > BI_BIT - 1)");
+	assert(k < BI_BIT_WIDTH - 1 && "Cannot shift left by big amount (k > BI_BIT_WIDTH - 1)");
 
 	if (k == 0) return x;
 	uw limbs = k / BI_UW_BITS;
@@ -676,7 +672,7 @@ inline bui shift_left(bui x, const uw k) {
 
 // Experiment: shift left expand from bui to bul (r = x * 2^k)
 inline bul shift_left_expand(bui x, const uw k) {
-	assert(k < BI_BIT * 2 - 1 && "Cannot shift left by big amount (k > 2xBIN_N - 1)");
+	assert(k < BI_BIT_WIDTH * 2 - 1 && "Cannot shift left by big amount (k > 2xBIN_N - 1)");
 	if (k == 0) return bui_to_bul(x);
 	uw limbs = k / BI_UW_BITS;
 	if (limbs >= BI_2N) return {};
@@ -698,7 +694,7 @@ inline bul shift_left_expand(bui x, const uw k) {
 
 // Fused Expand Shift: Reads from 'x' once, writes directly to final position in 'r'
 inline bul shift_left_expand_fused(const bui& x, const uw k) {
-	assert(k < BI_BIT * 2 - 1 && "Cannot shift left by big amount (k > 2xBIN_N - 1)");
+	assert(k < BI_BIT_WIDTH * 2 - 1 && "Cannot shift left by big amount (k > 2xBIN_N - 1)");
 	if (k == 0) return bui_to_bul(x);
 	bul r{};
 	uw limbs = k / BI_UW_BITS;
@@ -731,7 +727,7 @@ inline bul shift_left_expand_fused(const bui& x, const uw k) {
 
 // shift left mod (r = x * 2^k mod m)
 inline bui shift_left_mod2(const bui& x, const uw k, const bui& m) {
-	assert(k < BI_BIT * 2 && "Cannot shift left by big amount (k > 2xBI_BIT - 1)");
+	assert(k < BI_BIT_WIDTH * 2 && "Cannot shift left by big amount (k > 2xBI_BIT - 1)");
 	bul p2 = shift_left_expand_fused(x, k);
 	return mod(p2, m);
 }
@@ -740,7 +736,7 @@ inline bui shift_left_mod2(const bui& x, const uw k, const bui& m) {
 inline bui shift_left_mod_bulk(bui x, uw k, const bui& m) {
 	x = mod(x, m);
 	while (k > 0) {
-		uw step = k > BI_BIT ? BI_BIT : k;
+		uw step = k > BI_BIT_WIDTH ? BI_BIT_WIDTH : k;
 		bul p2 = shift_left_expand_fused(x, step);
 		x = mod(p2, m);
 		k -= step;
@@ -884,7 +880,7 @@ inline bui random_odd() {
 }
 
 BI_ALWAYS_INLINE unsigned char i_addcarry(unsigned char c, uw a, uw b, uw* p) {
-#if BI_USE_HW_INTRIN
+#if BI_USE_HW_INTRINSICS
 #if BI_UW_BITS == 64
 	return _addcarry_u64(c, (ull)a, (ull)b, reinterpret_cast<ull*>(p));
 #else
@@ -906,7 +902,7 @@ BI_ALWAYS_INLINE uw add_ip_n_imp(uw* a, const uw* b, uw n) {
 }
 
 // BI_ALWAYS_INLINE uw add_ip_n_imp(uw* a, const uw* b, uw n) {
-// #if BI_USE_HW_INTRIN
+// #if BI_USE_HW_INTRINSICS
 // 	unsigned char c = 0;
 // 	BI_UNROLL(BI_UNROLL_THRESHOLD)
 // 	while (n-- > 0)
@@ -990,7 +986,7 @@ inline void add_redc_ip(bul &a, const bul &b, const bul &m) {
 }
 
 BI_ALWAYS_INLINE unsigned char i_subborrow(unsigned char c, uw a, uw b, uw* p) {
-#if BI_USE_HW_INTRIN
+#if BI_USE_HW_INTRINSICS
 #if BI_UW_BITS == 64
 	return _subborrow_u64(c, (ull)a, (ull)b, reinterpret_cast<ull*>(p));
 #else
@@ -1498,7 +1494,7 @@ inline uw uw_mod(bul x, const uw m) {
 
 // Big int: return 2^k
 inline bui bui_pow2(const uw k) {
-	assert(k < BI_BIT && "Input size must be in data range!");
+	assert(k < BI_BIT_WIDTH && "Input size must be in data range!");
 	bui r{};
 	set_bit_ip(r, k, 1);
 	return r;
@@ -1506,7 +1502,7 @@ inline bui bui_pow2(const uw k) {
 
 // Big long: return 2^k
 inline bul bul_pow2(const uw k) {
-	assert(k < BI_BIT * 2);
+	assert(k < BI_BIT_WIDTH * 2);
 	bul r{};
 	set_bit_ip(r, k, 1);
 	return r;
@@ -1514,7 +1510,7 @@ inline bul bul_pow2(const uw k) {
 
 // Return 2^k - 1, k <= BI_BIN
 inline bui bui_binary_flood1(const uw k) {
-	assert(k <= BI_BIT && "bui_binary_flood1: input k must be smaller than BI_BIT");
+	assert(k <= BI_BIT_WIDTH && "bui_binary_flood1: input k must be smaller than BI_BIT_WIDTH");
 	bui r{};
 	uw l = k / BI_UW_BITS;
 	uw b = k % BI_UW_BITS;
@@ -1525,7 +1521,7 @@ inline bui bui_binary_flood1(const uw k) {
 
 // Return 2^k - 1, k <= 2xBI_BIN
 inline bul bul_binary_flood1(const uw k) {
-	assert(k <= BI_BIT * 2 && "bul_binary_flood1: input k must be smaller than 2xBI_BIT");
+	assert(k <= BI_BIT_WIDTH * 2 && "bul_binary_flood1: input k must be smaller than 2xBI_BIT");
 	bul r{};
 	uw l = k / BI_UW_BITS;
 	uw b = k % BI_UW_BITS;
@@ -2099,7 +2095,7 @@ inline std::string bui_to_dec(const bui& x) {
 	bui n = x, q{};
 
 	while (!bui_is0(n)) {
-		BI_OP_CONSTEXPR uw BASE = 1000000000u;
+		BI_CONSTEXPR uw BASE = 1000000000u;
 		uw r;
 		uw_divmod(n, BASE, q, r);
 		parts.push_back(r);
@@ -2126,7 +2122,7 @@ inline std::string bul_to_dec(const bul& x) {
 	bul n = x, q{};
 
 	while (!bul_is0(n)) {
-		BI_OP_CONSTEXPR uw BASE = 1000000000u;
+		BI_CONSTEXPR uw BASE = 1000000000u;
 		uw r;
 		uw_divmod(n, BASE, q, r);
 		parts.push_back(r);
@@ -2348,7 +2344,7 @@ inline bool mod_inverse(const bui& a_in, const bui& m, bui& inv_out) {
 				if (get_bit(x1, 0)) {
 					uw carry = add_ip_n_imp(x1.data(), m.data(), BI_N);
 					shift_right_ip(x1, 1);
-					if (carry) set_bit_ip(x1, BI_BIT - 1, 1);
+					if (carry) set_bit_ip(x1, BI_BIT_WIDTH - 1, 1);
 				} else {
 					shift_right_ip(x1, 1);
 				}
@@ -2359,7 +2355,7 @@ inline bool mod_inverse(const bui& a_in, const bui& m, bui& inv_out) {
 				if (get_bit(x2, 0)) {
 					uw carry = add_ip_n_imp(x2.data(), m.data(), BI_N);
 					shift_right_ip(x2, 1);
-					if (carry) set_bit_ip(x2, BI_BIT - 1, 1);
+					if (carry) set_bit_ip(x2, BI_BIT_WIDTH - 1, 1);
 				} else {
 					shift_right_ip(x2, 1);
 				}
@@ -2447,7 +2443,7 @@ inline bool mod_inverse_binary(bui a, const bui& m, bui& inv_out) {
 				uw carry = add_ip_n_imp(x1.data(), m.data(), BI_N);
 				shift_right_ip(x1, 1);
 				// Inject the lost carry back into the Most Significant Bit
-				if (carry) set_bit_ip(x1, BI_BIT - 1, 1);
+				if (carry) set_bit_ip(x1, BI_BIT_WIDTH - 1, 1);
 			} else {
 				shift_right_ip(x1, 1);
 			}
@@ -2460,7 +2456,7 @@ inline bool mod_inverse_binary(bui a, const bui& m, bui& inv_out) {
 				// x2 = (x2 + m) / 2
 				uw carry = add_ip_n_imp(x2.data(), m.data(), BI_N);
 				shift_right_ip(x2, 1);
-				if (carry) set_bit_ip(x2, BI_BIT - 1, 1);
+				if (carry) set_bit_ip(x2, BI_BIT_WIDTH - 1, 1);
 			} else {
 				shift_right_ip(x2, 1);
 			}
@@ -2528,7 +2524,7 @@ struct MontgomeryReducer {
 	MontgomeryReducer(const bui& modulus) : modulus(modulus) {
 		assert(get_bit(modulus, 0) && cmp(modulus, bui1()) == 1);
 		reducerBits = (highest_bit(modulus) / BI_UW_BITS + 1) * BI_UW_BITS;
-		if (reducerBits > BI_BIT) reducerBits = BI_BIT;
+		if (reducerBits > BI_BIT_WIDTH) reducerBits = BI_BIT_WIDTH;
 		reducer = bul_pow2(reducerBits);
 		mask = bui_binary_flood1(reducerBits);
 		convertedOne = mod(reducer, modulus);
@@ -2571,7 +2567,7 @@ struct MontgomeryReducer {
 		uw c = add_ip_n_imp(product.data(), tmp2.data(), BI_2N);
 		shift_right_ip(product, reducerBits);
 		if (c) {
-			bul carry = bul_pow2(BI_BIT * 2 - reducerBits);
+			bul carry = bul_pow2(BI_BIT_WIDTH * 2 - reducerBits);
 			add_ip(product, carry);
 		}
 		if (cmp(product, modulus) >= 0)
@@ -2633,7 +2629,7 @@ inline bui mr_pow_mod(bui x, const bui& e, const bui& m) {
 // 		set_bit_ip(r, m_bits, 1);
 //
 // 		// 3. Run the loop only for the remaining bits (usually ~512 iterations instead of 1024)
-// 		for (int i = BI_BIT * 2 - m_bits; i >= 0; --i) {
+// 		for (int i = BI_BIT_WIDTH * 2 - m_bits; i >= 0; --i) {
 // 			if (cmp(r, m_bul) >= 0) {
 // 				sub_ip(r, m_bul);
 // 				set_bit_ip(q, i, 1);
@@ -2750,10 +2746,10 @@ struct MontgomeryReducerSOS {
 #endif
 			n0_inv = 0u - x;
 		}
-		// R = 2^BI_BIT mod m
-		r2 = shift_left_mod(bui1(), BI_BIT, m);
-		// R^2 = R * 2^BI_BIT mod m = 2^{2*BI_BIT} mod m
-		for (uw i = 0; i < BI_BIT; ++i)
+		// R = 2^BI_BIT_WIDTH mod m
+		r2 = shift_left_mod(bui1(), BI_BIT_WIDTH, m);
+		// R^2 = R * 2^BI_BIT_WIDTH mod m = 2^{2*BI_BIT_WIDTH} mod m
+		for (uw i = 0; i < BI_BIT_WIDTH; ++i)
 			dbl_mod_ip(r2, m);
 	}
 
@@ -2845,8 +2841,8 @@ struct MontgomeryReducerCIOS2 {
 		}
 
 		r2 = bui1();
-		for (uw i = 0; i < BI_BIT * 2; ++i)
-			dbl_mod_ip(r2, m); // r2 = 2^(2*BI_BIT) mod mod
+		for (uw i = 0; i < BI_BIT_WIDTH * 2; ++i)
+			dbl_mod_ip(r2, m); // r2 = 2^(2*BI_BIT_WIDTH) mod mod
 	}
 
 	bui mul(const bui& a, const bui& b) const {
@@ -2947,13 +2943,13 @@ struct MontgomeryReducerCIOS3 {
 			n0_inv = 0u - x;
 		}
 		r2 = bui1();
-		for (uw i = 0; i < BI_BIT * 2; ++i)
-			dbl_mod_ip(r2, m); // r2 = 2^(2*BI_BIT) mod mod
+		for (uw i = 0; i < BI_BIT_WIDTH * 2; ++i)
+			dbl_mod_ip(r2, m); // r2 = 2^(2*BI_BIT_WIDTH) mod mod
 
-		// // R = 2^BI_BIT mod m
-		// r2 = shift_left_mod(bui1(), BI_BIT, m);
-		// // R^2 = R * 2^BI_BIT mod m = 2^{2*BI_BIT} mod m
-		// for (u32 i = 0; i < BI_BIT; ++i)
+		// // R = 2^BI_BIT_WIDTH mod m
+		// r2 = shift_left_mod(bui1(), BI_BIT_WIDTH, m);
+		// // R^2 = R * 2^BI_BIT_WIDTH mod m = 2^{2*BI_BIT_WIDTH} mod m
+		// for (u32 i = 0; i < BI_BIT_WIDTH; ++i)
 		// 	dbl_mod_ip(r2, m);
 	}
 

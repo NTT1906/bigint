@@ -5,14 +5,14 @@
 #include <iomanip>
 #include <cstring>
 
-#define BI_BIT 4096
+#define BI_BIT_WIDTH 4096
 #include "../bigint.h"
 
 volatile uw global_sink = 0;
 
 int main() {
     std::cout << "========================================================\n";
-    std::cout << "       POW_MOD BENCHMARK REPORT (BI_BIT = " << BI_BIT << ")\n";
+    std::cout << "       POW_MOD BENCHMARK REPORT (BI_BIT = " << BI_BIT_WIDTH << ")\n";
     std::cout << "========================================================\n\n";
 
     // const int DATASET_SIZE = 50;
@@ -44,7 +44,7 @@ int main() {
     }
 
     // Validation
-	if (BI_BIT <= 512) {
+	if (BI_BIT_WIDTH <= 512) {
 		std::cout << "[+] Validating correctness...\n";
 		for (int i = 0; i < DATASET_SIZE; ++i) {
 		    r_ref[i]  = pow_mod(x_vec[i], e_vec[i], m_vec[i]);

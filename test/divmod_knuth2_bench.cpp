@@ -7,7 +7,7 @@
 #include <cstring>
 
 #ifndef BI_BIT
-#define BI_BIT (8192)
+#define BI_BIT_WIDTH (8192)
 #endif
 #ifndef DATASET_SIZE
 #define DATASET_SIZE 1000
@@ -148,7 +148,7 @@ double bench_div(Fn fn, const std::vector<bui>& a, const std::vector<bui>& b, st
 }
 
 int main() {
-	std::cout << "DIVMOD_KNUTH2 CATEGORY BENCHMARK REPORT (BI_BIT = " << BI_BIT << ")\n";
+	std::cout << "DIVMOD_KNUTH2 CATEGORY BENCHMARK REPORT (BI_BIT = " << BI_BIT_WIDTH << ")\n";
 
 	std::vector<DivCase> cases;
 	cases.push_back(make_case("random", DATASET_SIZE));

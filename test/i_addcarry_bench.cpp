@@ -7,7 +7,7 @@
 #include <vector>
 
 #ifndef BI_BIT
-#define BI_BIT 4096
+#define BI_BIT_WIDTH 4096
 #endif
 // #define BI_UW_FORCE_32
 #define BI_FORCE_NO_USE_HW_INTRIN
@@ -19,7 +19,7 @@ using ull = unsigned long long;
 volatile uw global_sink_i_addcarry = 0;
 
 BI_ALWAYS_INLINE unsigned char bench_i_addcarry(unsigned char c, uw a, uw b, uw* p) {
-#if BI_USE_HW_INTRIN
+#if BI_USE_HW_INTRINSICS
 #if BI_UW_BITS == 64
 	// unsigned long long r;
 	// *p = __builtin_addcll(a, b,c, &r);
@@ -77,9 +77,9 @@ double bench_add(const char* name, Fn fn, std::vector<bui> work, const std::vect
 
 int main() {
 	std::cout << "I_ADDCARRY BENCHMARK REPORT\n";
-	std::cout << "BI_BIT=" << BI_BIT
+	std::cout << "BI_BIT=" << BI_BIT_WIDTH
 		<< " BI_UW_BITS=" << BI_UW_BITS
-		<< " BI_USE_HW_INTRIN=" << BI_USE_HW_INTRIN
+		<< " BI_USE_HW_INTRINSICS=" << BI_USE_HW_INTRINSICS
 		<< "\n";
 
 	const int dataset_size = 1024;

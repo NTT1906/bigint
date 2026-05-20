@@ -1,5 +1,5 @@
 #include <iostream>
-#define BI_BIT 512
+#define BI_BIT_WIDTH 512
 #include "bigint.h"
 
 constexpr uw POLY_R = 14;
@@ -384,7 +384,7 @@ bui gen_prime_sieve() {
                 }
 
                 // If addition overflowed our bit limit, break and get a new base
-                if (highest_bit(candidate) >= BI_BIT) {
+                if (highest_bit(candidate) >= BI_BIT_WIDTH) {
                     break;
                 }
 

@@ -5,7 +5,7 @@
 #include <iomanip>
 
 #ifndef BI_BIT
-#define BI_BIT 4096
+#define BI_BIT_WIDTH 4096
 #endif
 #include "../bigint.h"
 
@@ -22,7 +22,7 @@ BI_ALWAYS_INLINE uw add_ip_n_scalar_u64(uw* a, const uw* b, uw n) {
 }
 
 BI_ALWAYS_INLINE uw add_ip_n_hw_intrin(uw* a, const uw* b, uw n) {
-#if BI_USE_HW_INTRIN
+#if BI_USE_HW_INTRINSICS
 	unsigned char c = 0;
 	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
@@ -77,7 +77,7 @@ double bench_add(const char* name, Fn fn, std::vector<bui> work, const std::vect
 }
 
 int main() {
-	std::cout << "ADD_IP_N BENCHMARK REPORT (BI_BIT = " << BI_BIT << ")\n";
+	std::cout << "ADD_IP_N BENCHMARK REPORT (BI_BIT = " << BI_BIT_WIDTH << ")\n";
 
 	const int DATASET_SIZE = 1024;
 	const int BENCH_ITERATIONS = 200000;

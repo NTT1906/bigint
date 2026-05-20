@@ -6,7 +6,7 @@
 #include <cassert>
 
 #ifndef BI_BIT
-#define BI_BIT 1024
+#define BI_BIT_WIDTH 1024
 #endif
 #include "../bigint.h"
 
@@ -23,7 +23,7 @@ BI_ALWAYS_INLINE uw dbl_ip_n_shift_be(uw* x, uw n) {
 
 BI_ALWAYS_INLINE uw dbl_ip_n_addcarry(uw* x, uw n) {
 	assert(n != 0 && "Cannot double zero-limb.");
-#if BI_USE_HW_INTRIN
+#if BI_USE_HW_INTRINSICS
 	unsigned char c = 0;
 	while (n-- > 0)
 		c = _addcarry_u32(c, x[n], x[n], &x[n]);
@@ -64,7 +64,7 @@ double bench_dbl(const char* name, Fn fn, std::vector<bui> work, int iterations)
 }
 
 int main() {
-	std::cout << "DBL_IP_N BENCHMARK REPORT (BI_BIT = " << BI_BIT << ")\n";
+	std::cout << "DBL_IP_N BENCHMARK REPORT (BI_BIT = " << BI_BIT_WIDTH << ")\n";
 
 	const int DATASET_SIZE = 1024;
 	const int BENCH_ITERATIONS = 200000;

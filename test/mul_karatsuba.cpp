@@ -3,7 +3,7 @@
 #include <vector>
 #include <iomanip>
 
-#define BI_BIT (4096 * 1)
+#define BI_BIT_WIDTH (4096 * 1)
 #include "../bigint.h"
 
 // ===== Result struct =====
@@ -42,7 +42,7 @@ void inject_edge_cases(bui& a, bui& b, int i) {
 // ===== Main =====
 int main() {
     std::cout << "========================================================\n";
-    std::cout << " KARATSUBA vs MUL_REF (BI_BIT = " << BI_BIT << ")\n";
+    std::cout << " KARATSUBA vs MUL_REF (BI_BIT = " << BI_BIT_WIDTH << ")\n";
     std::cout << "========================================================\n\n";
 
     const int NUM_TESTS = 200000;

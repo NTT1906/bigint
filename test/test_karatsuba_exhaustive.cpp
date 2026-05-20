@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <iomanip>
 
-#define BI_BIT 512
+#define BI_BIT_WIDTH 512
 #include "../bigint.h"
 
 static int passed = 0;
@@ -213,7 +213,7 @@ static void run_scratch_consistency() {
 
 int main() {
 	std::cout << "============================================================\n";
-	std::cout << "  KARATSUBA EXHAUSTIVE CORRECTNESS TEST (BI_BIT=" << BI_BIT << ")\n";
+	std::cout << "  KARATSUBA EXHAUSTIVE CORRECTNESS TEST (BI_BIT=" << BI_BIT_WIDTH << ")\n";
 	std::cout << "============================================================\n\n";
 
 	run_exhaustive_small();
