@@ -140,14 +140,12 @@ using uint = unsigned int;
 // #define NDEBUG
 // #endif
 
-#ifndef BI_BLEN
+#if !defined(BI_BLEN) && !defined(BI_LEN)
 #define BI_BLEN 512
-#endif
-#ifndef BI_LEN
 #define BI_LEN (BI_BLEN / BI_UW_BITS)
-#endif
-
-#ifndef BI_BLEN
+#elif defined(BI_BLEN) && !defined(BI_LEN)
+#define BI_LEN (BI_BLEN / BI_UW_BITS)
+#elif !defined(BI_BLEN) && defined(BI_LEN)
 #define BI_BLEN (BI_LEN * BI_UW_BITS)
 #endif
 
@@ -178,7 +176,8 @@ static_assert(BI_BLEN > 0 && BI_BLEN % BI_UW_BITS == 0, "BI_BLEN must be positiv
 #endif
 #endif
 
-#ifdef BI_NUSE_UNROLL_PRAGMAS
+#ifdef BI_DISABLE_UNROLL_PRAGMAS
+#undef BI_UNROLL
 #define BI_UNROLL(n)
 #endif
 
@@ -673,7 +672,7 @@ inline bui shift_left(bui x, const uw k) {
 
 // Experiment: shift left expand from bui to bul (r = x * 2^k)
 inline bul shift_left_expand(bui x, const uw k) {
-	assert(k < BI_BLEN * 2 - 1 && "Cannot shift left by big amount (k > 2xBIN_N - 1)");
+	assert(k < BI_BLEN2 - 1 && "Cannot shift left by big amount (k > 2xBIN_N - 1)");
 	if (k == 0) return bui_to_bul(x);
 	uw limbs = k / BI_UW_BITS;
 	if (limbs >= BI_LEN2) return {};
@@ -695,7 +694,7 @@ inline bul shift_left_expand(bui x, const uw k) {
 
 // Fused Expand Shift: Reads from 'x' once, writes directly to final position in 'r'
 inline bul shift_left_expand_fused(const bui& x, const uw k) {
-	assert(k < BI_BLEN * 2 - 1 && "Cannot shift left by big amount (k > 2xBIN_N - 1)");
+	assert(k < BI_BLEN2 - 1 && "Cannot shift left by big amount (k > 2xBIN_N - 1)");
 	if (k == 0) return bui_to_bul(x);
 	bul r{};
 	uw limbs = k / BI_UW_BITS;
@@ -728,7 +727,7 @@ inline bul shift_left_expand_fused(const bui& x, const uw k) {
 
 // shift left mod (r = x * 2^k mod m)
 inline bui shift_left_mod2(const bui& x, const uw k, const bui& m) {
-	assert(k < BI_BLEN * 2 && "Cannot shift left by big amount (k > 2xBI_BIT - 1)");
+	assert(k < BI_BLEN2 && "Cannot shift left by big amount (k > 2xBI_BIT - 1)");
 	bul p2 = shift_left_expand_fused(x, k);
 	return mod(p2, m);
 }
@@ -1503,7 +1502,7 @@ inline bui bui_pow2(const uw k) {
 
 // Big long: return 2^k
 inline bul bul_pow2(const uw k) {
-	assert(k < BI_BLEN * 2);
+	assert(k < BI_BLEN2);
 	bul r{};
 	set_bit_ip(r, k, 1);
 	return r;
@@ -1522,7 +1521,7 @@ inline bui bui_binary_flood1(const uw k) {
 
 // Return 2^k - 1, k <= 2xBI_BIN
 inline bul bul_binary_flood1(const uw k) {
-	assert(k <= BI_BLEN * 2 && "bul_binary_flood1: input k must be smaller than 2xBI_BIT");
+	assert(k <= BI_BLEN2 && "bul_binary_flood1: input k must be smaller than 2xBI_BIT");
 	bul r{};
 	uw l = k / BI_UW_BITS;
 	uw b = k % BI_UW_BITS;
@@ -2568,7 +2567,7 @@ struct MontgomeryReducer {
 		uw c = add_ip_n_imp(product.data(), tmp2.data(), BI_LEN2);
 		shift_right_ip(product, reducerBits);
 		if (c) {
-			bul carry = bul_pow2(BI_BLEN * 2 - reducerBits);
+			bul carry = bul_pow2(BI_BLEN2 - reducerBits);
 			add_ip(product, carry);
 		}
 		if (cmp(product, modulus) >= 0)
@@ -2630,7 +2629,7 @@ inline bui mr_pow_mod(bui x, const bui& e, const bui& m) {
 // 		set_bit_ip(r, m_bits, 1);
 //
 // 		// 3. Run the loop only for the remaining bits (usually ~512 iterations instead of 1024)
-// 		for (int i = BI_BLEN * 2 - m_bits; i >= 0; --i) {
+// 		for (int i = BI_BLEN2 - m_bits; i >= 0; --i) {
 // 			if (cmp(r, m_bul) >= 0) {
 // 				sub_ip(r, m_bul);
 // 				set_bit_ip(q, i, 1);
@@ -2842,7 +2841,7 @@ struct MontgomeryReducerCIOS2 {
 		}
 
 		r2 = bui1();
-		for (uw i = 0; i < BI_BLEN * 2; ++i)
+		for (uw i = 0; i < BI_BLEN2; ++i)
 			dbl_mod_ip(r2, m); // r2 = 2^(2*BI_BLEN) mod mod
 	}
 
@@ -2944,7 +2943,7 @@ struct MontgomeryReducerCIOS3 {
 			n0_inv = 0u - x;
 		}
 		r2 = bui1();
-		for (uw i = 0; i < BI_BLEN * 2; ++i)
+		for (uw i = 0; i < BI_BLEN2; ++i)
 			dbl_mod_ip(r2, m); // r2 = 2^(2*BI_BLEN) mod mod
 
 		// // R = 2^BI_BLEN mod m
