@@ -11,10 +11,10 @@
 #include <type_traits>
 #include <vector>
 
-typedef uint32_t u32;
-typedef uint64_t u64;
-typedef unsigned long long ull;
-typedef unsigned int uint;
+using u32 = uint32_t;
+using u64 = uint64_t;
+using ull = unsigned long long;
+using uint = unsigned int;
 
 // #define BI_UW_FORCE_32
 
@@ -28,15 +28,15 @@ typedef unsigned int uint;
 
 #if (!defined(BI_UW_FORCE_32)) && (defined(__GNUC__) || defined(__clang__)) && BI_UW_ARCH64 && defined(__SIZEOF_INT128__)
 // 64-bit compilers with native unsigned __int128 support.
-	typedef u64 uw;
-	typedef unsigned __int128 udw;
+	using uw = u64;
+	using udw = unsigned __int128;
 	#define BI_UW_BITS 64
 	#define BI_UW_MAX UINT64_MAX
 	#define BI_UDW_BITS 128
 	#define BI_UDW_MAX (((udw)~0))
 #elif (!defined(BI_UW_FORCE_32)) && defined(_MSC_VER) && defined(_M_AMD64)
 // MSVC x64 has no native unsigned __int128. Emulate the double-width type.
-	typedef u64 uw;
+	using uw = u64;
 	struct udw {
 		uw high;
 		uw low;
@@ -127,8 +127,8 @@ typedef unsigned int uint;
 	#define BI_UDW_MAX udw{BI_UW_MAX, BI_UW_MAX}
 #else
 // 32-bit or unknown
-	typedef uint32_t uw;
-	typedef uint64_t udw;
+	using uw = uint32_t;
+	using udw = uint64_t;
 	#define BI_UW_BITS 32
 	#define BI_UW_MAX UINT32_MAX
 	#define BI_UDW_BITS 64
