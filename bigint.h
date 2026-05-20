@@ -51,7 +51,7 @@ typedef unsigned int uint;
 	typedef u64 uw;
 	struct udw {
 		uw high; uw low;
-		udw() = default;
+		explicit udw(const u32 &low) : high{}, low{low} {}
 		explicit udw(const uw &low) : high{}, low{low} {}
 		explicit udw(const uw &high, const uw &low) : high{high}, low{low} {}
 		explicit operator uw() const { return low; }
@@ -1306,7 +1306,7 @@ BI_ALWAYS_INLINE void sqr_imp(const uw* a, uw* r, const uw n) {
 	// 1. Calculate symmetrical cross-products only ONCE (i < j)
 	for (uw i = n; i-- > 1;) {
 		if (!a[i]) continue;
-		udw c = 0;
+		udw c{};
 		for (uw j = i; j-- > 0;) {
 			udw p = (udw)a[i] * a[j] + r[i + j + 1] + c;
 			r[i + j + 1] = (uw)p;
