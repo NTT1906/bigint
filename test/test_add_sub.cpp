@@ -110,22 +110,22 @@ int main() {
     std::mt19937 rng(123);
 
     // Data
-    std::vector<std::vector<u32>> A(NUM_TESTS, std::vector<u32>(BI_N));
-    std::vector<std::vector<u32>> B(NUM_TESTS, std::vector<u32>(BI_N));
+    std::vector<std::vector<u32>> A(NUM_TESTS, std::vector<u32>(BI_LEN));
+    std::vector<std::vector<u32>> B(NUM_TESTS, std::vector<u32>(BI_LEN));
 
     std::cout << "Generating inputs + edge cases...\n";
 
     for (int i = 0; i < NUM_TESTS; ++i) {
-        for (u32 j = 0; j < BI_N; ++j) {
+        for (u32 j = 0; j < BI_LEN; ++j) {
             A[i][j] = rng();
             B[i][j] = rng();
         }
 
         // Edge injections
         if (i % 10 == 0) {
-            std::memset(A[i].data(), 0, BI_N * sizeof(u32));
+            std::memset(A[i].data(), 0, BI_LEN * sizeof(u32));
         } else if (i % 11 == 0) {
-            std::memset(B[i].data(), 0, BI_N * sizeof(u32));
+            std::memset(B[i].data(), 0, BI_LEN * sizeof(u32));
         } else if (i % 12 == 0) {
             std::fill(A[i].begin(), A[i].end(), 0xFFFFFFFF);
         } else if (i % 13 == 0) {
@@ -144,10 +144,10 @@ int main() {
         auto a1 = A[i];
         auto a2 = A[i];
 
-        u32 c1 = add_ip_n_imp_soft(a1.data(), B[i].data(), BI_N);
-        u32 c2 = add_ip_n_imp_intrin(a2.data(), B[i].data(), BI_N);
+        u32 c1 = add_ip_n_imp_soft(a1.data(), B[i].data(), BI_LEN);
+        u32 c2 = add_ip_n_imp_intrin(a2.data(), B[i].data(), BI_LEN);
 
-        if (c1 != c2 || std::memcmp(a1.data(), a2.data(), BI_N * sizeof(u32)) != 0) {
+        if (c1 != c2 || std::memcmp(a1.data(), a2.data(), BI_LEN * sizeof(u32)) != 0) {
             std::cerr << "[FAIL] ADD mismatch at " << i << "\n";
             exit(1);
         }
@@ -160,10 +160,10 @@ int main() {
         auto a1 = A[i];
         auto a2 = A[i];
 
-        u32 b1 = sub_ip_n_imp_soft(a1.data(), B[i].data(), BI_N);
-        u32 b2 = sub_ip_n_imp_intrin(a2.data(), B[i].data(), BI_N);
+        u32 b1 = sub_ip_n_imp_soft(a1.data(), B[i].data(), BI_LEN);
+        u32 b2 = sub_ip_n_imp_intrin(a2.data(), B[i].data(), BI_LEN);
 
-        if (b1 != b2 || std::memcmp(a1.data(), a2.data(), BI_N * sizeof(u32)) != 0) {
+        if (b1 != b2 || std::memcmp(a1.data(), a2.data(), BI_LEN * sizeof(u32)) != 0) {
             std::cerr << "[FAIL] SUB mismatch at " << i << "\n";
             exit(1);
         }
@@ -178,14 +178,14 @@ int main() {
         auto start_soft = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
             auto tmp = A[i];
-            add_ip_n_imp_soft(tmp.data(), B[i].data(), BI_N);
+            add_ip_n_imp_soft(tmp.data(), B[i].data(), BI_LEN);
         }
         auto end_soft = std::chrono::high_resolution_clock::now();
 
         auto start_intrin = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
             auto tmp = A[i];
-            add_ip_n_imp_intrin(tmp.data(), B[i].data(), BI_N);
+            add_ip_n_imp_intrin(tmp.data(), B[i].data(), BI_LEN);
         }
         auto end_intrin = std::chrono::high_resolution_clock::now();
 
@@ -202,14 +202,14 @@ int main() {
         auto start_soft = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
             auto tmp = A[i];
-            sub_ip_n_imp_soft(tmp.data(), B[i].data(), BI_N);
+            sub_ip_n_imp_soft(tmp.data(), B[i].data(), BI_LEN);
         }
         auto end_soft = std::chrono::high_resolution_clock::now();
 
         auto start_intrin = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
             auto tmp = A[i];
-            sub_ip_n_imp_intrin(tmp.data(), B[i].data(), BI_N);
+            sub_ip_n_imp_intrin(tmp.data(), B[i].data(), BI_LEN);
         }
         auto end_intrin = std::chrono::high_resolution_clock::now();
 

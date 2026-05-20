@@ -66,13 +66,13 @@ double bench_add(const char* name, Fn fn, std::vector<bui> work, const std::vect
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int iter = 0; iter < iterations; ++iter) {
 		for (size_t i = 0; i < work.size(); ++i) {
-			carry_sink ^= fn(work[i].data(), addends[i].data(), BI_N);
+			carry_sink ^= fn(work[i].data(), addends[i].data(), BI_LEN);
 		}
 	}
 	auto end = std::chrono::high_resolution_clock::now();
 
 	global_sink ^= carry_sink;
-	global_sink ^= work[0][BI_N - 1];
+	global_sink ^= work[0][BI_LEN - 1];
 	return std::chrono::duration<double, std::nano>(end - start).count() / total_calls;
 }
 
@@ -96,9 +96,9 @@ int main() {
 
 	{
 		bui a1 = a_vec[0], a2 = a_vec[0], a3 = a_vec[0];
-		uw c1 = add_ip_n_scalar_u64(a1.data(), b_vec[0].data(), BI_N);
-		uw c2 = add_ip_n_hw_intrin(a2.data(), b_vec[0].data(), BI_N);
-		uw c3 = add_ip_n_u64_pair(a3.data(), b_vec[0].data(), BI_N);
+		uw c1 = add_ip_n_scalar_u64(a1.data(), b_vec[0].data(), BI_LEN);
+		uw c2 = add_ip_n_hw_intrin(a2.data(), b_vec[0].data(), BI_LEN);
+		uw c3 = add_ip_n_u64_pair(a3.data(), b_vec[0].data(), BI_LEN);
 		if (c1 != c2 || c1 != c3 || cmp(a1, a2) != 0 || cmp(a1, a3) != 0) {
 			std::cerr << "Correctness check failed\n";
 			return 1;

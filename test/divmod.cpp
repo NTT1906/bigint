@@ -41,7 +41,7 @@ inline void old_divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 	bul r = bui_to_bul(a);
 	bui d = b;
 	uw d_lead_pow = highest_limb(b);
-	uw d_msw_idx = BI_N - 1 - d_lead_pow;
+	uw d_msw_idx = BI_LEN - 1 - d_lead_pow;
 	uw d0 = d[d_msw_idx];
 	const uw norm_shift = d0 == 0 ? 0 : BI_SBU32 - highest_bit(d0);
 
@@ -52,23 +52,23 @@ inline void old_divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 
 	// Recalculate divisor info after normalization
 	d_lead_pow = highest_limb(d);
-	d_msw_idx = BI_N - 1 - d_lead_pow;
+	d_msw_idx = BI_LEN - 1 - d_lead_pow;
 	d0 = d[d_msw_idx];
-	const uw d1 = (d_msw_idx + 1 < BI_N) ? d[d_msw_idx + 1] : 0;
+	const uw d1 = (d_msw_idx + 1 < BI_LEN) ? d[d_msw_idx + 1] : 0;
 	const uw n = d_lead_pow + 1; // number of limbs in divisor
 
 	// 2. Fast path for single-limb divisor (n = 1)
 	if (n == 1) {
 		bul q_bul = {};
 		uw r_temp = 0;
-		uw d_val = d[BI_N-1];
+		uw d_val = d[BI_LEN-1];
 
-		for (int i = 0; i < BI_N * 2; ++i) {
+		for (int i = 0; i < BI_LEN * 2; ++i) {
 			udw dividend = (udw)r_temp << BI_SBU32 | r[i];
 			q_bul[i] = (uw)(dividend / d_val);
 			r_temp = (uw)(dividend % d_val);
 		}
-		std::copy(q_bul.begin() + BI_N, q_bul.end(), quot.begin());
+		std::copy(q_bul.begin() + BI_LEN, q_bul.end(), quot.begin());
 		rem = bui_from_u32(r_temp >> norm_shift); // Denormalize remainder instantly
 		return;
 	}
@@ -79,11 +79,11 @@ inline void old_divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 	const int m = (int)r_lead_pow - (int)d_lead_pow;
 
 	for (int j = m; j >= 0; --j) {
-		uw r_idx = (BI_N * 2 - 1) - (j + n);
+		uw r_idx = (BI_LEN * 2 - 1) - (j + n);
 
 		uw u_jn = r[r_idx];
-		uw u_jn1 = (r_idx + 1 < BI_N * 2) ? r[r_idx + 1] : 0;
-		uw u_jn2 = (r_idx + 2 < BI_N * 2) ? r[r_idx + 2] : 0;
+		uw u_jn1 = (r_idx + 1 < BI_LEN * 2) ? r[r_idx + 1] : 0;
+		uw u_jn2 = (r_idx + 2 < BI_LEN * 2) ? r[r_idx + 2] : 0;
 
 		udw r_top = ((udw)u_jn << BI_SBU32) | u_jn1;
 		udw qhat, rhat;
@@ -107,7 +107,7 @@ inline void old_divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 
 		// Multiply and subtract safely
 		udw borrow = 0;
-		uw d_lsw_idx = BI_N - 1;
+		uw d_lsw_idx = BI_LEN - 1;
 
 		for (uw i = 0; i < n; ++i) {
 			uw r_i = r_idx + n - i;
@@ -127,15 +127,15 @@ inline void old_divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 		r[r_idx] = r[r_idx] - (uw)borrow;
 
 		// Store quotient digit
-		if (j < BI_N) {
-			uw q_idx = BI_N - 1 - j;
+		if (j < BI_LEN) {
+			uw q_idx = BI_LEN - 1 - j;
 			quot[q_idx] = (uw)qhat;
 		}
 
 		// Add back if guess was too high
 		if (is_negative) {
-			if (j < BI_N) {
-				uw q_idx = BI_N - 1 - j;
+			if (j < BI_LEN) {
+				uw q_idx = BI_LEN - 1 - j;
 				quot[q_idx] = quot[q_idx] - 1;
 			}
 

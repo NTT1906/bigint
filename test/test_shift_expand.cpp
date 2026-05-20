@@ -43,7 +43,7 @@ int main() {
         if (i % 10 == 0) {
             k_data[i] = 0;                                 // Edge: k = 0
         } else if (i % 11 == 0) {
-            k_data[i] = (rand() % BI_N) * 32;        // Edge: Perfect limb boundary
+            k_data[i] = (rand() % BI_LEN) * 32;        // Edge: Perfect limb boundary
         } else if (i % 12 == 0) {
             x_data[i] = bui0();                            // Edge: x = 0
         } else if (i % 13 == 0) {

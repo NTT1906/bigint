@@ -110,10 +110,10 @@ static void run_exhaustive_small() {
 static void run_varied_n() {
 	std::cout << "--- Testing varied n (random + edge cases) ---\n";
 
-	uw ns[] = {1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 13, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129, BI_N};
+	uw ns[] = {1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 13, 15, 16, 17, 31, 32, 33, 63, 64, 65, 127, 128, 129, BI_LEN};
 
 	for (uw n : ns) {
-		if (n > BI_N) continue;
+		if (n > BI_LEN) continue;
 
 		const int TRIALS = (n <= 8) ? 50000 : (n <= 32) ? 20000 : (n <= 128) ? 5000 : 1000;
 
@@ -156,14 +156,14 @@ static void run_public_api() {
 	for (int t = 0; t < TRIALS; ++t) {
 		bui a{}, b{};
 		if (t % 10 == 0) {
-			uw edge_a[BI_N], edge_b[BI_N];
-			fill_edge(edge_a, BI_N, t);
-			fill_edge(edge_b, BI_N, t + 1);
-			std::copy_n(edge_a, BI_N, a.data());
-			std::copy_n(edge_b, BI_N, b.data());
+			uw edge_a[BI_LEN], edge_b[BI_LEN];
+			fill_edge(edge_a, BI_LEN, t);
+			fill_edge(edge_b, BI_LEN, t + 1);
+			std::copy_n(edge_a, BI_LEN, a.data());
+			std::copy_n(edge_b, BI_LEN, b.data());
 		} else {
-			fill_rand(a.data(), BI_N);
-			fill_rand(b.data(), BI_N);
+			fill_rand(a.data(), BI_LEN);
+			fill_rand(b.data(), BI_LEN);
 		}
 
 		if (test_karatsuba_pub(a, b)) {
@@ -187,17 +187,17 @@ static void run_scratch_consistency() {
 
 	for (int t = 0; t < TRIALS; ++t) {
 		bui a{}, b{};
-		fill_rand(a.data(), BI_N);
-		fill_rand(b.data(), BI_N);
+		fill_rand(a.data(), BI_LEN);
+		fill_rand(b.data(), BI_LEN);
 
 		// Use karatsuba() which does its own scratch allocation
 		bul r1 = karatsuba(a, b);
 
 		// Manually call karatsuba_imp with a fixed scratch
 		bul r2{};
-		uw scratch_limbs = 6 * BI_N + 16;
+		uw scratch_limbs = 6 * BI_LEN + 16;
 		std::vector<uw> scratch(scratch_limbs, 0);
-		karatsuba_imp(a.data(), b.data(), r2.data(), BI_N, scratch.data());
+		karatsuba_imp(a.data(), b.data(), r2.data(), BI_LEN, scratch.data());
 
 		if (cmp(r1, r2) == 0) {
 			++ok;

@@ -30,10 +30,10 @@ inline std::string bui_to_dec_old(const bui& x) {
 }
 
 inline std::string bul_to_dec_old(const bul& x) {
-    if (bu_is0_imp(x.data(), BI_N * 2)) return "0";
+    if (bu_is0_imp(x.data(), BI_LEN * 2)) return "0";
     std::vector<uw> parts;
     bul n = x, q{};
-    while (!bu_is0_imp(n.data(), BI_N * 2)) {
+    while (!bu_is0_imp(n.data(), BI_LEN * 2)) {
         uw BASE = 1000000000u;
         uw r = u32_divmod_bul(n, BASE, q);
         parts.push_back(r);
@@ -80,24 +80,24 @@ int main() {
             // Edge Case 1: Pure Zero (already init to 0)
         } else if (edge < 15) {
             // Edge Case 2: Small numbers (only LSW active)
-            a[BI_N - 1] = gen();
-            big_a[BI_N * 2 - 1] = gen();
+            a[BI_LEN - 1] = gen();
+            big_a[BI_LEN * 2 - 1] = gen();
         } else if (edge < 25) {
             // Edge Case 3: Fully maxed out (all FFs)
-            for (int j = 0; j < BI_N; ++j) a[j] = 0xFFFFFFFF;
-            for (int j = 0; j < BI_N * 2; ++j) big_a[j] = 0xFFFFFFFF;
+            for (int j = 0; j < BI_LEN; ++j) a[j] = 0xFFFFFFFF;
+            for (int j = 0; j < BI_LEN * 2; ++j) big_a[j] = 0xFFFFFFFF;
         } else {
             // Edge Case 4: Random length big integers
             randomize_ip(a);
             randomize_ip(big_a);
 
             // Randomly truncate the length to simulate real-world variance
-            uw active_limbs_bui = (gen() % BI_N) + 1;
-            uw active_limbs_bul = (gen() % (BI_N * 2)) + 1;
+            uw active_limbs_bui = (gen() % BI_LEN) + 1;
+            uw active_limbs_bul = (gen() % (BI_LEN * 2)) + 1;
 
             // Clear top limbs
-            for(uw j = 0; j < BI_N - active_limbs_bui; ++j) a[j] = 0;
-            for(uw j = 0; j < (BI_N * 2) - active_limbs_bul; ++j) big_a[j] = 0;
+            for(uw j = 0; j < BI_LEN - active_limbs_bui; ++j) a[j] = 0;
+            for(uw j = 0; j < (BI_LEN * 2) - active_limbs_bul; ++j) big_a[j] = 0;
         }
         test_bui.push_back(a);
         test_bul.push_back(big_a);

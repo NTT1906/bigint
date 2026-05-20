@@ -1,8 +1,8 @@
 # bigint.h
 Big unsigned interger implementation in C++17.
 ```c++
-struct bui : std::array<u32, BI_N> {};
-struct bul : std::array<u32, BI_N * 2> {};
+struct bui : std::array<u32, BI_LEN> {};
+struct bul : std::array<u32, BI_LEN * 2> {};
 ```
 Features:
 - add/sub/mul/div/mod bigint
@@ -14,22 +14,22 @@ Features:
 - bul_to_hex(): bigint to hex string
 - bul_high, bul_low: MSH and MSH of long bigint
 
-IDK if this is big endian or little endian but if I want to assign 1 to bui, `a[BI_N - 1] = 1;` and if I want to assign `0x12345678_9ABCDEF0_11223344_55667788` then:
+IDK if this is big endian or little endian but if I want to assign 1 to bui, `a[BI_LEN - 1] = 1;` and if I want to assign `0x12345678_9ABCDEF0_11223344_55667788` then:
 ```c++
-a[BI_N - 4] = 0x55667788u;
-a[BI_N - 3] = 0x11223344u;
-a[BI_N - 2] = 0x9ABCDEF0u;
-a[BI_N - 1] = 0x12345678u;
+a[BI_LEN - 4] = 0x55667788u;
+a[BI_LEN - 3] = 0x11223344u;
+a[BI_LEN - 2] = 0x9ABCDEF0u;
+a[BI_LEN - 1] = 0x12345678u;
 ```
 
 ### Example:
 #### 1. Include bigint.h
-You need to define either `BI_BIT` (bits) or `BI_N` (limbs) showing the size of bigint where each limb is an u32. 
+You need to define either `BI_BIT` (bits) or `BI_LEN` (limbs) showing the size of bigint where each limb is an u32. 
 ```c++
 #define BI_BIT 512
 #include "bigint.h"
 or
-#define BI_N (512 / 32)
+#define BI_LEN (512 / 32)
 #include "bigint.h"
 ```
 #### 2. Basic

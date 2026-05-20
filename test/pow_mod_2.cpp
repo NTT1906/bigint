@@ -32,7 +32,7 @@ static bui random_odd_bui(std::mt19937& gen) {
 	bui x{};
 	for (auto& limb : x)
 		limb = dist(gen);
-	x[BI_N - 1] |= 1;
+	x[BI_LEN - 1] |= 1;
 	return x;
 }
 
@@ -48,14 +48,14 @@ static void force_bit_size(bui& x, uw bits, std::mt19937& gen) {
 	if (bits == 0) { x = {}; return; }
 	if (bits > BI_BIT_WIDTH) bits = BI_BIT_WIDTH;
 	uw nlimbs = (bits + 31) / 32;
-	uw zero_limbs = BI_N - nlimbs;
+	uw zero_limbs = BI_LEN - nlimbs;
 	for (uw i = 0; i < zero_limbs; ++i)
 		x[i] = 0;
 	x[zero_limbs] |= 1u << 31;
-	for (uw i = zero_limbs + 1; i < BI_N; ++i)
-		if (i != BI_N - 1 || !(x[BI_N - 1] & 1))
+	for (uw i = zero_limbs + 1; i < BI_LEN; ++i)
+		if (i != BI_LEN - 1 || !(x[BI_LEN - 1] & 1))
 			x[i] = std::uniform_int_distribution<uw>(0, 0xffffffffu)(gen);
-	x[BI_N - 1] |= 1;
+	x[BI_LEN - 1] |= 1;
 }
 
 static void make_nonzero(bui& x) {
@@ -182,7 +182,7 @@ double bench_pow(Fn fn, const std::vector<bui>& base, const std::vector<bui>& ex
 			out[i] = fn(base[i], exp[i], mod[i]);
 	auto end = std::chrono::high_resolution_clock::now();
 
-	global_sink ^= out[0][BI_N - 1];
+	global_sink ^= out[0][BI_LEN - 1];
 	return std::chrono::duration<double, std::nano>(end - start).count() / total_calls;
 }
 

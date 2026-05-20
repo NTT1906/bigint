@@ -68,7 +68,7 @@ inline bui bui_from_dec_old(const std::string& s) {
         if (c < '0' || c > '9') break;
         any_digit = true;
         mul_ip(out, n10);
-        tmp[BI_N - 1] = c - '0';
+        tmp[BI_LEN - 1] = c - '0';
         add_ip(out, tmp);
     }
     assert(any_digit && "bui_from_dec: no digits found");

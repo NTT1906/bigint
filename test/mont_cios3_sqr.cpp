@@ -12,7 +12,7 @@ static bui random_odd_modulus(std::mt19937& gen) {
 		limb = dist(gen);
 	m[0] &= 0x3fffffffu;
 	m[0] |= 1u << 29;
-	m[BI_N - 1] |= 1u;
+	m[BI_LEN - 1] |= 1u;
 	if (cmp(m, bui_from_u32(3)) < 0)
 		m = bui_from_u32(3);
 	return m;

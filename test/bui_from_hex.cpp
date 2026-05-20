@@ -65,7 +65,7 @@ inline bui bui_from_hex_old(const std::string& s) {
         if (val < 0) break;
         any_digit = true;
         mul_ip(out, n16);
-        tmp[BI_N - 1] = (uw)val;
+        tmp[BI_LEN - 1] = (uw)val;
         add_ip(out, tmp);
     }
     assert(any_digit && "bui_from_hex: no digits found");

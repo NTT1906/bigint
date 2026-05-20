@@ -15,7 +15,7 @@ bul random_bul() {
     randomize_ip(low);
     bul r{};
     std::copy(high.begin(), high.end(), r.begin());
-    std::copy(low.begin(), low.end(), r.begin() + BI_N);
+    std::copy(low.begin(), low.end(), r.begin() + BI_LEN);
     return r;
 }
 
@@ -63,13 +63,13 @@ int main() {
 
         auto start_old = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
-            shift_left_ip_imp(old_arr[i].data(), BI_N, shifts_bui[i]);
+            shift_left_ip_imp(old_arr[i].data(), BI_LEN, shifts_bui[i]);
         }
         auto end_old = std::chrono::high_resolution_clock::now();
 
         auto start_new = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
-            shift_left_ip_fused_imp(new_arr[i].data(), BI_N, shifts_bui[i]);
+            shift_left_ip_fused_imp(new_arr[i].data(), BI_LEN, shifts_bui[i]);
         }
         auto end_new = std::chrono::high_resolution_clock::now();
 
@@ -95,13 +95,13 @@ int main() {
 
         auto start_old = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
-            shift_left_ip_imp(old_arr[i].data(), BI_N * 2, shifts_bul[i]);
+            shift_left_ip_imp(old_arr[i].data(), BI_LEN * 2, shifts_bul[i]);
         }
         auto end_old = std::chrono::high_resolution_clock::now();
 
         auto start_new = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
-            shift_left_ip_fused_imp(new_arr[i].data(), BI_N * 2, shifts_bul[i]);
+            shift_left_ip_fused_imp(new_arr[i].data(), BI_LEN * 2, shifts_bul[i]);
         }
         auto end_new = std::chrono::high_resolution_clock::now();
 
@@ -126,13 +126,13 @@ int main() {
 
         auto start_old = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
-            shift_right_ip_imp(old_arr[i].data(), BI_N, shifts_bui[i]);
+            shift_right_ip_imp(old_arr[i].data(), BI_LEN, shifts_bui[i]);
         }
         auto end_old = std::chrono::high_resolution_clock::now();
 
         auto start_new = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
-            shift_right_ip_fused_imp(new_arr[i].data(), BI_N, shifts_bui[i]);
+            shift_right_ip_fused_imp(new_arr[i].data(), BI_LEN, shifts_bui[i]);
         }
         auto end_new = std::chrono::high_resolution_clock::now();
 
@@ -157,13 +157,13 @@ int main() {
 
         auto start_old = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
-            shift_right_ip_imp(old_arr[i].data(), BI_N * 2, shifts_bul[i]);
+            shift_right_ip_imp(old_arr[i].data(), BI_LEN * 2, shifts_bul[i]);
         }
         auto end_old = std::chrono::high_resolution_clock::now();
 
         auto start_new = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
-            shift_right_ip_fused_imp(new_arr[i].data(), BI_N * 2, shifts_bul[i]);
+            shift_right_ip_fused_imp(new_arr[i].data(), BI_LEN * 2, shifts_bul[i]);
         }
         auto end_new = std::chrono::high_resolution_clock::now();
 

@@ -33,7 +33,7 @@ int main() {
     std::cout << "[+] Generating " << DATASET_SIZE << " test objects...\n";
     for (int i = 0; i < DATASET_SIZE; ++i) {
         for (auto& limb : m_vec[i]) limb = dist(gen);
-        m_vec[i][BI_N - 1] |= 1;        // ensure odd
+        m_vec[i][BI_LEN - 1] |= 1;        // ensure odd
         m_vec[i][0] |= 1u << 31;        // ensure full bit width
         if (cmp(m_vec[i], bui1()) <= 0) m_vec[i] = bui_from_u32(3);
 
@@ -58,7 +58,7 @@ int main() {
             r_mr[i] = mr_pow_mod(x_vec[i], e_vec[i], m_vec[i]);
     end = std::chrono::high_resolution_clock::now();
     double mr_ns = std::chrono::duration<double, std::nano>(end - start).count() / total_calls;
-    global_sink ^= r_mr[0][BI_N - 1];
+    global_sink ^= r_mr[0][BI_LEN - 1];
 
     std::cout << "--- Benchmarking pow_mod_mont_sos\n";
     start = std::chrono::high_resolution_clock::now();
@@ -67,7 +67,7 @@ int main() {
             r_sos[i] = pow_mod_mont_sos(x_vec[i], e_vec[i], m_vec[i]);
     end = std::chrono::high_resolution_clock::now();
     double sos_ns = std::chrono::duration<double, std::nano>(end - start).count() / total_calls;
-    global_sink ^= r_sos[0][BI_N - 1];
+    global_sink ^= r_sos[0][BI_LEN - 1];
 
     std::cout << "--- Benchmarking pow_mod_mont_cios2\n";
     start = std::chrono::high_resolution_clock::now();
@@ -76,7 +76,7 @@ int main() {
             r_cios2[i] = pow_mod_mont_cios2(x_vec[i], e_vec[i], m_vec[i]);
     end = std::chrono::high_resolution_clock::now();
     double cios2_ns = std::chrono::duration<double, std::nano>(end - start).count() / total_calls;
-	global_sink ^= r_cios2[0][BI_N - 1];
+	global_sink ^= r_cios2[0][BI_LEN - 1];
 
 	std::cout << "--- Benchmarking pow_mod_mont_cios3\n";
 	start = std::chrono::high_resolution_clock::now();
@@ -85,7 +85,7 @@ int main() {
 			r_cios3[i] = pow_mod_mont_cios3(x_vec[i], e_vec[i], m_vec[i]);
 	end = std::chrono::high_resolution_clock::now();
 	double cios3_ns = std::chrono::duration<double, std::nano>(end - start).count() / total_calls;
-	global_sink ^= r_cios3[0][BI_N - 1];
+	global_sink ^= r_cios3[0][BI_LEN - 1];
 
     std::cout << "--------------------------------------------------------------------------\n";
     std::cout << std::left << std::setw(20) << "Function"

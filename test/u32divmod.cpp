@@ -39,14 +39,14 @@ BI_ALWAYS_INLINE uw u32_divmod_single_hw(uw hi, uw lo, uw b, uw* rem) {
 inline void u32divmod_soft(const bui& a, uw b, bui& q, uw& r) {
     q = {};
     r = 0;
-    for (uw i = 0; i < BI_N; ++i)
+    for (uw i = 0; i < BI_LEN; ++i)
         q[i] = u32_divmod_single_soft(r, a[i], b, &r);
 }
 
 inline void u32divmod_hw(const bui& a, uw b, bui& q, uw& r) {
     q = {};
     r = 0;
-    for (uw i = 0; i < BI_N; ++i)
+    for (uw i = 0; i < BI_LEN; ++i)
         q[i] = u32_divmod_single_hw(r, a[i], b, &r);
 }
 
@@ -55,14 +55,14 @@ inline void u32divmod_hw(const bui& a, uw b, bui& q, uw& r) {
 // ============================
 inline uw u32_divmod_soft(const bul &a, uw d, bul &q) {
     uw r = 0;
-    for (uw i = 0; i < BI_N * 2; ++i)
+    for (uw i = 0; i < BI_LEN * 2; ++i)
         q[i] = u32_divmod_single_soft(r, a[i], d, &r);
     return r;
 }
 
 inline uw u32_divmod_hw(const bul &a, uw d, bul &q) {
     uw r = 0;
-    for (uw i = 0; i < BI_N * 2; ++i)
+    for (uw i = 0; i < BI_LEN * 2; ++i)
         q[i] = u32_divmod_single_hw(r, a[i], d, &r);
     return r;
 }

@@ -19,18 +19,18 @@ inline bui mul_low_fast_based_u128(const bui& a, const bui& b) {
 #error "__int128 required for this implementation"
 #endif
     using u128 = __uint128_t;
-    u128 acc[BI_N] = {};
-    for (uw k = 0; k < BI_N; ++k) {
+    u128 acc[BI_LEN] = {};
+    for (uw k = 0; k < BI_LEN; ++k) {
         u128 s = 0;
         for (uw i = 0; i <= k; ++i)
-            s += (u128)a[BI_N - 1 - i] * b[BI_N - 1 - (k - i)];
+            s += (u128)a[BI_LEN - 1 - i] * b[BI_LEN - 1 - (k - i)];
         acc[k] = s;
     }
     bui r{};
     u128 c = 0;
-    for (uw k = 0; k < BI_N; ++k) {
+    for (uw k = 0; k < BI_LEN; ++k) {
         u128 s = acc[k] + c;
-        r[BI_N - 1 - k] = (uw)s;
+        r[BI_LEN - 1 - k] = (uw)s;
         c = s >> 32;
     }
     return r;
@@ -68,10 +68,10 @@ int main() {
             a_data[i] = b_data[i]; // equal
         } else if (i % 15 == 0) {
             // max limb stress
-            for (uw j = 0; j < BI_N; ++j)
+            for (uw j = 0; j < BI_LEN; ++j)
                 a_data[i][j] = 0xFFFFFFFF;
         } else if (i % 16 == 0) {
-            for (uw j = 0; j < BI_N; ++j)
+            for (uw j = 0; j < BI_LEN; ++j)
                 b_data[i][j] = 0xFFFFFFFF;
         }
     }

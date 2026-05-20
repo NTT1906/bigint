@@ -17,14 +17,14 @@ volatile uw global_sink = 0;
 // Old Implementations
 // ========================================================================
 inline uw highest_limb_old_bui(const bui &x) {
-    for (uw i = 0; i < BI_N; ++i)
-       if (x[i] > 0) return BI_N - i - 1;
+    for (uw i = 0; i < BI_LEN; ++i)
+       if (x[i] > 0) return BI_LEN - i - 1;
     return 0;
 }
 
 inline uw highest_limb_old_bul(const bul &x) {
-    for (uw i = 0; i < BI_N * 2; ++i)
-       if (x[i] > 0) return (BI_N * 2 - 1) - i;
+    for (uw i = 0; i < BI_LEN * 2; ++i)
+       if (x[i] > 0) return (BI_LEN * 2 - 1) - i;
     return 0;
 }
 
@@ -58,8 +58,8 @@ int main() {
         else if (edge < 30) {
             // Edge Case 2: Small numbers (Data only at the very end LSW)
             // Forces the loop to scan almost the entire array before finding data
-            test_bui[i][BI_N - 1] = val_dist(gen);
-            test_bul[i][BI_N * 2 - 1] = val_dist(gen);
+            test_bui[i][BI_LEN - 1] = val_dist(gen);
+            test_bul[i][BI_LEN * 2 - 1] = val_dist(gen);
         }
         else if (edge < 50) {
             // Edge Case 3: Massive numbers (Data at the very beginning MSW)
@@ -69,11 +69,11 @@ int main() {
         }
         else {
             // Edge Case 4: Random lengths
-            uw active_limbs_bui = (gen() % BI_N) + 1;
-            uw active_limbs_bul = (gen() % (BI_N * 2)) + 1;
+            uw active_limbs_bui = (gen() % BI_LEN) + 1;
+            uw active_limbs_bul = (gen() % (BI_LEN * 2)) + 1;
 
-            test_bui[i][BI_N - active_limbs_bui] = val_dist(gen);
-            test_bul[i][BI_N * 2 - active_limbs_bul] = val_dist(gen);
+            test_bui[i][BI_LEN - active_limbs_bui] = val_dist(gen);
+            test_bul[i][BI_LEN * 2 - active_limbs_bul] = val_dist(gen);
         }
     }
 

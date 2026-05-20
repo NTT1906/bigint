@@ -53,13 +53,13 @@ double bench_dbl(const char* name, Fn fn, std::vector<bui> work, int iterations)
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int iter = 0; iter < iterations; ++iter) {
 		for (size_t i = 0; i < work.size(); ++i) {
-			carry_sink ^= fn(work[i].data(), BI_N);
+			carry_sink ^= fn(work[i].data(), BI_LEN);
 		}
 	}
 	auto end = std::chrono::high_resolution_clock::now();
 
 	global_sink ^= carry_sink;
-	global_sink ^= work[0][BI_N - 1];
+	global_sink ^= work[0][BI_LEN - 1];
 	return std::chrono::duration<double, std::nano>(end - start).count() / total_calls;
 }
 
@@ -80,9 +80,9 @@ int main() {
 
 	{
 		bui x1 = x_vec[0], x2 = x_vec[0], x3 = x_vec[0];
-		uw c1 = dbl_ip_n_shift_be(x1.data(), BI_N);
-		uw c2 = dbl_ip_n_addcarry(x2.data(), BI_N);
-		uw c3 = dbl_ip_n_scalar_u64(x3.data(), BI_N);
+		uw c1 = dbl_ip_n_shift_be(x1.data(), BI_LEN);
+		uw c2 = dbl_ip_n_addcarry(x2.data(), BI_LEN);
+		uw c3 = dbl_ip_n_scalar_u64(x3.data(), BI_LEN);
 		if (c1 != c2 || c1 != c3 || cmp(x1, x2) != 0 || cmp(x1, x3) != 0) {
 			std::cerr << "Correctness check failed\n";
 			return 1;

@@ -32,7 +32,7 @@ int main() {
     std::cout << "[+] Generating " << DATASET_SIZE << " test objects...\n";
     for (int i = 0; i < DATASET_SIZE; ++i) {
         for (auto& limb : m_vec[i]) limb = dist(gen);
-        m_vec[i][BI_N - 1] |= 1;        // ensure odd
+        m_vec[i][BI_LEN - 1] |= 1;        // ensure odd
         m_vec[i][0] |= 1u << 31;        // ensure full bit width
         if (cmp(m_vec[i], bui1()) <= 0) m_vec[i] = bui_from_u32(3);
 
@@ -79,7 +79,7 @@ int main() {
     // double ref_ns = std::chrono::duration<double, std::nano>(end - start).count() / total_calls;
     double ref_ns = 12353033.740;
 
-    global_sink ^= r_ref[0][BI_N - 1];
+    global_sink ^= r_ref[0][BI_LEN - 1];
 
     std::cout << "--- Benchmarking mr_pow_mod         ---\n";
     start = std::chrono::high_resolution_clock::now();
@@ -88,7 +88,7 @@ int main() {
             r_mr[i] = mr_pow_mod(x_vec[i], e_vec[i], m_vec[i]);
     end = std::chrono::high_resolution_clock::now();
     double mr_ns = std::chrono::duration<double, std::nano>(end - start).count() / total_calls;
-    global_sink ^= r_mr[0][BI_N - 1];
+    global_sink ^= r_mr[0][BI_LEN - 1];
 
     std::cout << "--- Benchmarking pow_mod_mont_cios2    ---\n\n";
     start = std::chrono::high_resolution_clock::now();
@@ -97,7 +97,7 @@ int main() {
             r_cios[i] = pow_mod_mont_cios2(x_vec[i], e_vec[i], m_vec[i]);
     end = std::chrono::high_resolution_clock::now();
     double cios_ns = std::chrono::duration<double, std::nano>(end - start).count() / total_calls;
-    global_sink ^= r_cios[0][BI_N - 1];
+    global_sink ^= r_cios[0][BI_LEN - 1];
 
     // ========================================================================
     // Report

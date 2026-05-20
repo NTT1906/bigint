@@ -34,7 +34,7 @@ void inject_edge_cases(bui& a, bui& b, int i) {
     } else if (i % 14 == 0) {
         a = b;
     } else if (i % 15 == 0) {
-        for (uw j = 0; j < BI_N; ++j)
+        for (uw j = 0; j < BI_LEN; ++j)
             a[j] = 0xFFFFFFFF;
     }
 }

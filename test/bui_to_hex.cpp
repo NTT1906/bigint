@@ -22,13 +22,13 @@ struct TestCase {
 TestCase generate_edge_case_bui(std::mt19937& gen) {
     std::uniform_int_distribution<uw> val_dist(0, 0xFFFFFFFF);
     std::uniform_int_distribution<int> edge_dist(0, 100);
-    std::uniform_int_distribution<int> limb_dist(0, BI_N - 1);
+    std::uniform_int_distribution<int> limb_dist(0, BI_LEN - 1);
     std::uniform_int_distribution<int> bool_dist(0, 1);
 
     TestCase tc;
 
     // Default zero initialization
-    for (int i = 0; i < BI_N; ++i) tc.val[i] = 0;
+    for (int i = 0; i < BI_LEN; ++i) tc.val[i] = 0;
 
     // Randomize flags
     tc.uppercase = bool_dist(gen);
@@ -42,11 +42,11 @@ TestCase generate_edge_case_bui(std::mt19937& gen) {
     }
     else if (edge < 20) {
         // Edge Case 2: Only the lowest limb has data (small numbers)
-        tc.val[BI_N - 1] = val_dist(gen);
+        tc.val[BI_LEN - 1] = val_dist(gen);
     }
     else if (edge < 30) {
         // Edge Case 3: Fully maxed out (all FFs)
-        for (int i = 0; i < BI_N; ++i) tc.val[i] = 0xFFFFFFFF;
+        for (int i = 0; i < BI_LEN; ++i) tc.val[i] = 0xFFFFFFFF;
     }
     else {
         // Edge Case 4: Random length big integer
@@ -62,7 +62,7 @@ TestCase generate_edge_case_bui(std::mt19937& gen) {
         }
 
         // Fill the rest of the limbs normally
-        for (int i = start_limb + 1; i < BI_N; ++i) {
+        for (int i = start_limb + 1; i < BI_LEN; ++i) {
             tc.val[i] = val_dist(gen);
         }
     }
@@ -74,12 +74,12 @@ inline std::string bui_to_hex_old(const bui &a, bool uppercase = false, bool spl
     o << std::hex << std::setfill('0');
     if (uppercase) o << std::uppercase;
     uw hl = highest_limb(a);
-    uw idx = BI_N - hl - 1;
+    uw idx = BI_LEN - hl - 1;
     o << a[idx];
-    if (split && idx != BI_N - 1) o << ' ';
-    for (++idx; idx < BI_N; ++idx) {
+    if (split && idx != BI_LEN - 1) o << ' ';
+    for (++idx; idx < BI_LEN; ++idx) {
         o << std::setw(8) << a[idx]; // u32 = 8 hex
-        if (split && idx != BI_N - 1) o << ' ';
+        if (split && idx != BI_LEN - 1) o << ' ';
     }
     return o.str();
 }

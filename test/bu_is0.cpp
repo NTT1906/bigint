@@ -6,7 +6,7 @@
 
 // --- Definitions ---
 typedef uint32_t uw;
-constexpr uw BI_N = 100; // 512-bit math
+constexpr uw BI_LEN = 100; // 512-bit math
 
 // --- The Old Version ---
 inline bool bu_is0_old(const uw *x, uw n) {
@@ -36,7 +36,7 @@ void run_benchmark(const std::string& name, const std::vector<uw>& data) {
     // Bench Old
     auto start_old = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < iterations; ++i) {
-        if (bu_is0_old(data.data(), BI_N)) dummy++;
+        if (bu_is0_old(data.data(), BI_LEN)) dummy++;
     }
     auto end_old = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> time_old = end_old - start_old;
@@ -44,7 +44,7 @@ void run_benchmark(const std::string& name, const std::vector<uw>& data) {
     // Bench New
     auto start_new = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < iterations; ++i) {
-        if (bu_is0_new(data.data(), BI_N)) dummy++;
+        if (bu_is0_new(data.data(), BI_LEN)) dummy++;
     }
     auto end_new = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double, std::milli> time_new = end_new - start_new;
@@ -63,18 +63,18 @@ int main() {
 
     // Scenario 1: Worst Case (All Zeros)
     // Both algorithms must scan the entire 512 bits.
-    std::vector<uw> worst_case(BI_N, 0);
+    std::vector<uw> worst_case(BI_LEN, 0);
     run_benchmark("Worst Case (All Zeros)", worst_case);
 
     // Scenario 2: Best Case (Small Number)
     // Data is located at the Least Significant Word (x[15]).
-    std::vector<uw> best_case(BI_N, 0);
-    best_case[BI_N - 1] = 1;
+    std::vector<uw> best_case(BI_LEN, 0);
+    best_case[BI_LEN - 1] = 1;
     run_benchmark("Best Case (Data at end)", best_case);
 
     // Scenario 3: Average Case (Large Number)
     // Data is located at the Most Significant Word (x[0]).
-    std::vector<uw> large_case(BI_N, 0);
+    std::vector<uw> large_case(BI_LEN, 0);
     large_case[0] = 0xFFFFFFFF;
     run_benchmark("Large Case (Data at start)", large_case);
 

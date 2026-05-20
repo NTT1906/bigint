@@ -28,14 +28,14 @@ BI_ALWAYS_INLINE uw u32_divmod_single_hw(uw hi, uw lo, uw b, uw* rem) {
 inline void u32divmod_old(const bui& a, uw b, bui& q, uw& r) {
     q = {};
     r = 0;
-    for (uw i = 0; i < BI_N; ++i)
+    for (uw i = 0; i < BI_LEN; ++i)
         q[i] = u32_divmod_single_hw(r, a[i], b, &r);
 }
 
 inline void u32divmod_old(const bul &a, uw d, bul &q, uw& r) {
     q = {};
     r = 0;
-    for (uw i = 0; i < BI_N * 2; ++i)
+    for (uw i = 0; i < BI_LEN * 2; ++i)
         q[i] = u32_divmod_single_hw(r, a[i], d, &r);
 }
 
@@ -46,8 +46,8 @@ inline void u32divmod_new(const bui& a, uw b, bui& q, uw& r) {
     q = {};
     r = 0;
     uw hl = highest_limb(a);
-    if (hl == 0 && a[BI_N - 1] == 0) return;
-    for (uw i = BI_N - 1 - hl; i < BI_N; ++i)
+    if (hl == 0 && a[BI_LEN - 1] == 0) return;
+    for (uw i = BI_LEN - 1 - hl; i < BI_LEN; ++i)
         q[i] = u32_divmod_single_hw(r, a[i], b, &r);
 }
 
@@ -55,8 +55,8 @@ inline void u32divmod_new(const bul &a, uw d, bul &q, uw& r) {
     q = {};
     r = 0;
     uw hl = highest_limb(a);
-    if (hl == 0 && a[BI_N * 2 - 1] == 0) return;
-    for (uw i = BI_N * 2 - 1 - hl; i < BI_N * 2; ++i)
+    if (hl == 0 && a[BI_LEN * 2 - 1] == 0) return;
+    for (uw i = BI_LEN * 2 - 1 - hl; i < BI_LEN * 2; ++i)
         q[i] = u32_divmod_single_hw(r, a[i], d, &r);
 }
 
@@ -91,17 +91,17 @@ int main() {
         bul temp_big; randomize_ip(temp_big);
 
         // Randomly truncate the length to simulate real-world numbers
-        uw active_limbs_bui = (rng() % BI_N) + 1;
-        uw active_limbs_bul = (rng() % (BI_N * 2)) + 1;
+        uw active_limbs_bui = (rng() % BI_LEN) + 1;
+        uw active_limbs_bul = (rng() % (BI_LEN * 2)) + 1;
 
         // Clear the top limbs to create leading zeros
         a_data[i] = {};
-        for(uw j = BI_N - active_limbs_bui; j < BI_N; ++j) {
+        for(uw j = BI_LEN - active_limbs_bui; j < BI_LEN; ++j) {
             a_data[i][j] = temp_a[j];
         }
 
         big_data[i] = {};
-        for(uw j = (BI_N * 2) - active_limbs_bul; j < BI_N * 2; ++j) {
+        for(uw j = (BI_LEN * 2) - active_limbs_bul; j < BI_LEN * 2; ++j) {
             big_data[i][j] = temp_big[j];
         }
 
@@ -133,14 +133,14 @@ int main() {
         auto start_old = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
             u32divmod_old(a_data[i], d_data[i], q, r);
-            global_sink ^= q[BI_N - 1] ^ r;
+            global_sink ^= q[BI_LEN - 1] ^ r;
         }
         auto end_old = std::chrono::high_resolution_clock::now();
 
         auto start_new = std::chrono::high_resolution_clock::now();
         for (int i = 0; i < NUM_TESTS; ++i) {
             u32divmod_new(a_data[i], d_data[i], q, r);
-            global_sink ^= q[BI_N - 1] ^ r;
+            global_sink ^= q[BI_LEN - 1] ^ r;
         }
         auto end_new = std::chrono::high_resolution_clock::now();
 
@@ -160,7 +160,7 @@ int main() {
         for (int i = 0; i < NUM_TESTS; ++i) {
             uw r;
             u32divmod_old(big_data[i], d_data[i], q, r);
-            global_sink ^= q[(BI_N * 2) - 1] ^ r;
+            global_sink ^= q[(BI_LEN * 2) - 1] ^ r;
         }
         auto end_old = std::chrono::high_resolution_clock::now();
 
@@ -168,7 +168,7 @@ int main() {
         for (int i = 0; i < NUM_TESTS; ++i) {
             uw r;
             u32divmod_new(big_data[i], d_data[i], q, r);
-            global_sink ^= q[(BI_N * 2) - 1] ^ r;
+            global_sink ^= q[(BI_LEN * 2) - 1] ^ r;
         }
         auto end_new = std::chrono::high_resolution_clock::now();
 

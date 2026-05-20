@@ -16,13 +16,13 @@ struct BenchResult {
 
 inline bui mul_low_fast_old(const bui& a, const bui& b) {
     bui r{};
-    for (uw i = 0; i < BI_N; ++i) {
-        if (!a[BI_N - 1 - i]) continue;
+    for (uw i = 0; i < BI_LEN; ++i) {
+        if (!a[BI_LEN - 1 - i]) continue;
         uw c = 0;
-        for (uw j = 0; j < BI_N; ++j) {
-            if (i + j >= BI_N) continue;
-            udw p = (udw)a[BI_N - 1 - i] * b[BI_N - 1 - j] + r[BI_N - 1 - (i + j)] + c;
-            r[BI_N - 1 - (i + j)] = (uw)p;
+        for (uw j = 0; j < BI_LEN; ++j) {
+            if (i + j >= BI_LEN) continue;
+            udw p = (udw)a[BI_LEN - 1 - i] * b[BI_LEN - 1 - j] + r[BI_LEN - 1 - (i + j)] + c;
+            r[BI_LEN - 1 - (i + j)] = (uw)p;
             c = p >> BI_SBU32;
         }
     }
@@ -60,7 +60,7 @@ int main() {
         } else if (i % 14 == 0) {
             a_data[i] = b_data[i];
         } else if (i % 15 == 0) {
-            for (uw j = 0; j < BI_N; ++j)
+            for (uw j = 0; j < BI_LEN; ++j)
                 a_data[i][j] = 0xFFFFFFFF;
         }
     }

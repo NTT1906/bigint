@@ -53,24 +53,24 @@ int main() {
         }
         else if (edge < 30) {
             // Edge Case 2: Small numbers (Data only at the LSW end)
-            a_vec[i][BI_N - 1] = val_dist(gen);
-            b_vec[i][BI_N - 1] = val_dist(gen);
-            if (gen() % 2) a_vec[i][BI_N - 2] = val_dist(gen);
-            if (gen() % 2) b_vec[i][BI_N - 2] = val_dist(gen);
+            a_vec[i][BI_LEN - 1] = val_dist(gen);
+            b_vec[i][BI_LEN - 1] = val_dist(gen);
+            if (gen() % 2) a_vec[i][BI_LEN - 2] = val_dist(gen);
+            if (gen() % 2) b_vec[i][BI_LEN - 2] = val_dist(gen);
         } else if (edge < 50) {
             // Edge Case 3: Massive numbers (Data at the MSW end)
             a_vec[i][0] = val_dist(gen);
             b_vec[i][0] = val_dist(gen);
-            a_vec[i][BI_N / 2] = val_dist(gen); // Throw something in the middle
+            a_vec[i][BI_LEN / 2] = val_dist(gen); // Throw something in the middle
         } else {
             // Edge Case 4: Random lengths
-            uw active_limbs_a = (gen() % BI_N) + 1;
-            uw active_limbs_b = (gen() % BI_N) + 1;
+            uw active_limbs_a = (gen() % BI_LEN) + 1;
+            uw active_limbs_b = (gen() % BI_LEN) + 1;
 
             for(uw k = 0; k < active_limbs_a; ++k)
-                a_vec[i][BI_N - 1 - k] = val_dist(gen);
+                a_vec[i][BI_LEN - 1 - k] = val_dist(gen);
             for(uw k = 0; k < active_limbs_b; ++k)
-                b_vec[i][BI_N - 1 - k] = val_dist(gen);
+                b_vec[i][BI_LEN - 1 - k] = val_dist(gen);
         }
     }
 
@@ -78,17 +78,17 @@ int main() {
     // Validation
     // ========================================================================
     std::cout << "[+] Validating correctness...\n";
-    std::vector<uw> r_ref(BI_N * 2, 0);
-    std::vector<uw> r_fast(BI_N * 2, 0);
-    std::vector<uw> r_2(BI_N * 2, 0);
+    std::vector<uw> r_ref(BI_LEN * 2, 0);
+    std::vector<uw> r_fast(BI_LEN * 2, 0);
+    std::vector<uw> r_2(BI_LEN * 2, 0);
 
     for (int i = 0; i < DATASET_SIZE; ++i) {
-        mul_imp(a_vec[i].data(), b_vec[i].data(), r_ref.data(), BI_N);
-        mul_imp_fast(a_vec[i].data(), b_vec[i].data(), r_fast.data(), BI_N);
-        mul_imp2(a_vec[i].data(), b_vec[i].data(), r_2.data(), BI_N);
+        mul_imp(a_vec[i].data(), b_vec[i].data(), r_ref.data(), BI_LEN);
+        mul_imp_fast(a_vec[i].data(), b_vec[i].data(), r_fast.data(), BI_LEN);
+        mul_imp2(a_vec[i].data(), b_vec[i].data(), r_2.data(), BI_LEN);
 
-        bool fast_fail = memcmp(r_ref.data(), r_fast.data(), BI_N * 2 * sizeof(uw)) != 0;
-        bool imp2_fail = memcmp(r_ref.data(), r_2.data(), BI_N * 2 * sizeof(uw)) != 0;
+        bool fast_fail = memcmp(r_ref.data(), r_fast.data(), BI_LEN * 2 * sizeof(uw)) != 0;
+        bool imp2_fail = memcmp(r_ref.data(), r_2.data(), BI_LEN * 2 * sizeof(uw)) != 0;
 
         if (fast_fail || imp2_fail) {
             std::cerr << "\n[!] VALIDATION FAILED! PROGRAM HALTED.\n";
@@ -96,19 +96,19 @@ int main() {
             if (fast_fail) std::cerr << "Fast Failed\n";
             else std::cerr << "Imp2 Failed\n";
             std::cerr << "\nA           : ";
-            for(int j=0; j < BI_N*2; ++j) {
-                std::cerr << std::hex << std::setw(8) << std::setfill('0') << (j < BI_N ? 0 : a_vec[i].data()[j - BI_N]) << " ";
+            for(int j=0; j < BI_LEN*2; ++j) {
+                std::cerr << std::hex << std::setw(8) << std::setfill('0') << (j < BI_LEN ? 0 : a_vec[i].data()[j - BI_LEN]) << " ";
             }
             std::cerr << "\nB           : ";
-            for(int j=0; j < BI_N*2; ++j) {
-                std::cerr << std::hex << std::setw(8) << std::setfill('0') << (j < BI_N ? 0 : b_vec[i].data()[j - BI_N]) << " ";
+            for(int j=0; j < BI_LEN*2; ++j) {
+                std::cerr << std::hex << std::setw(8) << std::setfill('0') << (j < BI_LEN ? 0 : b_vec[i].data()[j - BI_LEN]) << " ";
             }
             std::cerr << "\nRef Output  : ";
-            for(int j=0; j < BI_N*2; ++j) std::cerr << std::hex << std::setw(8) << std::setfill('0') << r_ref[j] << " ";
+            for(int j=0; j < BI_LEN*2; ++j) std::cerr << std::hex << std::setw(8) << std::setfill('0') << r_ref[j] << " ";
             std::cerr << "\nFast Output : ";
-            for(int j=0; j < BI_N*2; ++j) std::cerr << std::hex << std::setw(8) << std::setfill('0') << r_fast[j] << " ";
+            for(int j=0; j < BI_LEN*2; ++j) std::cerr << std::hex << std::setw(8) << std::setfill('0') << r_fast[j] << " ";
             std::cerr << "\nImp2 Output : ";
-            for(int j=0; j < BI_N*2; ++j) std::cerr << std::hex << std::setw(8) << std::setfill('0') << r_2[j] << " ";
+            for(int j=0; j < BI_LEN*2; ++j) std::cerr << std::hex << std::setw(8) << std::setfill('0') << r_2[j] << " ";
             std::exit(1);
         }
     }
@@ -123,7 +123,7 @@ int main() {
     auto start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < BENCH_ITERATIONS; ++i) {
         for (int j = 0; j < DATASET_SIZE; ++j) {
-            mul_imp(a_vec[j].data(), b_vec[j].data(), r_vec[j].data(), BI_N);
+            mul_imp(a_vec[j].data(), b_vec[j].data(), r_vec[j].data(), BI_LEN);
         }
     }
     auto end = std::chrono::high_resolution_clock::now();
@@ -134,7 +134,7 @@ int main() {
     start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < BENCH_ITERATIONS; ++i) {
         for (int j = 0; j < DATASET_SIZE; ++j) {
-            mul_imp_fast(a_vec[j].data(), b_vec[j].data(), r_vec[j].data(), BI_N);
+            mul_imp_fast(a_vec[j].data(), b_vec[j].data(), r_vec[j].data(), BI_LEN);
         }
     }
     end = std::chrono::high_resolution_clock::now();
@@ -145,7 +145,7 @@ int main() {
     start = std::chrono::high_resolution_clock::now();
     for (int i = 0; i < BENCH_ITERATIONS; ++i) {
         for (int j = 0; j < DATASET_SIZE; ++j) {
-            mul_imp2(a_vec[j].data(), b_vec[j].data(), r_vec[j].data(), BI_N);
+            mul_imp2(a_vec[j].data(), b_vec[j].data(), r_vec[j].data(), BI_LEN);
         }
     }
     end = std::chrono::high_resolution_clock::now();

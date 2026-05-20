@@ -22,15 +22,15 @@ volatile uw global_sink = 0;
 
 inline uw highest_bit_old_bui(const bui &x) {
 BI_UNROLL(BI_UNROLL_THRESHOLD)
-    for (uw i = 0; i < BI_N; ++i)
-       if (x[i] != 0) return highest_bit(x[i]) + (BI_N - i - 1) * BI_SBU32;
+    for (uw i = 0; i < BI_LEN; ++i)
+       if (x[i] != 0) return highest_bit(x[i]) + (BI_LEN - i - 1) * BI_SBU32;
     return 0;
 }
 
 inline uw highest_bit_old_bul(const bul &x) {
 BI_UNROLL(BI_UNROLL_THRESHOLD)
-    for (uw i = 0; i < BI_2N; ++i)
-       if (x[i] != 0) return highest_bit(x[i]) + (BI_2N - i - 1) * BI_SBU32;
+    for (uw i = 0; i < BI_DLEN; ++i)
+       if (x[i] != 0) return highest_bit(x[i]) + (BI_DLEN - i - 1) * BI_SBU32;
     return 0;
 }
 
@@ -38,43 +38,43 @@ BI_UNROLL(BI_UNROLL_THRESHOLD)
 // New Implementations (Fixed indices + Compile-time routing)
 // ========================================================================
 inline uw highest_bit_new_bui(const bui &x) {
-    if BI_CONSTEXPR (BI_N <= 16) {
-        for (uw i = 0; i < BI_N; ++i)
-           if (x[i] != 0) return highest_bit(x[i]) + (BI_N - i - 1) * BI_SBU32;
+    if BI_CONSTEXPR (BI_LEN <= 16) {
+        for (uw i = 0; i < BI_LEN; ++i)
+           if (x[i] != 0) return highest_bit(x[i]) + (BI_LEN - i - 1) * BI_SBU32;
         return 0;
     } else {
         uw i = 0;
-        for (; i + 3 < BI_N; i += 4) {
+        for (; i + 3 < BI_LEN; i += 4) {
            if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
-              if (x[i  ]) return highest_bit(x[i  ]) + (BI_N - i - 1) * BI_SBU32;
-              if (x[i+1]) return highest_bit(x[i+1]) + (BI_N - i - 2) * BI_SBU32;
-              if (x[i+2]) return highest_bit(x[i+2]) + (BI_N - i - 3) * BI_SBU32;
-              /* x[i+3] */return highest_bit(x[i+3]) + (BI_N - i - 4) * BI_SBU32;
+              if (x[i  ]) return highest_bit(x[i  ]) + (BI_LEN - i - 1) * BI_SBU32;
+              if (x[i+1]) return highest_bit(x[i+1]) + (BI_LEN - i - 2) * BI_SBU32;
+              if (x[i+2]) return highest_bit(x[i+2]) + (BI_LEN - i - 3) * BI_SBU32;
+              /* x[i+3] */return highest_bit(x[i+3]) + (BI_LEN - i - 4) * BI_SBU32;
            }
         }
-        for (; i < BI_N; ++i)
-           if (x[i] != 0) return highest_bit(x[i]) + (BI_N - i - 1) * BI_SBU32;
+        for (; i < BI_LEN; ++i)
+           if (x[i] != 0) return highest_bit(x[i]) + (BI_LEN - i - 1) * BI_SBU32;
         return 0;
     }
 }
 
 inline uw highest_bit_new_bul(const bul &x) {
-    if BI_CONSTEXPR (BI_2N <= 16) {
-        for (uw i = 0; i < BI_2N; ++i)
-           if (x[i] != 0) return highest_bit(x[i]) + (BI_2N - i - 1) * BI_SBU32;
+    if BI_CONSTEXPR (BI_DLEN <= 16) {
+        for (uw i = 0; i < BI_DLEN; ++i)
+           if (x[i] != 0) return highest_bit(x[i]) + (BI_DLEN - i - 1) * BI_SBU32;
         return 0;
     } else {
         uw i = 0;
-        for (; i + 3 < BI_2N; i += 4) {
+        for (; i + 3 < BI_DLEN; i += 4) {
            if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
-              if (x[i  ]) return highest_bit(x[i  ]) + (BI_2N - i - 1) * BI_SBU32;
-              if (x[i+1]) return highest_bit(x[i+1]) + (BI_2N - i - 2) * BI_SBU32;
-              if (x[i+2]) return highest_bit(x[i+2]) + (BI_2N - i - 3) * BI_SBU32;
-              /* x[i+3] */return highest_bit(x[i+3]) + (BI_2N - i - 4) * BI_SBU32;
+              if (x[i  ]) return highest_bit(x[i  ]) + (BI_DLEN - i - 1) * BI_SBU32;
+              if (x[i+1]) return highest_bit(x[i+1]) + (BI_DLEN - i - 2) * BI_SBU32;
+              if (x[i+2]) return highest_bit(x[i+2]) + (BI_DLEN - i - 3) * BI_SBU32;
+              /* x[i+3] */return highest_bit(x[i+3]) + (BI_DLEN - i - 4) * BI_SBU32;
            }
         }
-        for (; i < BI_2N; ++i)
-           if (x[i] != 0) return highest_bit(x[i]) + (BI_2N - i - 1) * BI_SBU32;
+        for (; i < BI_DLEN; ++i)
+           if (x[i] != 0) return highest_bit(x[i]) + (BI_DLEN - i - 1) * BI_SBU32;
         return 0;
     }
 }
@@ -105,8 +105,8 @@ int main() {
         }
         else if (edge < 30) {
             // Edge Case 2: Small numbers (Data only at the very end LSW)
-            test_bui[i][BI_N - 1] = val_dist(gen);
-            test_bul[i][BI_2N - 1] = val_dist(gen);
+            test_bui[i][BI_LEN - 1] = val_dist(gen);
+            test_bul[i][BI_DLEN - 1] = val_dist(gen);
         }
         else if (edge < 50) {
             // Edge Case 3: Massive numbers (Data at the very beginning MSW)
@@ -115,11 +115,11 @@ int main() {
         }
         else {
             // Edge Case 4: Random lengths
-            uw active_limbs_bui = (gen() % BI_N) + 1;
-            uw active_limbs_bul = (gen() % (BI_2N)) + 1;
+            uw active_limbs_bui = (gen() % BI_LEN) + 1;
+            uw active_limbs_bul = (gen() % (BI_DLEN)) + 1;
 
-            test_bui[i][BI_N - active_limbs_bui] = val_dist(gen);
-            test_bul[i][BI_2N - active_limbs_bul] = val_dist(gen);
+            test_bui[i][BI_LEN - active_limbs_bui] = val_dist(gen);
+            test_bul[i][BI_DLEN - active_limbs_bul] = val_dist(gen);
         }
     }
 

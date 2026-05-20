@@ -56,14 +56,14 @@ static void force_limb_size(bui& x, uw limbs, bool odd = false) {
 		x = {};
 		return;
 	}
-	if (limbs > BI_N)
-		limbs = BI_N;
-	const uw zero_limbs = BI_N - limbs;
+	if (limbs > BI_LEN)
+		limbs = BI_LEN;
+	const uw zero_limbs = BI_LEN - limbs;
 	for (uw i = 0; i < zero_limbs; ++i)
 		x[i] = 0;
 	x[zero_limbs] |= 1u << 31;
 	if (odd)
-		x[BI_N - 1] |= 1;
+		x[BI_LEN - 1] |= 1;
 }
 
 static DivCase make_case(const char* name, int size) {
@@ -96,7 +96,7 @@ static void fill_case(DivCase& c, std::mt19937& gen) {
 			make_nonzero(c.b[i]);
 		} else if (std::strcmp(c.name, "a_lt_b") == 0) {
 			c.b[i] = c.a[i];
-			c.b[i][BI_N - 1] |= 1;
+			c.b[i][BI_LEN - 1] |= 1;
 			if (cmp(c.a[i], c.b[i]) >= 0)
 				c.a[i] = {};
 			make_nonzero(c.b[i]);
@@ -104,14 +104,14 @@ static void fill_case(DivCase& c, std::mt19937& gen) {
 			c.b[i][0] = 0;
 			make_nonzero(c.b[i]);
 		} else if (std::strcmp(c.name, "half_size_divisor") == 0) {
-			force_limb_size(c.a[i], BI_N, false);
-			force_limb_size(c.b[i], BI_N / 2, true);
+			force_limb_size(c.a[i], BI_LEN, false);
+			force_limb_size(c.b[i], BI_LEN / 2, true);
 		} else if (std::strcmp(c.name, "quarter_size_divisor") == 0) {
-			force_limb_size(c.a[i], BI_N, false);
-			force_limb_size(c.b[i], BI_N / 4, true);
+			force_limb_size(c.a[i], BI_LEN, false);
+			force_limb_size(c.b[i], BI_LEN / 4, true);
 		} else if (std::strcmp(c.name, "small_2limb_divisor") == 0) {
-			force_limb_size(c.a[i], BI_N, false);
-			force_limb_size(c.b[i], BI_N < 2 ? BI_N : 2, true);
+			force_limb_size(c.a[i], BI_LEN, false);
+			force_limb_size(c.b[i], BI_LEN < 2 ? BI_LEN : 2, true);
 		}
 
 		make_nonzero(c.b[i]);
@@ -142,8 +142,8 @@ double bench_div(Fn fn, const std::vector<bui>& a, const std::vector<bui>& b, st
 			fn(a[i], b[i], q[i], r[i]);
 	auto end = std::chrono::high_resolution_clock::now();
 
-	global_sink ^= q[0][BI_N - 1];
-	global_sink ^= r[0][BI_N - 1];
+	global_sink ^= q[0][BI_LEN - 1];
+	global_sink ^= r[0][BI_LEN - 1];
 	return std::chrono::duration<double, std::nano>(end - start).count() / total_calls;
 }
 

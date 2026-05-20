@@ -72,7 +72,7 @@ Poly poly_pow_1x(const bui &n) {
 
 // a = (a + b) % m
 inline void add_true_mod_ip(bui &a, bui b, const bui &m) {
-	if (add_ip_n_imp(a.data(), b.data(), BI_N) || cmp(a, m) >= 0) {
+	if (add_ip_n_imp(a.data(), b.data(), BI_LEN) || cmp(a, m) >= 0) {
 		sub_ip(a, m);
 	}
 }

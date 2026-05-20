@@ -65,13 +65,13 @@ double bench_add(const char* name, Fn fn, std::vector<bui> work, const std::vect
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int iter = 0; iter < iterations; ++iter) {
 		for (size_t i = 0; i < work.size(); ++i) {
-			carry_sink ^= fn(work[i].data(), addends[i].data(), BI_N);
+			carry_sink ^= fn(work[i].data(), addends[i].data(), BI_LEN);
 		}
 	}
 	auto end = std::chrono::high_resolution_clock::now();
 
 	global_sink_i_addcarry ^= carry_sink;
-	global_sink_i_addcarry ^= work[0][BI_N - 1];
+	global_sink_i_addcarry ^= work[0][BI_LEN - 1];
 	return std::chrono::duration<double, std::nano>(end - start).count() / total_calls;
 }
 
@@ -99,8 +99,8 @@ int main() {
 	{
 		bui x = a_vec[0];
 		bui y = a_vec[0];
-		uw c1 = bench_add_ip_n_imp(x.data(), b_vec[0].data(), BI_N);
-		uw c2 = ref_add_ip_n_imp(y.data(), b_vec[0].data(), BI_N);
+		uw c1 = bench_add_ip_n_imp(x.data(), b_vec[0].data(), BI_LEN);
+		uw c2 = ref_add_ip_n_imp(y.data(), b_vec[0].data(), BI_LEN);
 		if (c1 != c2 || cmp(x, y) != 0) {
 			std::cerr << "Correctness check failed\n";
 			return 1;
@@ -108,7 +108,7 @@ int main() {
 	}
 
 	const double ns_per_call = bench_add("bench_add_ip_n_imp", bench_add_ip_n_imp, a_vec, b_vec, bench_iterations);
-	const double ns_per_limb = ns_per_call / BI_N;
+	const double ns_per_limb = ns_per_call / BI_LEN;
 
 	std::cout << std::fixed << std::setprecision(3);
 	std::cout << "ns/call=" << ns_per_call << "\n";

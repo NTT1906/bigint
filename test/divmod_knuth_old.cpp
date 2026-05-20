@@ -32,8 +32,8 @@ double bench_div(const char* name, Fn fn, const std::vector<bui>& a_vec, const s
 	}
 	auto end = std::chrono::high_resolution_clock::now();
 
-	global_sink ^= q_vec[0][BI_N - 1];
-	global_sink ^= r_vec[0][BI_N - 1];
+	global_sink ^= q_vec[0][BI_LEN - 1];
+	global_sink ^= r_vec[0][BI_LEN - 1];
 	return std::chrono::duration<double, std::nano>(end - start).count() / total_calls;
 }
 
@@ -67,10 +67,10 @@ int main() {
 		else if (i % 17 == 0) b_vec[i][0] = 0;
 		else if (i % 18 == 0) {
 			// force b to half size
-			for (u32 j = 0; j < BI_N / 2; ++j)
+			for (u32 j = 0; j < BI_LEN / 2; ++j)
 				b_vec[i][j] = 0;
-			b_vec[i][BI_N / 2] |= 1u << 31;
-			b_vec[i][BI_N - 1] |= 1;
+			b_vec[i][BI_LEN / 2] |= 1u << 31;
+			b_vec[i][BI_LEN - 1] |= 1;
 		}
 		if (bui_is0(b_vec[i]))
 			b_vec[i] = bui_from_u32(1);
