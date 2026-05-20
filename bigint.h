@@ -5,22 +5,18 @@
 #include <cassert>
 #include <cstdint>
 #include <cstring>
-#include <future>
 #include <cctype>
 #include <random>
 #include <string>
 #include <type_traits>
 #include <vector>
 
-// #define BI_UW_FORCE_32
+#define BI_UW_FORCE_32
 
 typedef uint32_t u32;
 typedef uint64_t u64;
 typedef unsigned long long ull;
 typedef unsigned int uint;
-
-// #undef __GNUC__
-// #define _MSC_VER
 
 #if (defined(__x86_64__) || defined(__amd64__) || defined(_M_AMD64) || \
 	defined(__aarch64__) || defined(_M_ARM64) || defined(__LP64__) || \
