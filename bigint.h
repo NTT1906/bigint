@@ -15,9 +15,10 @@ using u32 = uint32_t;
 using u64 = uint64_t;
 using ull = unsigned long long;
 using uint = unsigned int;
+using uchar = unsigned char;
 
 // #define BI_UW_FORCE_32
-#define BI_DISABLE_HW_INTRINSICS
+// #define BI_DISABLE_HW_INTRINSICS
 
 #if (defined(__x86_64__) || defined(__amd64__) || defined(_M_AMD64) || \
 	defined(__aarch64__) || defined(_M_ARM64) || defined(__LP64__) || \
@@ -50,28 +51,28 @@ using uint = unsigned int;
 		explicit operator bool() const { return high != 0 || low != 0; }
 		friend udw operator+(udw lhs, const udw& rhs) {
 			udw res;
-			unsigned char carry = _addcarry_u64(0, lhs.low, rhs.low, &res.low);
+			uchar carry = _addcarry_u64(0, lhs.low, rhs.low, &res.low);
 			_addcarry_u64(carry, lhs.high, rhs.high, &res.high);
 			return res;
 		}
 		udw& operator+=(const udw& rhs) {
-			unsigned char carry = _addcarry_u64(0, low, rhs.low, &low);
+			uchar carry = _addcarry_u64(0, low, rhs.low, &low);
 			_addcarry_u64(carry, high, rhs.high, &high);
 			return *this;
 		}
 		friend udw operator-(udw lhs, const udw& rhs) {
 			udw res;
-			unsigned char borrow = _subborrow_u64(0, lhs.low, rhs.low, &res.low);
+			uchar borrow = _subborrow_u64(0, lhs.low, rhs.low, &res.low);
 			_subborrow_u64(borrow, lhs.high, rhs.high, &res.high);
 			return res;
 		}
 		udw& operator-=(const udw& rhs) {
-			unsigned char borrow = _subborrow_u64(0, low, rhs.low, &low);
+			uchar borrow = _subborrow_u64(0, low, rhs.low, &low);
 			_subborrow_u64(borrow, high, rhs.high, &high);
 			return *this;
 		}
 		udw& operator--() {
-			unsigned char borrow = _subborrow_u64(0, low, 1, &low);
+			uchar borrow = _subborrow_u64(0, low, 1, &low);
 			_subborrow_u64(borrow, high, 0, &high);
 			return *this;
 		}
@@ -96,13 +97,13 @@ using uint = unsigned int;
 			if (shift >= 128) return {};
 			if (shift == 0) return lhs;
 			if (shift >= 64) return udw{lhs.low << (shift - 64), 0};
-			return udw{__shiftleft128(lhs.low, lhs.high, (unsigned char)shift), lhs.low << shift};
+			return udw{__shiftleft128(lhs.low, lhs.high, (uchar)shift), lhs.low << shift};
 		}
 		friend udw operator>>(udw lhs, int shift) {
 			if (shift == 0) return lhs;
 			if (shift >= 128) return {};
 			if (shift >= 64) return udw{0, lhs.high >> (shift - 64)};
-			return udw{lhs.high >> shift, __shiftright128(lhs.low, lhs.high, (unsigned char)shift)};
+			return udw{lhs.high >> shift, __shiftright128(lhs.low, lhs.high, (uchar)shift)};
 		}
 		friend udw operator/(udw lhs, const udw& rhs) {
 			uw rem;
@@ -880,7 +881,7 @@ inline bui random_odd() {
 	return x;
 }
 
-BI_ALWAYS_INLINE unsigned char i_addcarry(unsigned char c, uw a, uw b, uw* p) {
+BI_ALWAYS_INLINE uchar i_addcarry(uchar c, uw a, uw b, uw* p) {
 #if BI_USE_HW_INTRINSICS
 #if BI_UW_BITS == 64
 	return _addcarry_u64(c, (ull)a, (ull)b, reinterpret_cast<ull*>(p));
@@ -890,12 +891,12 @@ BI_ALWAYS_INLINE unsigned char i_addcarry(unsigned char c, uw a, uw b, uw* p) {
 #else
 	udw s = (udw)a + b + c;
 	*p = (uw)s;
-	return (unsigned char)(s >> BI_UW_BITS);
+	return (uchar)(s >> BI_UW_BITS);
 #endif
 }
 
 BI_ALWAYS_INLINE uw add_ip_n_imp(uw* a, const uw* b, uw n) {
-	unsigned char c = 0;
+	uchar c = 0;
 	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
 		c = i_addcarry(c, a[n], b[n], &a[n]);
@@ -953,7 +954,7 @@ inline void add_redc_ip(bul &a, const bul &b, const bul &m) {
 		sub_ip(a, m);
 }
 
-BI_ALWAYS_INLINE unsigned char i_subborrow(unsigned char c, uw a, uw b, uw* p) {
+BI_ALWAYS_INLINE uchar i_subborrow(uchar c, uw a, uw b, uw* p) {
 #if BI_USE_HW_INTRINSICS
 #if BI_UW_BITS == 64
 	return _subborrow_u64(c, (ull)a, (ull)b, reinterpret_cast<ull*>(p));
@@ -963,12 +964,12 @@ BI_ALWAYS_INLINE unsigned char i_subborrow(unsigned char c, uw a, uw b, uw* p) {
 #else
 	udw s = (udw)a - b - c;
 	*p = (uw)s;
-	return (unsigned char)(s >> BI_UW_BITS) & 1;
+	return (uchar)(s >> BI_UW_BITS) & 1;
 #endif
 }
 
 BI_ALWAYS_INLINE uw sub_ip_n_imp(uw* a, const uw* b, uw n) {
-	unsigned char br = 0;
+	uchar br = 0;
 	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
 		br = i_subborrow(br, a[n], b[n], &a[n]);
@@ -1028,7 +1029,7 @@ BI_ALWAYS_INLINE void mul_imp(const uw* a, const uw* b, uw* r, const uw n) {
 			udw p;
 			p.low = _umul128(a[i], b[j], &p.high);
 			// 2. Add existing array value and accumulate carry bits
-			unsigned char carry = 0;
+			uchar carry = 0;
 			carry = _addcarry_u64(carry, p.low, r[i + j + 1], &p.low);
 			carry = _addcarry_u64(carry, p.high, 0, &p.high);
 
@@ -2046,7 +2047,7 @@ static void dbl_mod_ip(bui &x, const bui &m) {
 		sub_ip(x, m);
 }
 
-inline int hex_val(const unsigned char c) {
+inline int hex_val(const uchar c) {
 	if (c >= '0' && c <= '9') return c - '0';
 	if (c >= 'a' && c <= 'f') return 10 + (c - 'a');
 	if (c >= 'A' && c <= 'F') return 10 + (c - 'A');
