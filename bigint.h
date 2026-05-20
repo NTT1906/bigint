@@ -17,6 +17,7 @@ using ull = unsigned long long;
 using uint = unsigned int;
 
 // #define BI_UW_FORCE_32
+#define BI_DISABLE_HW_INTRINSICS
 
 #if (defined(__x86_64__) || defined(__amd64__) || defined(_M_AMD64) || \
 	defined(__aarch64__) || defined(_M_ARM64) || defined(__LP64__) || \
@@ -264,8 +265,8 @@ struct bul {
 
 	bui& high() { return *reinterpret_cast<bui*>(limbs.data()); }
 	bui& low() { return *reinterpret_cast<bui*>(limbs.data() + BI_LEN); }
-	bui high_copy() { return high(); }
-	bui low_copy() { return low(); }
+	bui high_copy() const { return high(); }
+	bui low_copy() const { return low(); }
 	const bui& high() const { return *reinterpret_cast<const bui*>(&limbs[0]); }
 	const bui& low() const { return *reinterpret_cast<const bui*>(&limbs[BI_LEN]); }
 
@@ -901,39 +902,6 @@ BI_ALWAYS_INLINE uw add_ip_n_imp(uw* a, const uw* b, uw n) {
 	return c;
 }
 
-// BI_ALWAYS_INLINE uw add_ip_n_imp(uw* a, const uw* b, uw n) {
-// #if BI_USE_HW_INTRINSICS
-// 	unsigned char c = 0;
-// 	BI_UNROLL(BI_UNROLL_THRESHOLD)
-// 	while (n-- > 0)
-// #if BI_UW_BITS == 64
-// 		c = _addcarry_u64(
-// 			c,
-// 			static_cast<unsigned long long>(a[n]),
-// 			static_cast<unsigned long long>(b[n]),
-// 			reinterpret_cast<unsigned long long*>(&a[n])
-// 		);
-// #else
-// 		c = _addcarry_u32(
-// 			c,
-// 			static_cast<unsigned int>(a[n]),
-// 			static_cast<unsigned int>(b[n]),
-// 			reinterpret_cast<unsigned int*>(&a[n])
-// 		);
-// #endif
-// 	return c;
-// #else
-// 	uw c = 0;
-// 	BI_UNROLL(BI_UNROLL_THRESHOLD)
-// 	while (n-- > 0) {
-// 		udw s = (udw)a[n] + b[n] + c;
-// 		a[n] = (uw)s;
-// 		c = s >> BI_UW_BITS;
-// 	}
-// 	return c;
-// #endif
-// }
-
 // Add 1 to big int
 BI_ALWAYS_INLINE void add_one_ip_imp(uw* x, uw n) { while (n-- > 0 && !++x[n]); }
 BI_ALWAYS_INLINE void sub_one_ip_imp(uw* x, uw n) { while (n-- > 0 && !x[n]--); }
@@ -993,10 +961,9 @@ BI_ALWAYS_INLINE unsigned char i_subborrow(unsigned char c, uw a, uw b, uw* p) {
 	return _subborrow_u32(c, (uint)a, (uint)b, reinterpret_cast<uint*>(p));
 #endif
 #else
-	// TODO: re-evaluate borrow fallback
 	udw s = (udw)a - b - c;
 	*p = (uw)s;
-	return (unsigned char)(s >> BI_UW_BITS);
+	return (unsigned char)(s >> BI_UW_BITS) & 1;
 #endif
 }
 
