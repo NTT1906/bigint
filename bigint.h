@@ -19,6 +19,9 @@ typedef uint64_t u64;
 typedef unsigned long long ull;
 typedef unsigned int uint;
 
+#undef __GNUC__
+#define _MSC_VER
+
 #if (defined(__x86_64__) || defined(__amd64__) || defined(_M_AMD64) || \
 	defined(__aarch64__) || defined(_M_ARM64) || defined(__LP64__) || \
 	defined(_WIN64)) && !defined(BI_UW_FORCE_32)
@@ -26,33 +29,33 @@ typedef unsigned int uint;
 #else
 	#define BI_UW_ARCH64 0
 #endif
-// Override: force 32-bit limbs
 #if defined(BI_UW_FORCE_32)
-	typedef uint32_t uw;
-	typedef uint64_t udw;
+// Override: force 32-bit limbs
+	typedef u32 uw;
+	typedef u64 udw;
 	#define BI_UW_BITS 32
 	#define BI_UW_MAX UINT32_MAX
 	#define BI_UDW_BITS 64
 	#define BI_UDW_MAX UINT64_MAX
+#elif (defined(__GNUC__) || defined(__clang__)) && BI_UW_ARCH64 && defined(__SIZEOF_INT128__)
 // 64-bit compilers with native unsigned __int128 support.
-#elif BI_UW_ARCH64 && defined(__SIZEOF_INT128__)
-	typedef uint64_t uw;
+	typedef u64 uw;
 	typedef unsigned __int128 udw;
 	#define BI_UW_BITS 64
 	#define BI_UW_MAX UINT64_MAX
 	#define BI_UDW_BITS 128
 	#define BI_UDW_MAX (((udw)~0))
+#elif defined(_MSC_VER) && defined(_M_AMD64)
 // MSVC x64 has no native unsigned __int128. The algorithms below rely on
 // arithmetic on the double-width type, so keep limbs at 32 bits here.
-#elif defined(_MSC_VER) && defined(_M_AMD64)
-	typedef uint32_t uw;
-	typedef uint64_t udw;
-	#define BI_UW_BITS 32
+	typedef u64 uw;
+	typedef struct {u64 high; u64 low;} udw;
+	#define BI_UW_BITS 64
 	#define BI_UW_MAX UINT32_MAX
-	#define BI_UDW_BITS 64
+	#define BI_UDW_BITS 128
 	#define BI_UDW_MAX UINT64_MAX
-// 32-bit or unknown
 #else
+// 32-bit or unknown
 	typedef uint32_t uw;
 	typedef uint64_t udw;
 	#define BI_UW_BITS 32
@@ -91,20 +94,20 @@ static_assert(BI_BIT > 0 && BI_BIT % BI_SBU32 == 0, "BI_BIT must be positive and
 #define BI_FORCE_UNROLL
 #ifdef BI_FORCE_UNROLL
 #ifndef BI_UNROLL_THRESHOLD
-#define BI_UNROLL_THRESHOLD 16
+	#define BI_UNROLL_THRESHOLD 16
 #endif
-#if defined(_MSC_VER)
-#define BI_DO_PRAGMA(x) __pragma(x)
-#define BI_UNROLL(n)
+#if defined(_MSC_VER) && !defined(__clang__)
+	#define BI_DO_PRAGMA(x) __pragma(x)
+	#define BI_UNROLL(n) __pragma(loop(hint_unroll))
 #elif defined(__clang__)
-#define BI_DO_PRAGMA(x) _Pragma(#x)
-#define BI_UNROLL(n) BI_DO_PRAGMA(clang loop unroll_count(n))
+	#define BI_DO_PRAGMA(x) _Pragma(#x)
+	#define BI_UNROLL(n) BI_DO_PRAGMA(clang loop unroll_count(n))
 #elif defined(__GNUC__)
-#define BI_DO_PRAGMA(x) _Pragma(#x)
-#define BI_UNROLL(n) BI_DO_PRAGMA(GCC unroll n)
+	#define BI_DO_PRAGMA(x) _Pragma(#x)
+	#define BI_UNROLL(n) BI_DO_PRAGMA(GCC unroll n)
 #else
-#define BI_DO_PRAGMA(x)
-#define BI_UNROLL(n)
+	#define BI_DO_PRAGMA(x)
+	#define BI_UNROLL(n)
 #endif
 #endif
 
@@ -745,20 +748,10 @@ inline bui bul_high(const bul& x) { return x.high(); }
 // }
 
 // Return new bul with low-part being input bui x
-inline bul bui_to_bul(const bui& x) {
-	bul r{};
-	r.low() = x;
-	// std::copy(x.begin(), x.end(), r.begin() + BI_N);
-	return r;
-}
+inline bul bui_to_bul(const bui& x) {return bul{x}; }
 
 // Return new bul from two buis
-inline bul bul_from_2bui(const bui& high, const bui& low) {
-	bul r{};
-	std::copy(high.begin(), high.end(), r.begin());
-	std::copy(low.begin(), low.end(), r.begin() + BI_N);
-	return r;
-}
+inline bul bul_from_2bui(const bui& high, const bui& low) { return {high, low}; }
 
 BI_ALWAYS_INLINE int cmp_imp(const uw* a, const uw* b, const uw n) {
 	for (uw i = 0; i < n; ++i)
@@ -998,9 +991,27 @@ BI_ALWAYS_INLINE void mul_imp(const uw* a, const uw* b, uw* r, const uw n) {
 		if (!a[i]) continue;
 		uw c = 0, j = n;
 		while (j-- > 0) {
+#if defined(_MSC_VER) && defined(_M_AMD64)
+			udw p;
+			p.low = _umul128(a[i], b[j], &p.high);
+			// 2. Add existing array value and accumulate carry bits
+            unsigned char carry = 0;
+            carry = _addcarry_u64(carry, p.low, r[i + j + 1], &p.low);
+            carry = _addcarry_u64(carry, p.high, 0, &p.high);
+
+            // 3. Add previous iteration carry 'c'
+            carry = _addcarry_u64(0, p.low, c, &p.low);
+            _addcarry_u64(carry, p.high, 0, &p.high);
+
+            // 4. Update memory and the next loop's carry
+            r[i + j + 1] = p.low;
+            c = p.high;
+
+#else
 			udw p = (udw)a[i] * b[j] + r[i + j + 1] + c;
 			r[i + j + 1] = (uw)p;
 			c = p >> BI_SBU32;
+#endif
 		}
 		r[i] = c;
 	}
