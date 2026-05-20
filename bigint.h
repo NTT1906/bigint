@@ -1009,6 +1009,7 @@ BI_ALWAYS_INLINE unsigned char i_subborrow(unsigned char c, uw a, uw b, uw* p) {
 	return _subborrow_u32(c, (uint)a, (uint)b, reinterpret_cast<uint*>(p));
 #endif
 #else
+	// TODO: re-evaluate borrow fallback
 	udw s = (udw)a - b - c;
 	*p = (uw)s;
 	return (unsigned char)(s >> BI_SBU32);
@@ -1072,7 +1073,7 @@ BI_ALWAYS_INLINE void mul_imp(const uw* a, const uw* b, uw* r, const uw n) {
 		if (!a[i]) continue;
 		uw c = 0, j = n;
 		while (j-- > 0) {
-#if defined(_MSC_VER) && defined(_M_AMD64)
+#if defined(_MSC_VER) && defined(_M_AMD64) && BI_UW_BITS == 64
 			udw p;
 			p.low = _umul128(a[i], b[j], &p.high);
 			// 2. Add existing array value and accumulate carry bits
@@ -1087,7 +1088,6 @@ BI_ALWAYS_INLINE void mul_imp(const uw* a, const uw* b, uw* r, const uw n) {
             // 4. Update memory and the next loop's carry
             r[i + j + 1] = p.low;
             c = p.high;
-
 #else
 			udw p = (udw)a[i] * b[j] + r[i + j + 1] + c;
 			r[i + j + 1] = (uw)p;
@@ -2757,7 +2757,9 @@ struct MontgomeryReducerSOS {
 			x *= 2u - m0 * x;
 			x *= 2u - m0 * x;
 			x *= 2u - m0 * x;
+#if BI_UW_BITS == 64
 			x *= 2u - m0 * x;
+#endif
 			n0_inv = 0u - x;
 		}
 		// R = 2^BI_BIT mod m
@@ -2835,7 +2837,7 @@ inline bui pow_mod_mont_sos(const bui& x, const bui& e, const bui& m) {
 
 struct MontgomeryReducerCIOS2 {
 	bui m;      // modulus
-	uw n0_inv{};   // -m[LSW]^{-1} mod 2^32
+	uw n0_inv{};   // -m[LSW]^{-1} mod 2^BI_UW_BITS
 	bui r2{};
 	MontgomeryReducerCIOS2() = default;
 	explicit MontgomeryReducerCIOS2(const bui& m) : m(m) {
