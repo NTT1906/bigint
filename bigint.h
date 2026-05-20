@@ -379,6 +379,7 @@ bui nmod_native(bul x, const bui &m);
 void divmod_knuth(const bui &a, const bui& b, bui& quot, bui& rem);
 void divmod_knuth2(const bui &a, const bui& b, bui& quot, bui& rem);
 void divmod_knuth(const bul& a, const bui& b, bul& q, bui& r);
+void divmod_knuth(const bul& a, const bui& b, bui& q, bul& r);
 void divmod_knuth(const bul& a, const bul& b, bul& q, bul& r);
 
 bui mod(const bui &x, const bui &m);
@@ -1374,36 +1375,38 @@ inline bul sqr(const bui& a) {
 }
 
 inline void divmod(const bui& a, const bui& b, bui &q, bui &r) {
-	q = {};
-	r = a;
-	long long shift = (long long) highest_bit(a) - highest_bit(b);
-	if (shift < 0) return;
-	// while (shift-- > 0) {
-	for (; shift >= 0; --shift) {
-		bui tmp = b;
-		shift_left_ip(tmp, shift);
-		if (cmp(r, tmp) >= 0) {
-			sub_ip(r, tmp);
-			set_bit_ip(q, shift, 1);
-		}
-	}
+	divmod_knuth(a, b, q, r);
+	// q = {};
+	// r = a;
+	// long long shift = (long long) highest_bit(a) - highest_bit(b);
+	// if (shift < 0) return;
+	// // while (shift-- > 0) {
+	// for (; shift >= 0; --shift) {
+	// 	bui tmp = b;
+	// 	shift_left_ip(tmp, shift);
+	// 	if (cmp(r, tmp) >= 0) {
+	// 		sub_ip(r, tmp);
+	// 		set_bit_ip(q, shift, 1);
+	// 	}
+	// }
 }
 
 inline void divmod(const bul& a, const bui& b, bui &q, bul &r) {
-	q = {};
-	r = a;
-	long long shift = highest_bit(a) - highest_bit(b);
-	if (shift < 0) return;
-	bul bb = bui_to_bul(b);
-	// while (shift-- > 0) {
-	for (; shift >= 0; --shift) {
-		bul tmp = bb;
-		shift_left_ip(tmp, shift);
-		if (cmp(r, tmp) >= 0) {
-			sub_ip(r, tmp);
-			set_bit_ip(q, shift, 1);
-		}
-	}
+	divmod_knuth(a, b, q, r);
+	// q = {};
+	// r = a;
+	// long long shift = highest_bit(a) - highest_bit(b);
+	// if (shift < 0) return;
+	// bul bb = bui_to_bul(b);
+	// // while (shift-- > 0) {
+	// for (; shift >= 0; --shift) {
+	// 	bul tmp = bb;
+	// 	shift_left_ip(tmp, shift);
+	// 	if (cmp(r, tmp) >= 0) {
+	// 		sub_ip(r, tmp);
+	// 		set_bit_ip(q, shift, 1);
+	// 	}
+	// }
 }
 
 BI_ALWAYS_INLINE uw uw_divmod_single(uw hi, uw lo, uw b, uw* rem) {
@@ -2027,6 +2030,10 @@ void divmod_knuth_template(const uw* a, const uw* b, uw* q, uw* r) {
 
 inline void divmod_knuth(const bul& a, const bui& b, bul& q, bui& r) {
 	divmod_knuth_template<BI_LEN2, BI_LEN, BI_LEN2, BI_LEN>(a.data(), b.data(), q.data(), r.data());
+}
+
+inline void divmod_knuth(const bul& a, const bui& b, bui& q, bul& r) {
+	divmod_knuth_template<BI_LEN2, BI_LEN, BI_LEN, BI_LEN2>(a.data(), b.data(), q.data(), r.data());
 }
 
 inline void divmod_knuth(const bul& a, const bul& b, bul& q, bul& r) {
