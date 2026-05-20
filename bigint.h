@@ -43,92 +43,87 @@ typedef unsigned int uint;
 // MSVC x64 has no native unsigned __int128. Emulate the double-width type.
 	typedef u64 uw;
 	struct udw {
-	    uw high;
-	    uw low;
-	    udw() = default;
-	    // Generic constructor for ANY single integer type (int, u32, u64, etc.)
-	    template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
-	    udw(T low) : high{0}, low{static_cast<uw>(low)} {}
-	    udw(const uw &high, const uw &low) : high{high}, low{low} {}
-	    explicit operator uw() const { return low; }
+		uw high;
+		uw low;
+		udw() = default;
+		// Generic constructor for ANY single integer type (int, u32, u64, etc.)
+		template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+		udw(T low) : high{0}, low{static_cast<uw>(low)} {}
+		udw(const uw &high, const uw &low) : high{high}, low{low} {}
+		explicit operator uw() const { return low; }
 		explicit operator bool() const { return high != 0 || low != 0; }
-	    friend udw operator+(udw lhs, const udw& rhs) {
-	        udw res;
-	        unsigned char carry = _addcarry_u64(0, lhs.low, rhs.low, &res.low);
-	        _addcarry_u64(carry, lhs.high, rhs.high, &res.high);
-	        return res;
-	    }
-	    udw& operator+=(const udw& rhs) {
-	        unsigned char carry = _addcarry_u64(0, low, rhs.low, &low);
-	        _addcarry_u64(carry, high, rhs.high, &high);
-	        return *this;
-	    }
-	    friend udw operator-(udw lhs, const udw& rhs) {
-	        udw res;
-	        unsigned char borrow = _subborrow_u64(0, lhs.low, rhs.low, &res.low);
-	        _subborrow_u64(borrow, lhs.high, rhs.high, &res.high);
-	        return res;
-	    }
-	    udw& operator-=(const udw& rhs) {
-	        unsigned char borrow = _subborrow_u64(0, low, rhs.low, &low);
-	        _subborrow_u64(borrow, high, rhs.high, &high);
-	        return *this;
-	    }
-	    udw& operator--() {
-	        unsigned char borrow = _subborrow_u64(0, low, 1, &low);
-	        _subborrow_u64(borrow, high, 0, &high);
-	        return *this;
-	    }
-	    friend udw operator*(udw lhs, const udw& rhs) {
-	        udw res;
-	        res.low = _umul128(lhs.low, rhs.low, &res.high);
-	        res.high += (lhs.high * rhs.low) + (lhs.low * rhs.high);
-	        return res;
-	    }
+		friend udw operator+(udw lhs, const udw& rhs) {
+			udw res;
+			unsigned char carry = _addcarry_u64(0, lhs.low, rhs.low, &res.low);
+			_addcarry_u64(carry, lhs.high, rhs.high, &res.high);
+			return res;
+		}
+		udw& operator+=(const udw& rhs) {
+			unsigned char carry = _addcarry_u64(0, low, rhs.low, &low);
+			_addcarry_u64(carry, high, rhs.high, &high);
+			return *this;
+		}
+		friend udw operator-(udw lhs, const udw& rhs) {
+			udw res;
+			unsigned char borrow = _subborrow_u64(0, lhs.low, rhs.low, &res.low);
+			_subborrow_u64(borrow, lhs.high, rhs.high, &res.high);
+			return res;
+		}
+		udw& operator-=(const udw& rhs) {
+			unsigned char borrow = _subborrow_u64(0, low, rhs.low, &low);
+			_subborrow_u64(borrow, high, rhs.high, &high);
+			return *this;
+		}
+		udw& operator--() {
+			unsigned char borrow = _subborrow_u64(0, low, 1, &low);
+			_subborrow_u64(borrow, high, 0, &high);
+			return *this;
+		}
+		friend udw operator*(udw lhs, const udw& rhs) {
+			udw res;
+			res.low = _umul128(lhs.low, rhs.low, &res.high);
+			res.high += (lhs.high * rhs.low) + (lhs.low * rhs.high);
+			return res;
+		}
 		friend udw operator|(udw lhs, const udw& rhs) {
-	    	return udw{lhs.high | rhs.high, lhs.low | rhs.low};
-	    }
+			return udw{lhs.high | rhs.high, lhs.low | rhs.low};
+		}
 		friend udw operator&(udw lhs, const udw& rhs) {
-	    	return udw{lhs.high & rhs.high, lhs.low & rhs.low};
-	    }
+			return udw{lhs.high & rhs.high, lhs.low & rhs.low};
+		}
 		friend udw operator^(udw lhs, const udw& rhs) {
-	    	return udw{lhs.high ^ rhs.high, lhs.low ^ rhs.low};
-	    }
+			return udw{lhs.high ^ rhs.high, lhs.low ^ rhs.low};
+		}
 		udw operator~() const { return udw{~high, ~low}; }
-	    friend udw operator<<(udw lhs, int shift) {
-	        shift &= 127;
-	        if (shift == 0) return lhs;
-	        if (shift >= 64) return udw{lhs.low << (shift - 64), 0};
-	        return udw{__shiftleft128(lhs.low, lhs.high, (unsigned char)shift), lhs.low << shift};
-	    }
-	    friend udw operator>>(udw lhs, int shift) {
-	        shift &= 127;
-	        if (shift == 0) return lhs;
-	        if (shift >= 64) return udw{0, lhs.high >> (shift - 64)};
-	        return udw{lhs.high >> shift, __shiftright128(lhs.low, lhs.high, (unsigned char)shift)};
-	    }
-	    friend udw operator/(udw lhs, const udw& rhs) {
-	        uw rem;
-	        if (lhs.high >= rhs.low) {
-	            uw q_hi = lhs.high / rhs.low;
-	            uw r_hi = lhs.high % rhs.low;
-	            uw q_lo = _udiv128(r_hi, lhs.low, rhs.low, &rem);
-	            return udw{q_hi, q_lo};
-	        }
-	        return udw{0, _udiv128(lhs.high, lhs.low, rhs.low, &rem)};
-	    }
-
-	    friend udw operator%(udw lhs, const udw& rhs) {
-	        uw rem;
-	        _udiv128(lhs.high % rhs.low, lhs.low, rhs.low, &rem);
-	        return udw{0, rem};
-	    }
-	    friend bool operator<(const udw& lhs, const udw& rhs) { return lhs.high < rhs.high || (lhs.high == rhs.high && lhs.low < rhs.low); }
-	    friend bool operator>(const udw& lhs, const udw& rhs)  { return rhs < lhs; }
-	    friend bool operator<=(const udw& lhs, const udw& rhs) { return !(lhs > rhs); }
-	    friend bool operator>=(const udw& lhs, const udw& rhs) { return !(lhs < rhs); }
-	    friend bool operator==(const udw& lhs, const udw& rhs) { return lhs.high == rhs.high && lhs.low == rhs.low; }
-	    friend bool operator!=(const udw& lhs, const udw& rhs) { return !(lhs == rhs); }
+		friend udw operator<<(udw lhs, int shift) {
+			shift &= 127;
+			if (shift == 0) return lhs;
+			if (shift >= 64) return udw{lhs.low << (shift - 64), 0};
+			return udw{__shiftleft128(lhs.low, lhs.high, (unsigned char)shift), lhs.low << shift};
+		}
+		friend udw operator>>(udw lhs, int shift) {
+			shift &= 127;
+			if (shift == 0) return lhs;
+			if (shift >= 64) return udw{0, lhs.high >> (shift - 64)};
+			return udw{lhs.high >> shift, __shiftright128(lhs.low, lhs.high, (unsigned char)shift)};
+		}
+		friend udw operator/(udw a, const udw& b) {
+			uw r;
+			return a.high >= b.low
+				? udw{a.high / b.low, _udiv128(a.high % b.low, a.low, b.low, &r)}
+				: udw{0, _udiv128(a.high, a.low, b.low, &r)};
+		}
+		friend udw operator%(udw lhs, const udw& rhs) {
+			uw rem;
+			_udiv128(lhs.high % rhs.low, lhs.low, rhs.low, &rem);
+			return udw{0, rem};
+		}
+		friend bool operator<(const udw& lhs, const udw& rhs) { return lhs.high < rhs.high || (lhs.high == rhs.high && lhs.low < rhs.low); }
+		friend bool operator>(const udw& lhs, const udw& rhs)  { return rhs < lhs; }
+		friend bool operator<=(const udw& lhs, const udw& rhs) { return !(lhs > rhs); }
+		friend bool operator>=(const udw& lhs, const udw& rhs) { return !(lhs < rhs); }
+		friend bool operator==(const udw& lhs, const udw& rhs) { return lhs.high == rhs.high && lhs.low == rhs.low; }
+		friend bool operator!=(const udw& lhs, const udw& rhs) { return !(lhs == rhs); }
 	};
 	#define BI_UW_BITS 64
 	#define BI_UW_MAX UINT64_MAX
@@ -1077,17 +1072,17 @@ BI_ALWAYS_INLINE void mul_imp(const uw* a, const uw* b, uw* r, const uw n) {
 			udw p;
 			p.low = _umul128(a[i], b[j], &p.high);
 			// 2. Add existing array value and accumulate carry bits
-            unsigned char carry = 0;
-            carry = _addcarry_u64(carry, p.low, r[i + j + 1], &p.low);
-            carry = _addcarry_u64(carry, p.high, 0, &p.high);
+			unsigned char carry = 0;
+			carry = _addcarry_u64(carry, p.low, r[i + j + 1], &p.low);
+			carry = _addcarry_u64(carry, p.high, 0, &p.high);
 
-            // 3. Add previous iteration carry 'c'
-            carry = _addcarry_u64(0, p.low, c, &p.low);
-            _addcarry_u64(carry, p.high, 0, &p.high);
+			// 3. Add previous iteration carry 'c'
+			carry = _addcarry_u64(0, p.low, c, &p.low);
+			_addcarry_u64(carry, p.high, 0, &p.high);
 
-            // 4. Update memory and the next loop's carry
-            r[i + j + 1] = p.low;
-            c = p.high;
+			// 4. Update memory and the next loop's carry
+			r[i + j + 1] = p.low;
+			c = p.high;
 #else
 			udw p = (udw)a[i] * b[j] + r[i + j + 1] + c;
 			r[i + j + 1] = (uw)p;
