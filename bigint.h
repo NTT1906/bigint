@@ -423,7 +423,6 @@ uw dbl_ip_n_imp(uw* x, uw n);
 void dbl_ip(bui &x);
 void dbl_ip(bul &x);
 
-uw uw_divmod_bul(const bul &a, uw d, bul &q);
 void uw_divmod(const bui &a, uw b, bui &q, uw &r);
 void uw_divmod(const bul &a, uw b, bul &q, uw &r);
 uw uw_mod(bui x, uw m);
@@ -1535,7 +1534,7 @@ inline bui bui_binary_flood1(const uw k) {
 	uw l = k / BI_SBU32;
 	uw b = k % BI_SBU32;
 	if (l) std::fill_n(r.data() + BI_N - l, l, BI_UW_MAX);
-	if (l < BI_N) r[BI_N - 1 - l] = b ? (((uw)1 << b) - 1) : 0;
+	if (l < BI_N) r[BI_N - 1 - l] = ((uw)1 << b) - 1;
 	return r;
 }
 
@@ -1546,7 +1545,7 @@ inline bul bul_binary_flood1(const uw k) {
 	uw l = k / BI_SBU32;
 	uw b = k % BI_SBU32;
 	if (l) std::fill_n(r.data() + BI_2N - l, l, BI_UW_MAX);
-	if (l < BI_2N) r[BI_2N - 1 - l] = b ? (((uw)1 << b) - 1) : 0;
+	if (l < BI_2N) r[BI_2N - 1 - l] = ((uw)1 << b) - 1;
 	return r;
 }
 
@@ -2205,22 +2204,6 @@ inline std::string bui_to_bin(const bui& x) {
 	while (nhb-- > 0)
 		out.push_back(get_bit(x, nhb) ? '1' : '0');
 	return out;
-}
-
-// Divide a double-width big-int (bul, MSW at index 0) by a 32-bit divisor.
-// q = a / d (quotient), returns remainder r = a % d.
-// Requires: d != 0
-inline uw uw_divmod_bul(const bul &a, uw d, bul &q) {
-	udw rem = 0;
-	for (uw i = 0; i < BI_2N; ++i) q[i] = 0;
-	for (uw i = 0; i < BI_2N; ++i) {
-		rem = (rem << BI_SBU32) | (udw)a[i]; // bring down next limb
-		// quotient limb fits in one limb because rem < d * 2^BI_SBU32 here
-		uw qi = (uw)(rem / d);
-		q[i] = qi;
-		rem = rem - (udw)qi * (udw)d; // rem = rem % d
-	}
-	return (uw)rem;
 }
 
 // Lightweight O(N) multiply and add for a 32-bit multiplier
