@@ -49,7 +49,12 @@ typedef unsigned int uint;
 // MSVC x64 has no native unsigned __int128. The algorithms below rely on
 // arithmetic on the double-width type, so keep limbs at 32 bits here.
 	typedef u64 uw;
-	typedef struct {u64 high; u64 low;} udw;
+	struct udw {
+		uw high; uw low;
+		udw() = default;
+		explicit udw(const uw &low) : high{}, low{low} {}
+		explicit udw(const uw &high, const uw &low) : high{high}, low{low} {}
+	};
 	#define BI_UW_BITS 64
 	#define BI_UW_MAX UINT32_MAX
 	#define BI_UDW_BITS 128
