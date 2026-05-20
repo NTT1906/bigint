@@ -54,6 +54,7 @@ typedef unsigned int uint;
 		udw() = default;
 		explicit udw(const uw &low) : high{}, low{low} {}
 		explicit udw(const uw &high, const uw &low) : high{high}, low{low} {}
+		explicit operator uw() const { return low; }
 	};
 	#define BI_UW_BITS 64
 	#define BI_UW_MAX UINT32_MAX
