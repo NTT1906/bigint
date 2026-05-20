@@ -3,7 +3,7 @@
 #include <cassert>
 
 // Set bit size for the test (512 is good for fast, heavy testing)
-#define BI_BIT_WIDTH 1024
+#define BI_BLEN 1024
 #include "../bigint.h"
 
 // Helper to generate a random double-width (bul) number
@@ -165,7 +165,7 @@ int main() {
     std::cout << "========================================\n\n";
 
     const int NUM_TESTS = 100000;
-    std::cout << "Running " << NUM_TESTS << " randomized tests (BI_BIT = " << BI_BIT_WIDTH << ")...\n\n";
+    std::cout << "Running " << NUM_TESTS << " randomized tests (BI_BIT = " << BI_BLEN << ")...\n\n";
 
     long long time_old = 0;
     long long time_new = 0;

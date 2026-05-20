@@ -7,7 +7,7 @@
 #include <vector>
 
 #ifndef BI_BIT
-#define BI_BIT_WIDTH 4096
+#define BI_BLEN 4096
 #endif
 // #define BI_UW_FORCE_32
 #define BI_FORCE_NO_USE_HW_INTRIN
@@ -77,7 +77,7 @@ double bench_add(const char* name, Fn fn, std::vector<bui> work, const std::vect
 
 int main() {
 	std::cout << "I_ADDCARRY BENCHMARK REPORT\n";
-	std::cout << "BI_BIT=" << BI_BIT_WIDTH
+	std::cout << "BI_BIT=" << BI_BLEN
 		<< " BI_UW_BITS=" << BI_UW_BITS
 		<< " BI_USE_HW_INTRINSICS=" << BI_USE_HW_INTRINSICS
 		<< "\n";

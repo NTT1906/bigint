@@ -6,7 +6,7 @@
 #include <cassert>
 
 #ifndef BI_BIT
-#define BI_BIT_WIDTH 1024
+#define BI_BLEN 1024
 #endif
 #include "../bigint.h"
 
@@ -64,7 +64,7 @@ double bench_dbl(const char* name, Fn fn, std::vector<bui> work, int iterations)
 }
 
 int main() {
-	std::cout << "DBL_IP_N BENCHMARK REPORT (BI_BIT = " << BI_BIT_WIDTH << ")\n";
+	std::cout << "DBL_IP_N BENCHMARK REPORT (BI_BIT = " << BI_BLEN << ")\n";
 
 	const int DATASET_SIZE = 1024;
 	const int BENCH_ITERATIONS = 200000;

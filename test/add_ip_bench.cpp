@@ -5,7 +5,7 @@
 #include <iomanip>
 
 #ifndef BI_BIT
-#define BI_BIT_WIDTH 4096
+#define BI_BLEN 4096
 #endif
 #include "../bigint.h"
 
@@ -77,7 +77,7 @@ double bench_add(const char* name, Fn fn, std::vector<bui> work, const std::vect
 }
 
 int main() {
-	std::cout << "ADD_IP_N BENCHMARK REPORT (BI_BIT = " << BI_BIT_WIDTH << ")\n";
+	std::cout << "ADD_IP_N BENCHMARK REPORT (BI_BIT = " << BI_BLEN << ")\n";
 
 	const int DATASET_SIZE = 1024;
 	const int BENCH_ITERATIONS = 200000;

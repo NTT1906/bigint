@@ -1,7 +1,7 @@
 #include <iostream>
 #include <chrono>
 #include <vector>
-#define BI_BIT_WIDTH 4096
+#define BI_BLEN 4096
 #include "bigint.h"
 
 struct BenchResult {

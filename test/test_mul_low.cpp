@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <random>
 
-#define BI_BIT_WIDTH 4096
+#define BI_BLEN 4096
 #include "../bigint.h"
 
 struct BenchResult {
@@ -38,7 +38,7 @@ inline bui mul_low_fast_based_u128(const bui& a, const bui& b) {
 
 int main() {
     std::cout << "========================================================\n";
-    std::cout << " MUL_LOW_FAST BENCHMARK (BI_BIT = " << BI_BIT_WIDTH << ")\n";
+    std::cout << " MUL_LOW_FAST BENCHMARK (BI_BIT = " << BI_BLEN << ")\n";
     std::cout << "========================================================\n\n";
 
     const int NUM_TESTS = 500000; // lower than shift test (mul is heavier)

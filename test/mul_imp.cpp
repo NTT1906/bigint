@@ -6,7 +6,7 @@
 #include <cstring>
 
 // Ensure this matches your local setup
-#define BI_BIT_WIDTH 4096
+#define BI_BLEN 4096
 // #define BI_BIT 256
 #include "../bigint.h"
 volatile uw global_sink = 0;
@@ -29,7 +29,7 @@ BI_ALWAYS_INLINE void mul_imp2(const uw* a, const uw* b, uw* r, const uw n) {
 
 int main() {
     std::cout << "========================================================\n";
-    std::cout << "        MUL_IMP BENCHMARK REPORT (BI_BIT = " << BI_BIT_WIDTH << ")\n";
+    std::cout << "        MUL_IMP BENCHMARK REPORT (BI_BIT = " << BI_BLEN << ")\n";
     std::cout << "========================================================\n\n";
 
     const int DATASET_SIZE = 5000;

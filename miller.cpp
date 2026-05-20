@@ -1,6 +1,6 @@
 #include <iostream>
 #include <chrono>
-#define BI_BIT_WIDTH 2048
+#define BI_BLEN 2048
 #include "bigint.h" // Make sure to use your updated bigint.h
 
 // Helper to generate a random base 'a' in the range [2, n-2]

@@ -4,7 +4,7 @@
 #include <iomanip>
 #include <random>
 
-#define BI_BIT_WIDTH 512 // Test with 2048 or 512
+#define BI_BLEN 512 // Test with 2048 or 512
 #include "../bigint.h"
 
 // ============================
@@ -72,7 +72,7 @@ struct BenchResult {
 
 int main() {
     std::cout << "========================================================\n";
-    std::cout << " DIVMOD ALGORITHM BENCHMARK (BI_BIT = " << BI_BIT_WIDTH << ")\n";
+    std::cout << " DIVMOD ALGORITHM BENCHMARK (BI_BIT = " << BI_BLEN << ")\n";
     std::cout << "========================================================\n\n";
 
     const int NUM_TESTS = 200000;
