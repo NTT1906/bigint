@@ -1226,6 +1226,7 @@ inline bul karatsuba(const bui& a, const bui& b) {
 	return r;
 }
 
+/// a = (a * b) mod m
 inline void mul_mod_ip(bui &a, bui b, const bui &m) {
 	mod_ip(a, m);
 	mod_ip(b, m);
@@ -1234,24 +1235,26 @@ inline void mul_mod_ip(bui &a, bui b, const bui &m) {
 	a = mod(r, m);
 }
 
+/// Soft version of mul_mod_ip (no inplace mod of inputs)
 inline void mul_mod_soft_ip(bui &a, const bui& b, const bui &m) {
 	bul r{};
 	mul_ref(a, b, r);
 	a = mod(r, m);
 }
 
+/// a = (a * a) mod m
 inline void sqr_mod_ip(bui &a, const bui &m) {
 	mod_ip(a, m);
 	bul r = sqr(a);
 	a = mod(r, m);
 }
 
+/// Soft version of sqr_mod_ip (no inplace mod of inputs)
 inline void sqr_mod_soft_ip(bui &a, const bui &m) {
 	bul r = sqr(a);
 	a = mod(r, m);
 }
 
-// Do the exact same sliding window trick for the _ip versions:
 inline void nmod_native_ip(bui& x, const bui& m) {
 	long long shift = (long long)highest_bit(x) - highest_bit(m);
 	if (shift < 0) return;
@@ -1286,6 +1289,7 @@ inline bui nmod_native(bul x, const bui& m) {
 	return x.low();
 }
 
+/// r = x mod m
 inline bui mod(const bui &x, const bui &m) {
 #ifdef BI_USE_DIVMOD_KNUTH
 	bui q, r;
@@ -1296,8 +1300,10 @@ inline bui mod(const bui &x, const bui &m) {
 #endif
 }
 
+/// x = x mod m
 inline void mod_ip(bui &x, const bui &m) { x = mod(x, m); }
 
+/// r = x mod m
 inline bui mod(const bul &x, const bui &m) {
 #ifdef BI_USE_DIVMOD_KNUTH
 	bul q;
@@ -1309,8 +1315,10 @@ inline bui mod(const bul &x, const bui &m) {
 #endif
 }
 
+/// x = x mod m
 inline void mod_ip(bul &x, const bui &m) { x.high() = {}; x.low() = mod(x, m); }
 
+/// r = x mod m
 inline bul mod(const bul &x, const bul &m) {
 #ifdef BI_USE_DIVMOD_KNUTH
 	bul q;
@@ -1322,6 +1330,7 @@ inline bul mod(const bul &x, const bul &m) {
 #endif
 }
 
+/// x = x mod m
 inline void mod_ip(bul &x, const bul &m) { x = mod(x, m); }
 
 /// <r = x*x> Return a squared result of input x
