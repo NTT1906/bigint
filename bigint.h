@@ -16,6 +16,8 @@ typedef uint64_t u64;
 typedef unsigned long long ull;
 typedef unsigned int uint;
 
+// #define BI_UW_FORCE_32
+
 #if (defined(__x86_64__) || defined(__amd64__) || defined(_M_AMD64) || \
 	defined(__aarch64__) || defined(_M_ARM64) || defined(__LP64__) || \
 	defined(_WIN64)) && !defined(BI_UW_FORCE_32)
@@ -23,15 +25,8 @@ typedef unsigned int uint;
 #else
 	#define BI_UW_ARCH64 0
 #endif
-#if defined(BI_UW_FORCE_32)
-// Override: force 32-bit limbs
-	typedef u32 uw;
-	typedef u64 udw;
-	#define BI_UW_BITS 32
-	#define BI_UW_MAX UINT32_MAX
-	#define BI_UDW_BITS 64
-	#define BI_UDW_MAX UINT64_MAX
-#elif (defined(__GNUC__) || defined(__clang__)) && BI_UW_ARCH64 && defined(__SIZEOF_INT128__)
+
+#if (!defined(BI_UW_FORCE_32)) && (defined(__GNUC__) || defined(__clang__)) && BI_UW_ARCH64 && defined(__SIZEOF_INT128__)
 // 64-bit compilers with native unsigned __int128 support.
 	typedef u64 uw;
 	typedef unsigned __int128 udw;
@@ -39,7 +34,7 @@ typedef unsigned int uint;
 	#define BI_UW_MAX UINT64_MAX
 	#define BI_UDW_BITS 128
 	#define BI_UDW_MAX (((udw)~0))
-#elif defined(_MSC_VER) && defined(_M_AMD64)
+#elif (!defined(BI_UW_FORCE_32)) && defined(_MSC_VER) && defined(_M_AMD64)
 // MSVC x64 has no native unsigned __int128. Emulate the double-width type.
 	typedef u64 uw;
 	struct udw {
@@ -97,21 +92,22 @@ typedef unsigned int uint;
 		udw operator~() const { return udw{~high, ~low}; }
 		friend udw operator<<(udw lhs, int shift) {
 			shift &= 127;
+			if (shift >= 128) return {};
 			if (shift == 0) return lhs;
 			if (shift >= 64) return udw{lhs.low << (shift - 64), 0};
 			return udw{__shiftleft128(lhs.low, lhs.high, (unsigned char)shift), lhs.low << shift};
 		}
 		friend udw operator>>(udw lhs, int shift) {
-			shift &= 127;
 			if (shift == 0) return lhs;
+			if (shift >= 128) return {};
 			if (shift >= 64) return udw{0, lhs.high >> (shift - 64)};
 			return udw{lhs.high >> shift, __shiftright128(lhs.low, lhs.high, (unsigned char)shift)};
 		}
-		friend udw operator/(udw a, const udw& b) {
-			uw r;
-			return a.high >= b.low
-				? udw{a.high / b.low, _udiv128(a.high % b.low, a.low, b.low, &r)}
-				: udw{0, _udiv128(a.high, a.low, b.low, &r)};
+		friend udw operator/(udw lhs, const udw& rhs) {
+			uw rem;
+			if (lhs.high >= rhs.low)
+				return udw{lhs.high / rhs.low, _udiv128(lhs.high % rhs.low, lhs.low, rhs.low, &rem)};
+			return udw{0, _udiv128(lhs.high, lhs.low, rhs.low, &rem)};
 		}
 		friend udw operator%(udw lhs, const udw& rhs) {
 			uw rem;
@@ -128,7 +124,7 @@ typedef unsigned int uint;
 	#define BI_UW_BITS 64
 	#define BI_UW_MAX UINT64_MAX
 	#define BI_UDW_BITS 128
-	#define BI_UDW_MAX UINT64_MAX
+	#define BI_UDW_MAX udw{BI_UW_MAX, BI_UW_MAX}
 #else
 // 32-bit or unknown
 	typedef uint32_t uw;
