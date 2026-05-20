@@ -55,6 +55,74 @@ typedef unsigned int uint;
 		explicit udw(const uw &low) : high{}, low{low} {}
 		explicit udw(const uw &high, const uw &low) : high{high}, low{low} {}
 		explicit operator uw() const { return low; }
+		udw operator+(const udw& rhs) const {
+			udw res;
+			unsigned char carry = _addcarry_u64(0, low, rhs.low, &res.low);
+			_addcarry_u64(carry, high, rhs.high, &res.high);
+			return res;
+		}
+		udw& operator+=(const udw& rhs) {
+			unsigned char carry = _addcarry_u64(0, low, rhs.low, &low);
+			_addcarry_u64(carry, high, rhs.high, &high);
+			return *this;
+		}
+		udw operator-(const udw& rhs) const {
+			udw res;
+			unsigned char borrow = _subborrow_u64(0, low, rhs.low, &res.low);
+			_subborrow_u64(borrow, high, rhs.high, &res.high);
+			return res;
+		}
+		udw& operator-=(const udw& rhs) {
+			unsigned char borrow = _subborrow_u64(0, low, rhs.low, &low);
+			_subborrow_u64(borrow, high, rhs.high, &high);
+			return *this;
+		}
+		udw& operator--() {
+			unsigned char borrow = _subborrow_u64(0, low, 1, &low);
+			_subborrow_u64(borrow, high, 0, &high);
+			return *this;
+		}
+		udw operator*(const udw& rhs) const {
+			udw res;
+			res.low = _umul128(low, rhs.low, &res.high);
+			res.high += (high * rhs.low) + (low * rhs.high);
+			return res;
+		}
+		udw operator<<(unsigned int shift) const {
+			shift &= 127;
+			if (shift == 0) return *this;
+			if (shift >= 64) return {low << (shift - 64), 0};
+			return {__shiftleft128(low, high, (unsigned char)shift), low << shift};
+		}
+		udw operator>>(unsigned int shift) const {
+			shift &= 127;
+			if (shift == 0) return *this;
+			if (shift >= 64) return {0, high >> (shift - 64)};
+			return {high >> shift, __shiftright128(low, high, (unsigned char)shift)};
+		}
+		udw operator/(const udw& rhs) const {
+			uw rem;
+			if (high >= rhs.low) {
+				uw q_hi = high / rhs.low;
+				uw r_hi = high % rhs.low;
+				uw q_lo = _udiv128(r_hi, low, rhs.low, &rem);
+				return {q_hi, q_lo};
+			}
+			return {0, _udiv128(high, low, rhs.low, &rem)};
+		}
+		udw operator%(const udw& rhs) const {
+			uw rem;
+			uw r_hi = high;
+			if (high >= rhs.low) high %= rhs.low;
+			_udiv128(r_hi, low, rhs.low, &rem);
+			return {0, rem};
+		}
+		bool operator<(const udw& rhs) const { return high < rhs.high || (high == rhs.high && low < rhs.low); }
+		bool operator>(const udw& rhs) const { return rhs < *this; }
+		bool operator<=(const udw& rhs) const { return !(*this > rhs); }
+		bool operator>=(const udw& rhs) const { return !(*this < rhs); }
+		bool operator==(const udw& rhs) const { return high == rhs.high && low == rhs.low; }
+		bool operator!=(const udw& rhs) const { return !(*this == rhs); }
 	};
 	#define BI_UW_BITS 64
 	#define BI_UW_MAX UINT32_MAX
