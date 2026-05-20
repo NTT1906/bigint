@@ -50,79 +50,92 @@ typedef unsigned int uint;
 // arithmetic on the double-width type, so keep limbs at 32 bits here.
 	typedef u64 uw;
 	struct udw {
-		uw high; uw low;
-		explicit udw(const u32 &low) : high{}, low{low} {}
-		explicit udw(const uw &low) : high{}, low{low} {}
-		explicit udw(const uw &high, const uw &low) : high{high}, low{low} {}
-		explicit operator uw() const { return low; }
-		udw operator+(const udw& rhs) const {
-			udw res;
-			unsigned char carry = _addcarry_u64(0, low, rhs.low, &res.low);
-			_addcarry_u64(carry, high, rhs.high, &res.high);
-			return res;
-		}
-		udw& operator+=(const udw& rhs) {
-			unsigned char carry = _addcarry_u64(0, low, rhs.low, &low);
-			_addcarry_u64(carry, high, rhs.high, &high);
-			return *this;
-		}
-		udw operator-(const udw& rhs) const {
-			udw res;
-			unsigned char borrow = _subborrow_u64(0, low, rhs.low, &res.low);
-			_subborrow_u64(borrow, high, rhs.high, &res.high);
-			return res;
-		}
-		udw& operator-=(const udw& rhs) {
-			unsigned char borrow = _subborrow_u64(0, low, rhs.low, &low);
-			_subborrow_u64(borrow, high, rhs.high, &high);
-			return *this;
-		}
-		udw& operator--() {
-			unsigned char borrow = _subborrow_u64(0, low, 1, &low);
-			_subborrow_u64(borrow, high, 0, &high);
-			return *this;
-		}
-		udw operator*(const udw& rhs) const {
-			udw res;
-			res.low = _umul128(low, rhs.low, &res.high);
-			res.high += (high * rhs.low) + (low * rhs.high);
-			return res;
-		}
-		udw operator<<(unsigned int shift) const {
-			shift &= 127;
-			if (shift == 0) return *this;
-			if (shift >= 64) return {low << (shift - 64), 0};
-			return {__shiftleft128(low, high, (unsigned char)shift), low << shift};
-		}
-		udw operator>>(unsigned int shift) const {
-			shift &= 127;
-			if (shift == 0) return *this;
-			if (shift >= 64) return {0, high >> (shift - 64)};
-			return {high >> shift, __shiftright128(low, high, (unsigned char)shift)};
-		}
-		udw operator/(const udw& rhs) const {
-			uw rem;
-			if (high >= rhs.low) {
-				uw q_hi = high / rhs.low;
-				uw r_hi = high % rhs.low;
-				uw q_lo = _udiv128(r_hi, low, rhs.low, &rem);
-				return {q_hi, q_lo};
-			}
-			return {0, _udiv128(high, low, rhs.low, &rem)};
-		}
-		udw operator%(const udw& rhs) const {
-			uw rem;
-			uw r_hi = high;
-			if (high >= rhs.low) high %= rhs.low;
-			_udiv128(r_hi, low, rhs.low, &rem);
-			return {0, rem};
-		}
-		bool operator<(const udw& rhs) const { return high < rhs.high || (high == rhs.high && low < rhs.low); }
-		bool operator>(const udw& rhs) const { return rhs < *this; }
-		bool operator<=(const udw& rhs) const { return !(*this > rhs); }
-		bool operator>=(const udw& rhs) const { return !(*this < rhs); }
-		bool operator==(const udw& rhs) const { return high == rhs.high && low == rhs.low; }
-		bool operator!=(const udw& rhs) const { return !(*this == rhs); }
+	    uw high;
+	    uw low;
+	    udw() = default;
+	    // Generic constructor for ANY single integer type (int, u32, u64, etc.)
+	    template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+	    udw(T low) : high{0}, low{static_cast<uw>(low)} {}
+	    udw(const uw &high, const uw &low) : high{high}, low{low} {}
+	    explicit operator uw() const { return low; }
+		explicit operator bool() const { return high != 0 || low != 0; }
+	    friend udw operator+(udw lhs, const udw& rhs) {
+	        udw res;
+	        unsigned char carry = _addcarry_u64(0, lhs.low, rhs.low, &res.low);
+	        _addcarry_u64(carry, lhs.high, rhs.high, &res.high);
+	        return res;
+	    }
+	    udw& operator+=(const udw& rhs) {
+	        unsigned char carry = _addcarry_u64(0, low, rhs.low, &low);
+	        _addcarry_u64(carry, high, rhs.high, &high);
+	        return *this;
+	    }
+	    friend udw operator-(udw lhs, const udw& rhs) {
+	        udw res;
+	        unsigned char borrow = _subborrow_u64(0, lhs.low, rhs.low, &res.low);
+	        _subborrow_u64(borrow, lhs.high, rhs.high, &res.high);
+	        return res;
+	    }
+	    udw& operator-=(const udw& rhs) {
+	        unsigned char borrow = _subborrow_u64(0, low, rhs.low, &low);
+	        _subborrow_u64(borrow, high, rhs.high, &high);
+	        return *this;
+	    }
+	    udw& operator--() {
+	        unsigned char borrow = _subborrow_u64(0, low, 1, &low);
+	        _subborrow_u64(borrow, high, 0, &high);
+	        return *this;
+	    }
+	    friend udw operator*(udw lhs, const udw& rhs) {
+	        udw res;
+	        res.low = _umul128(lhs.low, rhs.low, &res.high);
+	        res.high += (lhs.high * rhs.low) + (lhs.low * rhs.high);
+	        return res;
+	    }
+		friend udw operator|(udw lhs, const udw& rhs) {
+	    	return udw{lhs.high | rhs.high, lhs.low | rhs.low};
+	    }
+		friend udw operator&(udw lhs, const udw& rhs) {
+	    	return udw{lhs.high & rhs.high, lhs.low & rhs.low};
+	    }
+		friend udw operator^(udw lhs, const udw& rhs) {
+	    	return udw{lhs.high ^ rhs.high, lhs.low ^ rhs.low};
+	    }
+		udw operator~() const { return udw{~high, ~low}; }
+	    friend udw operator<<(udw lhs, int shift) {
+	        shift &= 127;
+	        if (shift == 0) return lhs;
+	        if (shift >= 64) return udw{lhs.low << (shift - 64), 0};
+	        return udw{__shiftleft128(lhs.low, lhs.high, (unsigned char)shift), lhs.low << shift};
+	    }
+	    friend udw operator>>(udw lhs, int shift) {
+	        shift &= 127;
+	        if (shift == 0) return lhs;
+	        if (shift >= 64) return udw{0, lhs.high >> (shift - 64)};
+	        return udw{lhs.high >> shift, __shiftright128(lhs.low, lhs.high, (unsigned char)shift)};
+	    }
+	    friend udw operator/(udw lhs, const udw& rhs) {
+	        uw rem;
+	        if (lhs.high >= rhs.low) {
+	            uw q_hi = lhs.high / rhs.low;
+	            uw r_hi = lhs.high % rhs.low;
+	            uw q_lo = _udiv128(r_hi, lhs.low, rhs.low, &rem);
+	            return udw{q_hi, q_lo};
+	        }
+	        return udw{0, _udiv128(lhs.high, lhs.low, rhs.low, &rem)};
+	    }
+
+	    friend udw operator%(udw lhs, const udw& rhs) {
+	        uw rem;
+	        _udiv128(lhs.high % rhs.low, lhs.low, rhs.low, &rem);
+	        return udw{0, rem};
+	    }
+	    friend bool operator<(const udw& lhs, const udw& rhs) { return lhs.high < rhs.high || (lhs.high == rhs.high && lhs.low < rhs.low); }
+	    friend bool operator>(const udw& lhs, const udw& rhs)  { return rhs < lhs; }
+	    friend bool operator<=(const udw& lhs, const udw& rhs) { return !(lhs > rhs); }
+	    friend bool operator>=(const udw& lhs, const udw& rhs) { return !(lhs < rhs); }
+	    friend bool operator==(const udw& lhs, const udw& rhs) { return lhs.high == rhs.high && lhs.low == rhs.low; }
+	    friend bool operator!=(const udw& lhs, const udw& rhs) { return !(lhs == rhs); }
 	};
 	#define BI_UW_BITS 64
 	#define BI_UW_MAX UINT32_MAX
@@ -1110,7 +1123,7 @@ BI_ALWAYS_INLINE void mul_imp_fast(const uw* a, const uw* b, uw* r, const uw n) 
 		while (j-- > start_b) {
 			udw p = (udw)a_limb * b[j] + r[i + j + 1] + c;
 			r[i + j + 1] = (uw)p;
-			c = p >> BI_SBU32;
+			c = (uw)(p >> BI_SBU32);
 		}
 		r[i + start_b] = c;
 	}
@@ -1161,7 +1174,7 @@ inline bui mul_low_fast(const bui& a, const bui& b) {
 		for (uw j = 0; j < BI_N - i; ++j) {
 			udw s = (udw)ai * b[BI_N - 1 - j] + r[ri - j] + c;
 			r[ri - j] = (uw)s;
-			c = s >> BI_SBU32;
+			c = (uw)(s >> BI_SBU32);
 		}
 	}
 	return r;
@@ -1176,7 +1189,7 @@ inline bul mul_low_fast(const bul& a, const bul& b) {
 		for (uw j = 0; j < BI_2N - i; ++j) {
 			udw s = (udw)ai * b[BI_2N - 1 - j] + r[ri - j] + c;
 			r[ri - j] = (uw)s;
-			c = s >> BI_SBU32;
+			c = (uw)(s >> BI_SBU32);
 		}
 	}
 	return r;
@@ -1374,11 +1387,11 @@ BI_ALWAYS_INLINE void sqr_imp(const uw* a, uw* r, const uw n) {
 	// 1. Calculate symmetrical cross-products only ONCE (i < j)
 	for (uw i = n; i-- > 1;) {
 		if (!a[i]) continue;
-		udw c{};
+		uw c{};
 		for (uw j = i; j-- > 0;) {
 			udw p = (udw)a[i] * a[j] + r[i + j + 1] + c;
 			r[i + j + 1] = (uw)p;
-			c = p >> BI_SBU32;
+			c = (uw)(p >> BI_SBU32);
 		}
 		r[i] = c;
 	}
@@ -2797,7 +2810,7 @@ struct MontgomeryReducerSOS {
 			for (uw j = 0; j < BI_N; ++j) {
 				udw s = (udw)t[i + j] + (udw)mword * m[BI_N - 1 - j] + c;
 				t[i + j] = (uw)s;
-				c = s >> BI_SBU32;
+				c = (uw)(s >> BI_SBU32);
 			}
 
 			uw k = i + BI_N;
@@ -2807,7 +2820,7 @@ struct MontgomeryReducerSOS {
 				// }
 				udw s = (udw)t[k] + c;
 				t[k++] = (uw)s;
-				c = s >> BI_SBU32;
+				c = (uw)(s >> BI_SBU32);
 			}
 		}
 
