@@ -134,7 +134,7 @@ typedef unsigned int uint;
 	    friend bool operator!=(const udw& lhs, const udw& rhs) { return !(lhs == rhs); }
 	};
 	#define BI_UW_BITS 64
-	#define BI_UW_MAX UINT32_MAX
+	#define BI_UW_MAX UINT64_MAX
 	#define BI_UDW_BITS 128
 	#define BI_UDW_MAX UINT64_MAX
 #else
@@ -683,7 +683,7 @@ inline bui shift_left(bui x, const uw k) {
 		while (i-- > 0) {
 			uw tmp = r[i];
 			r[i] = tmp << bits | c;
-			c = tmp >> (32 - bits);
+			c = tmp >> (BI_SBU32 - bits);
 		}
 	}
 	return r;
@@ -705,7 +705,7 @@ inline bul shift_left_expand(bui x, const uw k) {
 		while (i-- > 0) {
 			uw tmp = r[i];
 			r[i] = tmp << bits | c;
-			c = tmp >> (32 - bits);
+			c = tmp >> (BI_SBU32 - bits);
 		}
 	}
 	return r;
@@ -2078,9 +2078,9 @@ inline void divmod_knuth(const bul& a, const bul& b, bul& q, bul& r) {
 /// Computes x = (2x) in-place.
 BI_ALWAYS_INLINE uw dbl_ip_n_imp(uw* x, uw n) {
 	assert(n != 0 && "Cannot double zero-limb.");
-	uw c = x[0] >> 31;
+	uw c = x[0] >> (BI_SBU32 - 1);
 	for (uw i = 0; i < n - 1; ++i)
-		x[i] = x[i] << 1 | x[i + 1] >> 31;
+		x[i] = x[i] << 1 | x[i + 1] >> (BI_SBU32 - 1);
 	x[n - 1] = x[n - 1] << 1;
 	return c;
 }
@@ -2752,9 +2752,10 @@ struct MontgomeryReducerSOS {
 	MontgomeryReducerSOS() = default;
 	explicit MontgomeryReducerSOS(const bui& m) : m(m) {
 		assert(m[BI_N - 1] & 1);
-		// Newton iteration for inverse mod 2^32
+		// Newton iteration for inverse mod 2^BI_UW_BITS
 		{
 			uw x{1}, m0{m[BI_N - 1]};
+			x *= 2u - m0 * x;
 			x *= 2u - m0 * x;
 			x *= 2u - m0 * x;
 			x *= 2u - m0 * x;
@@ -2842,7 +2843,7 @@ struct MontgomeryReducerCIOS2 {
 	MontgomeryReducerCIOS2() = default;
 	explicit MontgomeryReducerCIOS2(const bui& m) : m(m) {
 		assert(m[BI_N - 1] & 1);
-		// Newton iteration for inverse mod 2^32
+		// Newton iteration for inverse mod 2^BI_UW_BITS
 		{
 			uw x{1}, m0{m[BI_N - 1]};
 			x *= 2u - m0 * x;
@@ -2850,18 +2851,15 @@ struct MontgomeryReducerCIOS2 {
 			x *= 2u - m0 * x;
 			x *= 2u - m0 * x;
 			x *= 2u - m0 * x;
+#if BI_UW_BYTES == 64
+			x *= 2u - m0 * x;
+#endif
 			n0_inv = 0u - x;
 		}
 
 		r2 = bui1();
 		for (uw i = 0; i < BI_BIT * 2; ++i)
 			dbl_mod_ip(r2, m); // r2 = 2^(2*BI_BIT) mod mod
-
-		// // R = 2^BI_BIT mod m
-		// r2 = shift_left_mod(bui1(), BI_BIT, m);
-		// // R^2 = R * 2^BI_BIT mod m = 2^{2*BI_BIT} mod m
-		// for (u32 i = 0; i < BI_BIT; ++i)
-		// 	dbl_mod_ip(r2, m);
 	}
 
 	bui mul(const bui& a, const bui& b) const {
@@ -2956,6 +2954,9 @@ struct MontgomeryReducerCIOS3 {
 			x *= 2u - m0 * x;
 			x *= 2u - m0 * x;
 			x *= 2u - m0 * x;
+#if BI_UW_BITS == 64
+			x *= 2u - m0 * x;
+#endif
 			n0_inv = 0u - x;
 		}
 		r2 = bui1();
@@ -3042,7 +3043,7 @@ struct MontgomeryReducerCIOS3 {
 				for (uw j = i + 1; j < BI_N; ++j) {
 					const udw prod = (udw)a[BI_N - 1 - j] * ai;
 					const uw lo = (uw)(prod << 1);
-					const udw hi = prod >> 31;
+					const udw hi = prod >> (BI_SBU32 - 1);
 
 					s = (udw)lo + t[j] + C;
 					t[j] = (uw)s;

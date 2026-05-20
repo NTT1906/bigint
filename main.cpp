@@ -30,8 +30,11 @@ int main() {
 
 	printf("expected   : %s\n", bui_to_dec(y).c_str());
 	printf("mont_cios3 : %s\n", bui_to_dec(pow_mod_mont_cios3(a, b, m)).c_str());
+	printf("mont_cios2 : %s\n", bui_to_dec(pow_mod_mont_cios2(a, b, m)).c_str());
+	printf("mr_pow_mod : %s\n", bui_to_dec(mr_pow_mod(a, b, m)).c_str());
 	printf("mont_window: %s\n", bui_to_dec(pow_mod_mont_window(a, b, m)).c_str());
 	printf("window     : %s\n", bui_to_dec(pow_mod_window(a, b, m)).c_str());
+	printf("powmod     : %s\n", bui_to_dec(pow_mod(a, b, m)).c_str());
 
 	printf("%-25s %10s  %s\n", "Method", "Time", "Status");
 	printf("------------------------------------------------\n");
