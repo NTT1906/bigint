@@ -40,10 +40,10 @@ inline void old_divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 	// 1. Normalize
 	bul r = bui_to_bul(a);
 	bui d = b;
-	u32 d_lead_pow = highest_limb(b);
-	u32 d_msw_idx = BI_N - 1 - d_lead_pow;
-	u32 d0 = d[d_msw_idx];
-	const u32 norm_shift = d0 == 0 ? 0 : BI_SBU32 - highest_bit(d0);
+	uw d_lead_pow = highest_limb(b);
+	uw d_msw_idx = BI_N - 1 - d_lead_pow;
+	uw d0 = d[d_msw_idx];
+	const uw norm_shift = d0 == 0 ? 0 : BI_SBU32 - highest_bit(d0);
 
 	if (norm_shift > 0) {
 		shift_left_ip(d, norm_shift);
@@ -54,19 +54,19 @@ inline void old_divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 	d_lead_pow = highest_limb(d);
 	d_msw_idx = BI_N - 1 - d_lead_pow;
 	d0 = d[d_msw_idx];
-	const u32 d1 = (d_msw_idx + 1 < BI_N) ? d[d_msw_idx + 1] : 0;
-	const u32 n = d_lead_pow + 1; // number of limbs in divisor
+	const uw d1 = (d_msw_idx + 1 < BI_N) ? d[d_msw_idx + 1] : 0;
+	const uw n = d_lead_pow + 1; // number of limbs in divisor
 
 	// 2. Fast path for single-limb divisor (n = 1)
 	if (n == 1) {
 		bul q_bul = {};
-		u32 r_temp = 0;
-		u32 d_val = d[BI_N-1];
+		uw r_temp = 0;
+		uw d_val = d[BI_N-1];
 
 		for (int i = 0; i < BI_N * 2; ++i) {
-			u64 dividend = (u64)r_temp << BI_SBU32 | r[i];
-			q_bul[i] = (u32)(dividend / d_val);
-			r_temp = (u32)(dividend % d_val);
+			udw dividend = (udw)r_temp << BI_SBU32 | r[i];
+			q_bul[i] = (uw)(dividend / d_val);
+			r_temp = (uw)(dividend % d_val);
 		}
 		std::copy(q_bul.begin() + BI_N, q_bul.end(), quot.begin());
 		rem = bui_from_u32(r_temp >> norm_shift); // Denormalize remainder instantly
@@ -75,23 +75,23 @@ inline void old_divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 
 	// 3. Knuth Division Loop
 	quot = {};
-	u32 r_lead_pow = highest_limb(r);
+	uw r_lead_pow = highest_limb(r);
 	const int m = (int)r_lead_pow - (int)d_lead_pow;
 
 	for (int j = m; j >= 0; --j) {
-		u32 r_idx = (BI_N * 2 - 1) - (j + n);
+		uw r_idx = (BI_N * 2 - 1) - (j + n);
 
-		u32 u_jn = r[r_idx];
-		u32 u_jn1 = (r_idx + 1 < BI_N * 2) ? r[r_idx + 1] : 0;
-		u32 u_jn2 = (r_idx + 2 < BI_N * 2) ? r[r_idx + 2] : 0;
+		uw u_jn = r[r_idx];
+		uw u_jn1 = (r_idx + 1 < BI_N * 2) ? r[r_idx + 1] : 0;
+		uw u_jn2 = (r_idx + 2 < BI_N * 2) ? r[r_idx + 2] : 0;
 
-		u64 r_top = ((u64)u_jn << BI_SBU32) | u_jn1;
-		u64 qhat, rhat;
+		udw r_top = ((udw)u_jn << BI_SBU32) | u_jn1;
+		udw qhat, rhat;
 
 		// Calculate initial guess
 		if (u_jn == d0) {
 			qhat = 0xFFFFFFFFULL;
-			rhat = (u64)u_jn1 + d0;
+			rhat = (udw)u_jn1 + d0;
 		} else {
 			qhat = r_top / d0;
 			rhat = r_top % d0;
@@ -106,49 +106,49 @@ inline void old_divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 		}
 
 		// Multiply and subtract safely
-		u64 borrow = 0;
-		u32 d_lsw_idx = BI_N - 1;
+		udw borrow = 0;
+		uw d_lsw_idx = BI_N - 1;
 
-		for (u32 i = 0; i < n; ++i) {
-			u32 r_i = r_idx + n - i;
-			u32 d_i = d_lsw_idx - i;
+		for (uw i = 0; i < n; ++i) {
+			uw r_i = r_idx + n - i;
+			uw d_i = d_lsw_idx - i;
 
-			u64 sub = qhat * d[d_i] + borrow;
+			udw sub = qhat * d[d_i] + borrow;
 			// Safe subtraction prevents u64 underflow
-			borrow = (sub >> BI_SBU32) + (r[r_i] < (u32)sub);
+			borrow = (sub >> BI_SBU32) + (r[r_i] < (uw)sub);
 			// if (r[r_i] < (u32)sub)
 				// borrow = (sub >> BI_SBU32) + 1;
 			// else
 				// borrow = (sub >> BI_SBU32);
-			r[r_i] -= (u32)sub;
+			r[r_i] -= (uw)sub;
 		}
 
 		bool is_negative = borrow > r[r_idx];
-		r[r_idx] = r[r_idx] - (u32)borrow;
+		r[r_idx] = r[r_idx] - (uw)borrow;
 
 		// Store quotient digit
 		if (j < BI_N) {
-			u32 q_idx = BI_N - 1 - j;
-			quot[q_idx] = (u32)qhat;
+			uw q_idx = BI_N - 1 - j;
+			quot[q_idx] = (uw)qhat;
 		}
 
 		// Add back if guess was too high
 		if (is_negative) {
 			if (j < BI_N) {
-				u32 q_idx = BI_N - 1 - j;
+				uw q_idx = BI_N - 1 - j;
 				quot[q_idx] = quot[q_idx] - 1;
 			}
 
-			u64 carry = 0;
-			for (u32 i = 0; i < n; ++i) {
-				u32 r_i = r_idx + n - i;
-				u32 d_i = d_lsw_idx - i;
+			udw carry = 0;
+			for (uw i = 0; i < n; ++i) {
+				uw r_i = r_idx + n - i;
+				uw d_i = d_lsw_idx - i;
 
-				u64 sum = (u64)r[r_i] + d[d_i] + carry;
-				r[r_i] = (u32)sum;
+				udw sum = (udw)r[r_i] + d[d_i] + carry;
+				r[r_i] = (uw)sum;
 				carry = sum >> BI_SBU32;
 			}
-			r[r_idx] = (u32)(r[r_idx] + carry);
+			r[r_idx] = (uw)(r[r_idx] + carry);
 		}
 	}
 

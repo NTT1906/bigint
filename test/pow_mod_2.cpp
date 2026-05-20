@@ -18,7 +18,7 @@
 #endif
 #include "../bigint.h"
 
-volatile u32 global_sink = 0;
+volatile uw global_sink = 0;
 
 struct PowCase {
 	const char* name;
@@ -28,7 +28,7 @@ struct PowCase {
 };
 
 static bui random_odd_bui(std::mt19937& gen) {
-	std::uniform_int_distribution<u32> dist(0, 0xffffffffu);
+	std::uniform_int_distribution<uw> dist(0, 0xffffffffu);
 	bui x{};
 	for (auto& limb : x)
 		limb = dist(gen);
@@ -37,24 +37,24 @@ static bui random_odd_bui(std::mt19937& gen) {
 }
 
 static bui random_bui(std::mt19937& gen) {
-	std::uniform_int_distribution<u32> dist(0, 0xffffffffu);
+	std::uniform_int_distribution<uw> dist(0, 0xffffffffu);
 	bui x{};
 	for (auto& limb : x)
 		limb = dist(gen);
 	return x;
 }
 
-static void force_bit_size(bui& x, u32 bits, std::mt19937& gen) {
+static void force_bit_size(bui& x, uw bits, std::mt19937& gen) {
 	if (bits == 0) { x = {}; return; }
 	if (bits > BI_BIT) bits = BI_BIT;
-	u32 nlimbs = (bits + 31) / 32;
-	u32 zero_limbs = BI_N - nlimbs;
-	for (u32 i = 0; i < zero_limbs; ++i)
+	uw nlimbs = (bits + 31) / 32;
+	uw zero_limbs = BI_N - nlimbs;
+	for (uw i = 0; i < zero_limbs; ++i)
 		x[i] = 0;
 	x[zero_limbs] |= 1u << 31;
-	for (u32 i = zero_limbs + 1; i < BI_N; ++i)
+	for (uw i = zero_limbs + 1; i < BI_N; ++i)
 		if (i != BI_N - 1 || !(x[BI_N - 1] & 1))
-			x[i] = std::uniform_int_distribution<u32>(0, 0xffffffffu)(gen);
+			x[i] = std::uniform_int_distribution<uw>(0, 0xffffffffu)(gen);
 	x[BI_N - 1] |= 1;
 }
 

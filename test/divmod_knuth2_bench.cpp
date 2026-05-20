@@ -17,7 +17,7 @@
 #endif
 #include "../bigint.h"
 
-volatile u32 global_sink = 0;
+volatile uw global_sink = 0;
 
 struct DivCase {
 	const char* name;
@@ -39,7 +39,7 @@ static void print_fail(const char* name, const bui& a, const bui& b, const bui& 
 }
 
 static bui random_bui(std::mt19937& gen) {
-	std::uniform_int_distribution<u32> dist(0, 0xffffffffu);
+	std::uniform_int_distribution<uw> dist(0, 0xffffffffu);
 	bui x{};
 	for (auto& limb : x)
 		limb = dist(gen);
@@ -51,15 +51,15 @@ static void make_nonzero(bui& x) {
 		x = bui_from_u32(1);
 }
 
-static void force_limb_size(bui& x, u32 limbs, bool odd = false) {
+static void force_limb_size(bui& x, uw limbs, bool odd = false) {
 	if (limbs == 0) {
 		x = {};
 		return;
 	}
 	if (limbs > BI_N)
 		limbs = BI_N;
-	const u32 zero_limbs = BI_N - limbs;
-	for (u32 i = 0; i < zero_limbs; ++i)
+	const uw zero_limbs = BI_N - limbs;
+	for (uw i = 0; i < zero_limbs; ++i)
 		x[i] = 0;
 	x[zero_limbs] |= 1u << 31;
 	if (odd)

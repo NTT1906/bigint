@@ -15,7 +15,7 @@ struct BenchResult {
 };
 
 // ===== Prevent optimization =====
-static volatile u32 sink = 0;
+static volatile uw sink = 0;
 
 inline void consume(const bul& x) {
     sink ^= x[0];
@@ -34,7 +34,7 @@ void inject_edge_cases(bui& a, bui& b, int i) {
     } else if (i % 14 == 0) {
         a = b;
     } else if (i % 15 == 0) {
-        for (u32 j = 0; j < BI_N; ++j)
+        for (uw j = 0; j < BI_N; ++j)
             a[j] = 0xFFFFFFFF;
     }
 }

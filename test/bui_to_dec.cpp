@@ -13,11 +13,11 @@
 
 inline std::string bui_to_dec_old(const bui& x) {
     if (bui_is0(x)) return "0";
-    std::vector<u32> parts;
+    std::vector<uw> parts;
     bui n = x, q{};
-    u32 r = 0;
+    uw r = 0;
     while (!bui_is0(n)) {
-        u32 BASE = 1000000000u;
+        uw BASE = 1000000000u;
         u32_divmod(n, BASE, q, r);
         parts.push_back(r);
         n = q;
@@ -31,11 +31,11 @@ inline std::string bui_to_dec_old(const bui& x) {
 
 inline std::string bul_to_dec_old(const bul& x) {
     if (bu_is0_imp(x.data(), BI_N * 2)) return "0";
-    std::vector<u32> parts;
+    std::vector<uw> parts;
     bul n = x, q{};
     while (!bu_is0_imp(n.data(), BI_N * 2)) {
-        u32 BASE = 1000000000u;
-        u32 r = u32_divmod_bul(n, BASE, q);
+        uw BASE = 1000000000u;
+        uw r = u32_divmod_bul(n, BASE, q);
         parts.push_back(r);
         n = q;
     }
@@ -92,12 +92,12 @@ int main() {
             randomize_ip(big_a);
 
             // Randomly truncate the length to simulate real-world variance
-            u32 active_limbs_bui = (gen() % BI_N) + 1;
-            u32 active_limbs_bul = (gen() % (BI_N * 2)) + 1;
+            uw active_limbs_bui = (gen() % BI_N) + 1;
+            uw active_limbs_bul = (gen() % (BI_N * 2)) + 1;
 
             // Clear top limbs
-            for(u32 j = 0; j < BI_N - active_limbs_bui; ++j) a[j] = 0;
-            for(u32 j = 0; j < (BI_N * 2) - active_limbs_bul; ++j) big_a[j] = 0;
+            for(uw j = 0; j < BI_N - active_limbs_bui; ++j) a[j] = 0;
+            for(uw j = 0; j < (BI_N * 2) - active_limbs_bul; ++j) big_a[j] = 0;
         }
         test_bui.push_back(a);
         test_bul.push_back(big_a);

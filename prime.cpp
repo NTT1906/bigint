@@ -2,7 +2,7 @@
 #define BI_BIT 512
 #include "bigint.h"
 
-constexpr u32 POLY_R = 14;
+constexpr uw POLY_R = 14;
 struct Poly : std::array<bui, POLY_R>{};
 
 void printBuiA(const bui *poly, int n) {
@@ -56,8 +56,8 @@ Poly poly_pow_1x(const bui &n) {
 	base[0] = bui1(); base[1] = bui1();
 	Poly res{};
 	res[0] = bui1();
-	u32 hb = highest_bit(n);
-	for (u32 i = 0; i < hb; ++i) {
+	uw hb = highest_bit(n);
+	for (uw i = 0; i < hb; ++i) {
 		if (get_bit(n, i)) {
 			poly_mul_mod_ip(res, base, n);
 			printf("%5d: R1: ", i);
@@ -123,8 +123,8 @@ Poly poly_pow_1x_mont(const bui &n) {
 	Poly base{}; base[0] = mr.convertedOne; base[1] = mr.convertedOne;
 	Poly res{};  res[0] = mr.convertedOne;
 
-	u32 hb = highest_bit(n);
-	for (u32 i = 0; i < hb; ++i) {
+	uw hb = highest_bit(n);
+	for (uw i = 0; i < hb; ++i) {
 		if (get_bit(n, i)) {
 			poly_mul_mod_mont_ip(res, base, mr);
 		}
@@ -143,11 +143,11 @@ static bool aks_like_prime(const bui &n) {
 	Poly p = poly_pow_1x_mont(n);
 	bui b1 = bui1();
 	if (cmp(p[0], b1) != 0) return false;
-	u32 k;
+	uw k;
 	bui q;
 	u32divmod(n, POLY_R, q,  k);
 	if (cmp(p[k], b1) != 0) return false;
-	for (u32 i = 1; i < POLY_R; ++i) {
+	for (uw i = 1; i < POLY_R; ++i) {
 		if (i == k) continue;
 		if (!bui_is0(p[i])) return false;
 	}
@@ -197,8 +197,8 @@ Poly poly_pow_1x_mont2(const bui &n) {
     Poly base{}; base[0] = mr.convertedOne; base[1] = mr.convertedOne;
     Poly res{};  res[0] = mr.convertedOne;
 
-    u32 hb = highest_bit(n);
-    for (u32 i = 0; i < hb; ++i) {
+    uw hb = highest_bit(n);
+    for (uw i = 0; i < hb; ++i) {
         if (get_bit(n, i)) {
             poly_mul_mod_mont2_ip(res, base, mr);
         }
@@ -216,11 +216,11 @@ static bool aks_like_prime2(const bui &n) {
     Poly p = poly_pow_1x_mont2(n);
     bui b1 = bui1();
     if (cmp(p[0], b1) != 0) return false;
-    u32 k;
+    uw k;
     bui q;
     u32divmod(n, POLY_R, q,  k);
     if (cmp(p[k], b1) != 0) return false;
-    for (u32 i = 1; i < POLY_R; ++i) {
+    for (uw i = 1; i < POLY_R; ++i) {
         if (i == k) continue;
         if (!bui_is0(p[i])) return false;
     }
@@ -233,9 +233,9 @@ static bool has_small_factor(const bui &n) {
 	   43,47,53,59,61,67,71,73,79,83,89,97
    };
 	for (int p : SMALL_PRIMES) {
-		u32 r = 0; bui tmp;
-		u32divmod(n, (u32)p, tmp, r);
-		if (r == 0) return cmp(n, bui_from_u32((u32)p)) != 0;
+		uw r = 0; bui tmp;
+		u32divmod(n, (uw)p, tmp, r);
+		if (r == 0) return cmp(n, bui_from_u32((uw)p)) != 0;
 	}
 	return false;
 }
@@ -251,7 +251,7 @@ static bui gen_prime() {
 }
 
 // Precomputed list of small primes (you can expand this up to the first 200-300 primes)
-static const u32 SMALL_PRIMES[] = {
+static const uw SMALL_PRIMES[] = {
     2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
     73, 79, 83, 89, 97, 101, 103, 107, 109, 113, 127, 131, 137, 139, 149, 151,
     157, 163, 167, 173, 179, 181, 191, 193, 197, 199, 211, 223, 227, 229, 233,
@@ -262,7 +262,7 @@ static const u32 SMALL_PRIMES[] = {
     613, 617, 619, 631, 641, 643, 647, 653, 659, 661, 673, 677, 683, 691, 701,
     709, 719, 727, 733, 739, 743, 751
 };
-constexpr u32 NUM_SMALL_PRIMES = sizeof(SMALL_PRIMES) / sizeof(SMALL_PRIMES[0]);
+constexpr uw NUM_SMALL_PRIMES = sizeof(SMALL_PRIMES) / sizeof(SMALL_PRIMES[0]);
 
 // Helper to generate a random base 'a' in the range [2, n-2]
 bui get_random_base(const bui& n, const bui& n_minus_3) {
@@ -293,7 +293,7 @@ bool is_prime_miller_rabin(const bui& n, int k = 40) {
 	bui n_minus_3 = sub(n, b3);
 
 	bui d = n_minus_1;
-	u32 s = 0;
+	uw s = 0;
 
 	// Shift right until d is odd
 	while (!get_bit(d, 0)) {
@@ -321,7 +321,7 @@ bool is_prime_miller_rabin(const bui& n, int k = 40) {
 		}
 
 		bool composite = true;
-		for (u32 r = 1; r < s; ++r) {
+		for (uw r = 1; r < s; ++r) {
 			// x = x^2 mod n (Using blazing fast Montgomery multiplication!)
 			x = mr.multiply(x, x);
 
@@ -343,29 +343,29 @@ bool is_prime_miller_rabin(const bui& n, int k = 40) {
 bui gen_prime_sieve() {
     // We cap delta so we don't drift too far from true randomness
     // 0x100000 (roughly 1 million) is plenty of space to find a prime.
-    const u32 MAX_DELTA = 0x100000;
+    const uw MAX_DELTA = 0x100000;
 
-    u32 mods[NUM_SMALL_PRIMES];
+    uw mods[NUM_SMALL_PRIMES];
 
     while (true) {
         bui base = random_odd();
         // 2. Precalculate the remainders for this base
         // This is the ONLY time we do heavy BigInt division for small primes
-        for (u32 i = 0; i < NUM_SMALL_PRIMES; ++i) {
+        for (uw i = 0; i < NUM_SMALL_PRIMES; ++i) {
             bui tmp;
-            u32 r;
+            uw r;
             // Assuming your u32divmod sets 'r' to (base % SMALL_PRIMES[i])
             u32divmod(base, SMALL_PRIMES[i], tmp, r);
             mods[i] = r;
         }
 
         // 3. The Quick Sieve Loop
-        for (u32 delta = 0; delta < MAX_DELTA; delta += 2) {
+        for (uw delta = 0; delta < MAX_DELTA; delta += 2) {
             bool has_small_factor = false;
 
             // Check against all small primes using only 32-bit integer math!
             // Notice we start at i=1 (skip 2) because we know delta is even and base is odd.
-            for (u32 i = 1; i < NUM_SMALL_PRIMES; ++i) {
+            for (uw i = 1; i < NUM_SMALL_PRIMES; ++i) {
                 // The magic of Zimmermann's Sieve:
                 if ((mods[i] + delta) % SMALL_PRIMES[i] == 0) {
                     has_small_factor = true;
@@ -420,7 +420,7 @@ int main(int argc, char* argv[]) {
 	constexpr int iter = 5;
 	auto start1 = std::chrono::high_resolution_clock::now();
 	bool res1;
-	for (u32 i = 0; i < iter; ++i)
+	for (uw i = 0; i < iter; ++i)
 	    res1 = aks_like_prime(p);
     auto end1 = std::chrono::high_resolution_clock::now();
     auto time1 = std::chrono::duration_cast<std::chrono::nanoseconds>(end1 - start1).count();
@@ -429,7 +429,7 @@ int main(int argc, char* argv[]) {
     std::cout << "Running Montgomery2...\n";
     auto start2 = std::chrono::high_resolution_clock::now();
     bool res2;
-	for (u32 i = 0; i < iter; ++i)
+	for (uw i = 0; i < iter; ++i)
 		res2 = aks_like_prime2(p);
     auto end2 = std::chrono::high_resolution_clock::now();
     auto time2 = std::chrono::duration_cast<std::chrono::nanoseconds>(end2 - start2).count();

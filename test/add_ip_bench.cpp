@@ -9,19 +9,19 @@
 #endif
 #include "../bigint.h"
 
-volatile u32 global_sink = 0;
+volatile uw global_sink = 0;
 
-BI_ALWAYS_INLINE u32 add_ip_n_scalar_u64(u32* a, const u32* b, u32 n) {
-	u32 c = 0;
+BI_ALWAYS_INLINE uw add_ip_n_scalar_u64(uw* a, const uw* b, uw n) {
+	uw c = 0;
 	while (n-- > 0) {
-		u64 s = (u64)a[n] + b[n] + c;
-		a[n] = (u32)s;
-		c = (u32)(s >> BI_SBU32);
+		udw s = (udw)a[n] + b[n] + c;
+		a[n] = (uw)s;
+		c = (uw)(s >> BI_SBU32);
 	}
 	return c;
 }
 
-BI_ALWAYS_INLINE u32 add_ip_n_hw_intrin(u32* a, const u32* b, u32 n) {
+BI_ALWAYS_INLINE uw add_ip_n_hw_intrin(uw* a, const uw* b, uw n) {
 #if BI_USE_HW_INTRIN
 	unsigned char c = 0;
 	BI_UNROLL(BI_UNROLL_THRESHOLD)
@@ -33,25 +33,25 @@ BI_ALWAYS_INLINE u32 add_ip_n_hw_intrin(u32* a, const u32* b, u32 n) {
 #endif
 }
 
-BI_ALWAYS_INLINE u32 add_ip_n_u64_pair(u32* a, const u32* b, u32 n) {
-	u32 c = 0;
+BI_ALWAYS_INLINE uw add_ip_n_u64_pair(uw* a, const uw* b, uw n) {
+	uw c = 0;
 	while (n >= 2) {
 		n -= 2;
-		u64 av = ((u64)a[n] << 32) | a[n + 1];
-		u64 bv = ((u64)b[n] << 32) | b[n + 1];
+		udw av = ((udw)a[n] << 32) | a[n + 1];
+		udw bv = ((udw)b[n] << 32) | b[n + 1];
 
-		u64 s = av + bv;
-		u64 r = s + c;
-		c = (u32)((s < av) | (r < s));
+		udw s = av + bv;
+		udw r = s + c;
+		c = (uw)((s < av) | (r < s));
 
-		a[n]     = (u32)(r >> 32);
-		a[n + 1] = (u32)r;
+		a[n]     = (uw)(r >> 32);
+		a[n + 1] = (uw)r;
 	}
 
 	if (n) {
-		u64 s = (u64)a[0] + b[0] + c;
-		a[0] = (u32)s;
-		c = (u32)(s >> BI_SBU32);
+		udw s = (udw)a[0] + b[0] + c;
+		a[0] = (uw)s;
+		c = (uw)(s >> BI_SBU32);
 	}
 
 	return c;
@@ -61,7 +61,7 @@ template <typename Fn>
 double bench_add(const char* name, Fn fn, std::vector<bui> work, const std::vector<bui>& addends, int iterations) {
 	std::cout << "--- Benchmarking " << name << "\n";
 	const double total_calls = (double)work.size() * iterations;
-	u32 carry_sink = 0;
+	uw carry_sink = 0;
 
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int iter = 0; iter < iterations; ++iter) {
@@ -86,7 +86,7 @@ int main() {
 	std::vector<bui> b_vec(DATASET_SIZE);
 
 	std::mt19937 gen(123456);
-	std::uniform_int_distribution<u32> dist(0, 0xffffffffu);
+	std::uniform_int_distribution<uw> dist(0, 0xffffffffu);
 
 	std::cout << "[+] Generating " << DATASET_SIZE << " test objects...\n";
 	for (int i = 0; i < DATASET_SIZE; ++i) {
@@ -96,9 +96,9 @@ int main() {
 
 	{
 		bui a1 = a_vec[0], a2 = a_vec[0], a3 = a_vec[0];
-		u32 c1 = add_ip_n_scalar_u64(a1.data(), b_vec[0].data(), BI_N);
-		u32 c2 = add_ip_n_hw_intrin(a2.data(), b_vec[0].data(), BI_N);
-		u32 c3 = add_ip_n_u64_pair(a3.data(), b_vec[0].data(), BI_N);
+		uw c1 = add_ip_n_scalar_u64(a1.data(), b_vec[0].data(), BI_N);
+		uw c2 = add_ip_n_hw_intrin(a2.data(), b_vec[0].data(), BI_N);
+		uw c3 = add_ip_n_u64_pair(a3.data(), b_vec[0].data(), BI_N);
 		if (c1 != c2 || c1 != c3 || cmp(a1, a2) != 0 || cmp(a1, a3) != 0) {
 			std::cerr << "Correctness check failed\n";
 			return 1;

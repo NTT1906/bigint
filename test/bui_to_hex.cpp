@@ -20,7 +20,7 @@ struct TestCase {
 };
 
 TestCase generate_edge_case_bui(std::mt19937& gen) {
-    std::uniform_int_distribution<u32> val_dist(0, 0xFFFFFFFF);
+    std::uniform_int_distribution<uw> val_dist(0, 0xFFFFFFFF);
     std::uniform_int_distribution<int> edge_dist(0, 100);
     std::uniform_int_distribution<int> limb_dist(0, BI_N - 1);
     std::uniform_int_distribution<int> bool_dist(0, 1);
@@ -73,8 +73,8 @@ inline std::string bui_to_hex_old(const bui &a, bool uppercase = false, bool spl
     std::ostringstream o;
     o << std::hex << std::setfill('0');
     if (uppercase) o << std::uppercase;
-    u32 hl = highest_limb(a);
-    u32 idx = BI_N - hl - 1;
+    uw hl = highest_limb(a);
+    uw idx = BI_N - hl - 1;
     o << a[idx];
     if (split && idx != BI_N - 1) o << ' ';
     for (++idx; idx < BI_N; ++idx) {

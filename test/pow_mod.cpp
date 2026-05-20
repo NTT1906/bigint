@@ -8,7 +8,7 @@
 #define BI_BIT 4096
 #include "../bigint.h"
 
-volatile u32 global_sink = 0;
+volatile uw global_sink = 0;
 
 int main() {
     std::cout << "========================================================\n";
@@ -27,7 +27,7 @@ int main() {
     std::vector<bui> r_cios(DATASET_SIZE);
 
     std::mt19937 gen(123456);
-    std::uniform_int_distribution<u32> dist(0, 0xFFFFFFFF);
+    std::uniform_int_distribution<uw> dist(0, 0xFFFFFFFF);
 
     std::cout << "[+] Generating " << DATASET_SIZE << " test objects...\n";
     for (int i = 0; i < DATASET_SIZE; ++i) {

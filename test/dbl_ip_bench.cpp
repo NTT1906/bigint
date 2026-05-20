@@ -10,18 +10,18 @@
 #endif
 #include "../bigint.h"
 
-volatile u32 global_sink = 0;
+volatile uw global_sink = 0;
 
-BI_ALWAYS_INLINE u32 dbl_ip_n_shift_be(u32* x, u32 n) {
+BI_ALWAYS_INLINE uw dbl_ip_n_shift_be(uw* x, uw n) {
 	assert(n != 0 && "Cannot double zero-limb.");
-	u32 c = x[0] >> 31;
-	for (u32 i = 0; i < n - 1; ++i)
+	uw c = x[0] >> 31;
+	for (uw i = 0; i < n - 1; ++i)
 		x[i] = (x[i] << 1) | (x[i + 1] >> 31);
 	x[n - 1] <<= 1;
 	return c;
 }
 
-BI_ALWAYS_INLINE u32 dbl_ip_n_addcarry(u32* x, u32 n) {
+BI_ALWAYS_INLINE uw dbl_ip_n_addcarry(uw* x, uw n) {
 	assert(n != 0 && "Cannot double zero-limb.");
 #if BI_USE_HW_INTRIN
 	unsigned char c = 0;
@@ -33,13 +33,13 @@ BI_ALWAYS_INLINE u32 dbl_ip_n_addcarry(u32* x, u32 n) {
 #endif
 }
 
-BI_ALWAYS_INLINE u32 dbl_ip_n_scalar_u64(u32* x, u32 n) {
+BI_ALWAYS_INLINE uw dbl_ip_n_scalar_u64(uw* x, uw n) {
 	assert(n != 0 && "Cannot double zero-limb.");
-	u32 c = 0;
+	uw c = 0;
 	while (n-- > 0) {
-		u64 s = (u64)x[n] * 2u + c;
-		x[n] = (u32)s;
-		c = (u32)(s >> 32);
+		udw s = (udw)x[n] * 2u + c;
+		x[n] = (uw)s;
+		c = (uw)(s >> 32);
 	}
 	return c;
 }
@@ -48,7 +48,7 @@ template <typename Fn>
 double bench_dbl(const char* name, Fn fn, std::vector<bui> work, int iterations) {
 	std::cout << "--- Benchmarking " << name << "\n";
 	const double total_calls = (double)work.size() * iterations;
-	u32 carry_sink = 0;
+	uw carry_sink = 0;
 
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int iter = 0; iter < iterations; ++iter) {
@@ -72,7 +72,7 @@ int main() {
 	std::vector<bui> x_vec(DATASET_SIZE);
 
 	std::mt19937 gen(123456);
-	std::uniform_int_distribution<u32> dist(0, 0xffffffffu);
+	std::uniform_int_distribution<uw> dist(0, 0xffffffffu);
 
 	std::cout << "[+] Generating " << DATASET_SIZE << " test objects...\n";
 	for (int i = 0; i < DATASET_SIZE; ++i)
@@ -80,9 +80,9 @@ int main() {
 
 	{
 		bui x1 = x_vec[0], x2 = x_vec[0], x3 = x_vec[0];
-		u32 c1 = dbl_ip_n_shift_be(x1.data(), BI_N);
-		u32 c2 = dbl_ip_n_addcarry(x2.data(), BI_N);
-		u32 c3 = dbl_ip_n_scalar_u64(x3.data(), BI_N);
+		uw c1 = dbl_ip_n_shift_be(x1.data(), BI_N);
+		uw c2 = dbl_ip_n_addcarry(x2.data(), BI_N);
+		uw c3 = dbl_ip_n_scalar_u64(x3.data(), BI_N);
 		if (c1 != c2 || c1 != c3 || cmp(x1, x2) != 0 || cmp(x1, x3) != 0) {
 			std::cerr << "Correctness check failed\n";
 			return 1;

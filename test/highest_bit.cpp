@@ -14,22 +14,22 @@
 // ========================================================================
 // Prevent dead-code elimination
 // ========================================================================
-volatile u32 global_sink = 0;
+volatile uw global_sink = 0;
 
 // ========================================================================
 // Old Implementations
 // ========================================================================
 
-inline u32 highest_bit_old_bui(const bui &x) {
+inline uw highest_bit_old_bui(const bui &x) {
 BI_UNROLL(BI_UNROLL_THRESHOLD)
-    for (u32 i = 0; i < BI_N; ++i)
+    for (uw i = 0; i < BI_N; ++i)
        if (x[i] != 0) return highest_bit(x[i]) + (BI_N - i - 1) * BI_SBU32;
     return 0;
 }
 
-inline u32 highest_bit_old_bul(const bul &x) {
+inline uw highest_bit_old_bul(const bul &x) {
 BI_UNROLL(BI_UNROLL_THRESHOLD)
-    for (u32 i = 0; i < BI_2N; ++i)
+    for (uw i = 0; i < BI_2N; ++i)
        if (x[i] != 0) return highest_bit(x[i]) + (BI_2N - i - 1) * BI_SBU32;
     return 0;
 }
@@ -37,13 +37,13 @@ BI_UNROLL(BI_UNROLL_THRESHOLD)
 // ========================================================================
 // New Implementations (Fixed indices + Compile-time routing)
 // ========================================================================
-inline u32 highest_bit_new_bui(const bui &x) {
+inline uw highest_bit_new_bui(const bui &x) {
     if BI_OP_CONSTEXPR (BI_N <= 16) {
-        for (u32 i = 0; i < BI_N; ++i)
+        for (uw i = 0; i < BI_N; ++i)
            if (x[i] != 0) return highest_bit(x[i]) + (BI_N - i - 1) * BI_SBU32;
         return 0;
     } else {
-        u32 i = 0;
+        uw i = 0;
         for (; i + 3 < BI_N; i += 4) {
            if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
               if (x[i  ]) return highest_bit(x[i  ]) + (BI_N - i - 1) * BI_SBU32;
@@ -58,13 +58,13 @@ inline u32 highest_bit_new_bui(const bui &x) {
     }
 }
 
-inline u32 highest_bit_new_bul(const bul &x) {
+inline uw highest_bit_new_bul(const bul &x) {
     if BI_OP_CONSTEXPR (BI_2N <= 16) {
-        for (u32 i = 0; i < BI_2N; ++i)
+        for (uw i = 0; i < BI_2N; ++i)
            if (x[i] != 0) return highest_bit(x[i]) + (BI_2N - i - 1) * BI_SBU32;
         return 0;
     } else {
-        u32 i = 0;
+        uw i = 0;
         for (; i + 3 < BI_2N; i += 4) {
            if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
               if (x[i  ]) return highest_bit(x[i  ]) + (BI_2N - i - 1) * BI_SBU32;
@@ -94,7 +94,7 @@ int main() {
     std::vector<bul> test_bul(DATASET_SIZE, bul{});
 
     std::mt19937 gen(12345);
-    std::uniform_int_distribution<u32> val_dist(1, 0xFFFFFFFF);
+    std::uniform_int_distribution<uw> val_dist(1, 0xFFFFFFFF);
 
     std::cout << "[+] Generating " << DATASET_SIZE << " edge-case test objects...\n";
     for (int i = 0; i < DATASET_SIZE; ++i) {
@@ -115,8 +115,8 @@ int main() {
         }
         else {
             // Edge Case 4: Random lengths
-            u32 active_limbs_bui = (gen() % BI_N) + 1;
-            u32 active_limbs_bul = (gen() % (BI_2N)) + 1;
+            uw active_limbs_bui = (gen() % BI_N) + 1;
+            uw active_limbs_bul = (gen() % (BI_2N)) + 1;
 
             test_bui[i][BI_N - active_limbs_bui] = val_dist(gen);
             test_bul[i][BI_2N - active_limbs_bul] = val_dist(gen);
@@ -128,8 +128,8 @@ int main() {
     // ========================================================================
     std::cout << "[+] Validating correctness...\n";
     for (int i = 0; i < DATASET_SIZE; ++i) {
-        u32 res_old_bui = highest_bit_old_bui(test_bui[i]);
-        u32 res_new_bui = highest_bit_new_bui(test_bui[i]);
+        uw res_old_bui = highest_bit_old_bui(test_bui[i]);
+        uw res_new_bui = highest_bit_new_bui(test_bui[i]);
 
         if (res_old_bui != res_new_bui) {
             std::cerr << "\n[!] VALIDATION FAILED! PROGRAM HALTED.\n";
@@ -139,8 +139,8 @@ int main() {
             std::exit(1);
         }
 
-        u32 res_old_bul = highest_bit_old_bul(test_bul[i]);
-        u32 res_new_bul = highest_bit_new_bul(test_bul[i]);
+        uw res_old_bul = highest_bit_old_bul(test_bul[i]);
+        uw res_new_bul = highest_bit_new_bul(test_bul[i]);
 
         if (res_old_bul != res_new_bul) {
             std::cerr << "\n[!] VALIDATION FAILED! PROGRAM HALTED.\n";
@@ -156,8 +156,8 @@ int main() {
     // Benchmarking
     // ========================================================================
     double total_calls = (double)DATASET_SIZE * BENCH_ITERATIONS;
-    u32 chk_bui_old = 0, chk_bui_new = 0;
-    u32 chk_bul_old = 0, chk_bul_new = 0;
+    uw chk_bui_old = 0, chk_bui_new = 0;
+    uw chk_bul_old = 0, chk_bul_new = 0;
 
     std::cout << "--- Benchmarking BUI ---\n";
     auto start = std::chrono::high_resolution_clock::now();
