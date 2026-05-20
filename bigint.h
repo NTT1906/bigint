@@ -11,8 +11,6 @@
 #include <type_traits>
 #include <vector>
 
-#define BI_UW_FORCE_32
-
 typedef uint32_t u32;
 typedef uint64_t u64;
 typedef unsigned long long ull;
