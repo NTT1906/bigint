@@ -19,8 +19,8 @@ typedef uint64_t u64;
 typedef unsigned long long ull;
 typedef unsigned int uint;
 
-#undef __GNUC__
-#define _MSC_VER
+// #undef __GNUC__
+// #define _MSC_VER
 
 #if (defined(__x86_64__) || defined(__amd64__) || defined(_M_AMD64) || \
 	defined(__aarch64__) || defined(_M_ARM64) || defined(__LP64__) || \
