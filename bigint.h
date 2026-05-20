@@ -103,7 +103,9 @@ static_assert(BI_BIT > 0 && BI_BIT % BI_SBU32 == 0, "BI_BIT must be positive and
 #endif
 #if defined(_MSC_VER) && !defined(__clang__)
 	#define BI_DO_PRAGMA(x) __pragma(x)
-	#define BI_UNROLL(n) __pragma(loop(hint_unroll))
+	// #define BI_UNROLL(n) __pragma(loop(hint_unroll))
+	// TODO: Find a way to support unroll on MSCV without the compiler freak out over missing "," or ";" or newline.
+	#define BI_UNROLL(n)
 #elif defined(__clang__)
 	#define BI_DO_PRAGMA(x) _Pragma(#x)
 	#define BI_UNROLL(n) BI_DO_PRAGMA(clang loop unroll_count(n))
