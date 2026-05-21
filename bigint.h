@@ -309,12 +309,12 @@ bul bul_from_2bui(const bui& high, const bui& low);
 bui bul_high(const bul& x);
 bui bul_low(const bul& x);
 
-uw get_bit(uw num, uw pos);
-uw set_bit(uw num, uw pos, uw val);
-uw get_bit(const bui &a, uw pos);
-void set_bit_ip(bui &a, uw pos, uw val);
-void set_bit_ip(bul &a, uw pos, uw val);
-bui set_bit(bui a, uw pos, uw val);
+uw get_bit(uw x, u32 pos);
+uw set_bit(uw x, u32 pos, uw val);
+uw get_bit(const bui &a, u32 pos);
+void set_bit_ip(bui &a, u32 pos, uw val);
+void set_bit_ip(bul &a, u32 pos, uw val);
+bui set_bit(bui a, u32 pos, uw val);
 
 u32 highest_bit(uw x);
 u32 highest_bit(const bui &x);
@@ -403,7 +403,7 @@ bul bul_pow2(uw k);
 bui bui_binary_flood1(uw k);
 bul bul_binary_flood1(uw k);
 
-uw dbl_ip_n_imp(uw* x, uw n);
+uw dbl_ip_n_imp(uw* x, u32 n);
 void dbl_ip(bui &x);
 void dbl_ip(bul &x);
 
@@ -419,33 +419,33 @@ BI_ALWAYS_INLINE bul bul0() { return bul::zero(); }
 BI_ALWAYS_INLINE bul bul1() { return bul::one(); }
 BI_ALWAYS_INLINE bul bul_from_u32(const uw x) { return bul::from_u32(x); }
 
-inline uw get_bit(const u32 num, const uw pos) { return num >> pos & 1; }
+inline uw get_bit(const uw x, const u32 pos) { return x >> pos & 1; }
 
-inline uw set_bit(const u32 num, const uw pos, const uw val) {
-	if (pos >= BI_UW_BITS) return num;
+inline uw set_bit(const uw x, const u32 pos, const uw val) {
+	if (pos >= BI_UW_BITS) return x;
 	uw mask = uw{1} << pos;
-	return (num & ~mask) | (val & 1u ? mask : 0u);
+	return (x & ~mask) | (val & 1u ? mask : 0u);
 }
 
-inline uw get_bit(const bui &a, const uw pos) {
+inline uw get_bit(const bui &a, const u32 pos) {
 	assert(pos < BI_BLEN && "Cannot get bit outside the scope of the big integer");
 	return get_bit(a[BI_LEN - 1 - pos / BI_UW_BITS], pos % BI_UW_BITS);
 }
 
 // set in-place
-inline void set_bit_ip(bui &a, const uw pos, const uw val) {
+inline void set_bit_ip(bui &a, const u32 pos, const uw val) {
 	assert(pos < BI_BLEN && "Cannot set bit outside the scope of the big integer");
 	uw k = BI_LEN - 1 - pos / BI_UW_BITS;
 	a[k] = set_bit(a[k], pos % BI_UW_BITS, val);
 }
 
-inline void set_bit_ip(bul &a, const uw pos, const uw val) {
+inline void set_bit_ip(bul &a, const u32 pos, const uw val) {
 	assert(pos < BI_LEN2 * BI_UW_BITS && "Cannot set bit outside the scope of the big integer");
 	uw k = BI_LEN2 - 1 - pos / BI_UW_BITS;
 	a[k] = set_bit(a[k], pos % BI_UW_BITS, val);
 }
 
-inline bui set_bit(bui a, const uw pos, const uw val) {
+inline bui set_bit(bui a, const u32 pos, const uw val) {
 	set_bit_ip(a, pos, val);
 	return a;
 }
@@ -528,7 +528,7 @@ BI_ALWAYS_INLINE void bitwise_xor_ip(bui &a, const bui &b) {
 	for (u32 i = 0; i < BI_LEN; ++i) a[i] ^= b[i];
 }
 
-template <uw n>
+template <u32 n>
 BI_ALWAYS_INLINE u32 highest_limb_template(const uw *x) {
 	uw i = 0;
 	if constexpr (n > 16) {
@@ -782,7 +782,7 @@ inline void shift_right_ip(bui& x, const uw k) { shift_right_ip_imp(x.data(), BI
 inline void shift_right_ip(bul& x, const uw k) { shift_right_ip_imp(x.data(), BI_LEN2, k); }
 
 // Checking if input bigint is zero
-BI_ALWAYS_INLINE bool bu_is0_imp(const uw *x, uw n) {
+BI_ALWAYS_INLINE bool bu_is0_imp(const uw *x, u32 n) {
 #ifndef BI_USE_UNROLL_PRAGMAS
 	while (n >= 4) {
 		n -= 4;
@@ -897,7 +897,7 @@ BI_ALWAYS_INLINE uchar i_addcarry(uchar c, uw a, uw b, uw* p) {
 #endif
 }
 
-BI_ALWAYS_INLINE uw add_ip_n_imp(uw* a, const uw* b, uw n) {
+BI_ALWAYS_INLINE uw add_ip_n_imp(uw* a, const uw* b, u32 n) {
 	uchar c = 0;
 	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
@@ -906,8 +906,8 @@ BI_ALWAYS_INLINE uw add_ip_n_imp(uw* a, const uw* b, uw n) {
 }
 
 // Add 1 to big int
-BI_ALWAYS_INLINE void add_one_ip_imp(uw* x, uw n) { while (n-- > 0 && !++x[n]); }
-BI_ALWAYS_INLINE void sub_one_ip_imp(uw* x, uw n) { while (n-- > 0 && !x[n]--); }
+BI_ALWAYS_INLINE void add_one_ip_imp(uw* x, u32 n) { while (n-- > 0 && !++x[n]); }
+BI_ALWAYS_INLINE void sub_one_ip_imp(uw* x, u32 n) { while (n-- > 0 && !x[n]--); }
 
 inline void add_one_ip(bui &x) { add_one_ip_imp(x.data(), BI_LEN); }
 inline void sub_one_ip(bui &x) { sub_one_ip_imp(x.data(), BI_LEN); }
@@ -970,7 +970,7 @@ BI_ALWAYS_INLINE uchar i_subborrow(uchar c, uw a, uw b, uw* p) {
 #endif
 }
 
-BI_ALWAYS_INLINE uw sub_ip_n_imp(uw* a, const uw* b, uw n) {
+BI_ALWAYS_INLINE uw sub_ip_n_imp(uw* a, const uw* b, u32 n) {
 	uchar br = 0;
 	BI_UNROLL(BI_UNROLL_THRESHOLD)
 	while (n-- > 0)
@@ -984,7 +984,7 @@ inline void sub_ip(bui& a, const bui& b) { sub_ip_n_imp(a.data(), b.data(), BI_L
 inline void sub_ip(bul& a, const bul& b) { sub_ip_n_imp(a.data(), b.data(), BI_LEN2); }
 
 // a -= b; // assume a > b
-inline void sub_n(const uw* a, const uw* b, uw* r, uw n) {
+inline void sub_n(const uw* a, const uw* b, uw* r, u32 n) {
 	std::copy_n(a, n, r);
 	sub_ip_n_imp(r, b, n);
  }
@@ -1144,7 +1144,7 @@ inline bul mul_low_fast(const bul& a, const bul& b) {
 // --- Karatsuba Multiplication ---
 static constexpr uw KARATSUBA_CUTOFF = 8;
 
-static void karatsuba_imp(const uw* a, const uw* b, uw* r, uw n, uw* scratch) {
+static void karatsuba_imp(const uw* a, const uw* b, uw* r, u32 n, uw* scratch) {
 	if (n <= KARATSUBA_CUTOFF) {
 		mul_imp(a, b, r, n);
 		return;
@@ -1800,7 +1800,7 @@ inline void divmod_knuth2(const bui& a, const bui& b, bui& quot, bui& rem) {
 	std::copy_n(u.begin() + 2, BI_LEN, rem.begin());
 }
 
-BI_ALWAYS_INLINE void uw_divmod_imp(const uw* a, uw na, uw d, uw* q, uw* r_out) {
+BI_ALWAYS_INLINE void uw_divmod_imp(const uw* a, u32 na, uw d, uw* q, uw* r_out) {
 	uw r = 0;
 	uw a_lead_pow = highest_limb_imp(a, na);
 	if (a_lead_pow == 0 && a[na - 1] == 0) {
@@ -1922,7 +1922,7 @@ inline void divmod_knuth_imp(const uw* a, const u32 na, const uw* b, const u32 n
 		memcpy(r, u.data() + 2 + na - nr, nr * BI_UW_BYTES);
 }
 
-template <uw na, uw nb, uw nq, uw nr>
+template <u32 na, u32 nb, u32 nq, u32 nr>
 void divmod_knuth_template(const uw* a, const uw* b, uw* q, uw* r) {
 	assert(!bu_is0_imp(b, nb));
 	int cm = cmp_imp_nab(a, na, b, nb);
@@ -2046,7 +2046,7 @@ inline void divmod_knuth(const bul& a, const bul& b, bul& q, bul& r) {
 }
 
 /// Computes x = (2x) in-place.
-BI_ALWAYS_INLINE uw dbl_ip_n_imp(uw* x, uw n) {
+BI_ALWAYS_INLINE uw dbl_ip_n_imp(uw* x, u32 n) {
 	assert(n != 0 && "Cannot double zero-limb.");
 	uw c = x[0] >> (BI_UW_BITS - 1);
 	for (u32 i = 0; i < n - 1; ++i)
@@ -2168,7 +2168,7 @@ inline std::string bui_to_hex(const bui &a, const bool uppercase = false, const 
 inline std::string bui_to_bin(const bui& x) {
 	// u32 hb = highest_bit(x);
 	// if (hb == 0 && x[BI_LEN - 1] == 0) return "0";
-	uw nhb = highest_bit(x) + 1;
+	u32 nhb = highest_bit(x) + 1;
 	std::string out;
 	out.reserve(nhb);
 	while (nhb-- > 0)
