@@ -316,11 +316,11 @@ void set_bit_ip(bui &a, uw pos, uw val);
 void set_bit_ip(bul &a, uw pos, uw val);
 bui set_bit(bui a, uw pos, uw val);
 
-uw highest_bit(uw x);
-uw highest_bit(const bui &x);
-uw highest_bit(const bul &x);
-uw highest_limb(const bui &x);
-uw highest_limb(const bul &x);
+u32 highest_bit(uw x);
+u32 highest_bit(const bui &x);
+u32 highest_bit(const bul &x);
+u32 highest_limb(const bui &x);
+u32 highest_limb(const bul &x);
 
 void bitwise_and_ip(bui &a, const bui &b);
 void bitwise_or_ip(bui &a, const bui &b);
@@ -419,9 +419,9 @@ BI_ALWAYS_INLINE bul bul0() { return bul::zero(); }
 BI_ALWAYS_INLINE bul bul1() { return bul::one(); }
 BI_ALWAYS_INLINE bul bul_from_u32(const uw x) { return bul::from_u32(x); }
 
-inline uw get_bit(const uw num, const uw pos) { return num >> pos & 1; }
+inline uw get_bit(const u32 num, const uw pos) { return num >> pos & 1; }
 
-inline uw set_bit(const uw num, const uw pos, const uw val) {
+inline uw set_bit(const u32 num, const uw pos, const uw val) {
 	if (pos >= BI_UW_BITS) return num;
 	uw mask = uw{1} << pos;
 	return (num & ~mask) | (val & 1u ? mask : 0u);
@@ -450,7 +450,7 @@ inline bui set_bit(bui a, const uw pos, const uw val) {
 	return a;
 }
 
-inline uw highest_bit(uw x) {
+inline u32 highest_bit(uw x) {
 	if (x == 0) return 0;
 #if defined(__GNUC__) || defined(__clang__)
 #if BI_UW_BITS == 64
@@ -480,8 +480,8 @@ inline uw highest_bit(uw x) {
 #endif
 }
 
-inline uw highest_bit(const bui &x) {
-	uw i = 0;
+inline u32 highest_bit(const bui &x) {
+	u32 i = 0;
 #ifndef BI_USE_UNROLL_PRAGMAS
 	for (; i + 3 < BI_LEN; i += 4) {
 		if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
@@ -498,8 +498,8 @@ inline uw highest_bit(const bui &x) {
 	return 0; // all limbs zero
 }
 
-inline uw highest_bit(const bul &x) {
-	uw i = 0;
+inline u32 highest_bit(const bul &x) {
+	u32 i = 0;
 #ifndef BI_USE_UNROLL_PRAGMAS
 	for (; i + 3 < BI_LEN2; i += 4) {
 		if (x[i] | x[i+1] | x[i+2] | x[i+3]) {
@@ -517,19 +517,19 @@ inline uw highest_bit(const bul &x) {
 }
 
 BI_ALWAYS_INLINE void bitwise_and_ip(bui &a, const bui &b) {
-	for (uw i = 0; i < BI_LEN; ++i) a[i] &= b[i];
+	for (u32 i = 0; i < BI_LEN; ++i) a[i] &= b[i];
 }
 
 BI_ALWAYS_INLINE void bitwise_or_ip(bui &a, const bui &b) {
-	for (uw i = 0; i < BI_LEN; ++i) a[i] |= b[i];
+	for (u32 i = 0; i < BI_LEN; ++i) a[i] |= b[i];
 }
 
 BI_ALWAYS_INLINE void bitwise_xor_ip(bui &a, const bui &b) {
-	for (uw i = 0; i < BI_LEN; ++i) a[i] ^= b[i];
+	for (u32 i = 0; i < BI_LEN; ++i) a[i] ^= b[i];
 }
 
 template <uw n>
-BI_ALWAYS_INLINE uw highest_limb_template(const uw *x) {
+BI_ALWAYS_INLINE u32 highest_limb_template(const uw *x) {
 	uw i = 0;
 	if constexpr (n > 16) {
 		for (; i + 3 < n; i += 4) {
@@ -546,7 +546,7 @@ BI_ALWAYS_INLINE uw highest_limb_template(const uw *x) {
 	return 0;
 }
 
-BI_ALWAYS_INLINE uw highest_limb_imp(const uw *x, const uw n) {
+BI_ALWAYS_INLINE u32 highest_limb_imp(const uw *x, const u32 n) {
 	uw i = 0;
 #ifndef BI_USE_UNROLL_PRAGMAS
 	if  (n > 16) {
@@ -566,9 +566,9 @@ BI_ALWAYS_INLINE uw highest_limb_imp(const uw *x, const uw n) {
 }
 
 // find the highest (MSB) limb
-inline uw highest_limb(const bui &x) { return highest_limb_template<BI_LEN>(x.data()); }
+inline u32 highest_limb(const bui &x) { return highest_limb_template<BI_LEN>(x.data()); }
 // find the highest (MSB) limb
-inline uw highest_limb(const bul &x) { return highest_limb_template<BI_LEN2>(x.data()); }
+inline u32 highest_limb(const bul &x) { return highest_limb_template<BI_LEN2>(x.data()); }
 
 // Shift left by `l` whole 32-bit limbs (big-endian).
 // x[0] = MSW, x[BI_LEN - 1] = LSW.
@@ -627,7 +627,7 @@ inline void shift_limb_right(bul &x, const uw l) {
 }
 
 // shift left in-place (x *= 2^k)
-BI_ALWAYS_INLINE void shift_left_ip_imp(uw *x, const uw n, const uw k) {
+BI_ALWAYS_INLINE void shift_left_ip_imp(uw *x, const u32 n, const uw k) {
 	if (k == 0) return;
 	const uw limbs = k / BI_UW_BITS;
 	if (limbs >= n) {
@@ -637,7 +637,7 @@ BI_ALWAYS_INLINE void shift_left_ip_imp(uw *x, const uw n, const uw k) {
 	const uw bits = k % BI_UW_BITS;
 	if (bits) {
 		uw inv_bits = BI_UW_BITS - bits;
-		for (uw i = 0; i < n - limbs - 1; ++i)
+		for (u32 i = 0; i < n - limbs - 1; ++i)
 			x[i] = (x[i + limbs] << bits) | (x[i + limbs + 1] >> inv_bits);
 		x[n - limbs - 1] = x[n - 1] << bits;
 		memset(x + n - limbs, 0, limbs * BI_UW_BYTES);
@@ -708,7 +708,7 @@ inline bul shift_left_expand_fused(const bui& x, const uw k) {
 	if (bits) {
 		uw inv_bits = BI_UW_BITS - bits;
 		uw c = 0;
-		for (uw i = BI_LEN; i-- > 0;) {
+		for (u32 i = BI_LEN; i-- > 0;) {
 			// underflow-proof boundary check
 			if (i + BI_LEN < limbs) break;
 			uw r_idx = i + BI_LEN - limbs;
@@ -719,7 +719,7 @@ inline bul shift_left_expand_fused(const bui& x, const uw k) {
 		if (limbs < BI_LEN)
 			r[BI_LEN - 1 - limbs] = c;
 	} else {
-		for (uw i = BI_LEN; i-- > 0;) {
+		for (u32 i = BI_LEN; i-- > 0;) {
 			if (i + BI_LEN < limbs) break;
 			uw r_idx = i + BI_LEN - limbs;
 			r[r_idx] = x[i];
@@ -755,7 +755,7 @@ inline bui shift_left_mod(const bui& x, const uw k, const bui& m) {
 }
 
 // shift right in-place (x /= 2^k)
-BI_ALWAYS_INLINE void shift_right_ip_imp(uw *x, const uw n, const uw k) {
+BI_ALWAYS_INLINE void shift_right_ip_imp(uw *x, const u32 n, const uw k) {
 	if (k == 0) return;
 	const uw limbs = k / BI_UW_BITS;
 	if (limbs >= n) {
@@ -822,25 +822,25 @@ inline bul bui_to_bul(const bui& x) {return bul{x}; }
 // Return new bul from two buis
 inline bul bul_from_2bui(const bui& high, const bui& low) { return {high, low}; }
 
-BI_ALWAYS_INLINE int cmp_imp(const uw* a, const uw* b, const uw n) {
-	for (uw i = 0; i < n; ++i)
+BI_ALWAYS_INLINE int cmp_imp(const uw* a, const uw* b, const u32 n) {
+	for (u32 i = 0; i < n; ++i)
 		if (a[i] != b[i])
 			return a[i] > b[i] ? 1 : -1;
 	return 0;
 }
 
-BI_ALWAYS_INLINE int cmp_imp_nab(const uw* a, const uw na, const uw* b, const uw nb) {
+BI_ALWAYS_INLINE int cmp_imp_nab(const uw* a, const u32 na, const uw* b, const u32 nb) {
 	const uw *a_ptr{a}, *b_ptr{b};
 	uw len = na;
 	if (na > nb) {
 		uw diff = na - nb;
-		for (uw i = 0; i < diff; ++i)
+		for (u32 i = 0; i < diff; ++i)
 			if (a[i] != 0) return 1;
 		a_ptr += diff;
 		len = nb;
 	} else if (nb > na) {
 		uw diff = nb - na;
-		for (uw i = 0; i < diff; ++i)
+		for (u32 i = 0; i < diff; ++i)
 			if (b[i] != 0) return -1;
 		b_ptr += diff;
 		len = na;
@@ -857,7 +857,7 @@ inline int cmp(const bul& a, const bui& b) { return cmp_imp_nab(a.data(), BI_LEN
 // Compare between bui and bul
 inline int cmp(const bui& a, const bul& b) { return cmp_imp_nab(a.data(), BI_LEN, b.data(), BI_LEN2); }
 
-BI_ALWAYS_INLINE void randomize_imp(uw* x, const uw n) {
+BI_ALWAYS_INLINE void randomize_imp(uw* x, const u32 n) {
 	thread_local std::mt19937 gen([]{
 		std::random_device rd;
 		std::seed_seq seq{
@@ -870,8 +870,8 @@ BI_ALWAYS_INLINE void randomize_imp(uw* x, const uw n) {
 	// static thread_local std::mt19937 gen(123456); // fixed seed
 	std::uniform_int_distribution<uw> len_dist(1, n);
 	uw limbs = len_dist(gen);
-	for (uw i = limbs; i < n; ++i) x[i] = 0;
-	for (uw i = 0; i < limbs; ++i) x[i] = gen();
+	for (u32 i = limbs; i < n; ++i) x[i] = 0;
+	for (u32 i = 0; i < limbs; ++i) x[i] = gen();
 }
 
 inline void randomize_ip(bui &x) { randomize_imp(x.data(), BI_LEN); }
@@ -914,7 +914,7 @@ inline void sub_one_ip(bui &x) { sub_one_ip_imp(x.data(), BI_LEN); }
 inline void add_one_ip(bul &x) { add_one_ip_imp(x.data(), BI_LEN2); }
 inline void sub_one_ip(bul &x) { sub_one_ip_imp(x.data(), BI_LEN2); }
 
-inline void add_ip_n(uw* a, const uw* b, const uw n) { add_ip_n_imp(a, b, n); }
+inline void add_ip_n(uw* a, const uw* b, const u32 n) { add_ip_n_imp(a, b, n); }
 
 [[nodiscard]] inline uw add_ip_carry(bui &a, const bui &b) { return add_ip_n_imp(a.data(), b.data(), BI_LEN); }
 [[nodiscard]] inline uw add_ip_carry(bul &a, const bul &b) { return add_ip_n_imp(a.data(), b.data(), BI_LEN2); }
@@ -925,7 +925,7 @@ inline void add_ip(bui& a, const bui& b) { add_ip_n_imp(a.data(), b.data(), BI_L
 inline void add_ip(bul& a, const bul& b) { add_ip_n_imp(a.data(), b.data(), BI_LEN2); }
 
 // r.size = 2n
-inline void add_n(const uw* a, const uw* b, uw* r, const uw n) {
+inline void add_n(const uw* a, const uw* b, uw* r, const u32 n) {
 	std::copy_n(a, n, r);
 	add_ip_n_imp(r, b, n);
 }
@@ -1021,9 +1021,9 @@ inline void sub_redc_ip(bul& a, const bul& b, const bul& m) {
 	}
 }
 
-BI_ALWAYS_INLINE void mul_imp(const uw* a, const uw* b, uw* r, const uw n) {
+BI_ALWAYS_INLINE void mul_imp(const uw* a, const uw* b, uw* r, const u32 n) {
 	std::fill_n(r, 2 * n, 0);
-	for (uw i = n; i-- > 0;) {
+	for (u32 i = n; i-- > 0;) {
 		if (!a[i]) continue;
 		uw c = 0, j = n;
 		while (j-- > 0) {
@@ -1052,7 +1052,7 @@ BI_ALWAYS_INLINE void mul_imp(const uw* a, const uw* b, uw* r, const uw n) {
 	}
 }
 
-BI_ALWAYS_INLINE void mul_imp_fast(const uw* a, const uw* b, uw* r, const uw n) {
+BI_ALWAYS_INLINE void mul_imp_fast(const uw* a, const uw* b, uw* r, const u32 n) {
 	std::fill_n(r, 2 * n, 0);
 	uw hla = highest_limb_imp(a, n);
 	if (hla == 0 && a[n - 1] == 0) return;
@@ -1061,7 +1061,7 @@ BI_ALWAYS_INLINE void mul_imp_fast(const uw* a, const uw* b, uw* r, const uw n) 
 	uw start_a = n - 1 - hla;
 	uw start_b = n - 1 - hlb;
 
-	for (uw i = n; i-- > start_a;) {
+	for (u32 i = n; i-- > start_a;) {
 		uw a_limb = a[i];
 		if (!a_limb) continue;
 		uw c = 0, j = n;
@@ -1113,11 +1113,11 @@ inline bui mul_low(const bui& a, const bui& b) {
 
 inline bui mul_low_fast(const bui& a, const bui& b) {
 	bui r{};
-	for (uw i = 0; i < BI_LEN; ++i) {
+	for (u32 i = 0; i < BI_LEN; ++i) {
 		uw ai = a[BI_LEN - 1 - i];
 		if (!ai) continue;
 		uw c{0}, ri{BI_LEN - 1 - i};
-		for (uw j = 0; j < BI_LEN - i; ++j) {
+		for (u32 j = 0; j < BI_LEN - i; ++j) {
 			udw s = (udw)ai * b[BI_LEN - 1 - j] + r[ri - j] + c;
 			r[ri - j] = (uw)s;
 			c = (uw)(s >> BI_UW_BITS);
@@ -1128,11 +1128,11 @@ inline bui mul_low_fast(const bui& a, const bui& b) {
 
 inline bul mul_low_fast(const bul& a, const bul& b) {
 	bul r{};
-	for (uw i = 0; i < BI_LEN2; ++i) {
+	for (u32 i = 0; i < BI_LEN2; ++i) {
 		uw ai = a[BI_LEN2 - 1 - i];
 		if (!ai) continue;
 		uw c{}, ri = BI_LEN2 - 1 - i;
-		for (uw j = 0; j < BI_LEN2 - i; ++j) {
+		for (u32 j = 0; j < BI_LEN2 - i; ++j) {
 			udw s = (udw)ai * b[BI_LEN2 - 1 - j] + r[ri - j] + c;
 			r[ri - j] = (uw)s;
 			c = (uw)(s >> BI_UW_BITS);
@@ -1336,14 +1336,14 @@ inline bul mod(const bul &x, const bul &m) {
 inline void mod_ip(bul &x, const bul &m) { x = mod(x, m); }
 
 /// <r = x*x> Return a squared result of input x
-BI_ALWAYS_INLINE void sqr_imp(const uw* a, uw* r, const uw n) {
+BI_ALWAYS_INLINE void sqr_imp(const uw* a, uw* r, const u32 n) {
 	std::fill_n(r, 2 * n, 0);
 
 	// 1. Calculate symmetrical cross-products only ONCE (i < j)
-	for (uw i = n; i-- > 1;) {
+	for (u32 i = n; i-- > 1;) {
 		if (!a[i]) continue;
 		uw c{};
-		for (uw j = i; j-- > 0;) {
+		for (u32 j = i; j-- > 0;) {
 			udw p = (udw)a[i] * a[j] + r[i + j + 1] + c;
 			r[i + j + 1] = (uw)p;
 			c = (uw)(p >> BI_UW_BITS);
@@ -1356,7 +1356,7 @@ BI_ALWAYS_INLINE void sqr_imp(const uw* a, uw* r, const uw n) {
 
 	// 3. Add the squares (a[i] * a[i]) down the center diagonal
 	udw c = 0;
-	for (uw i = n; i-- > 0;) {
+	for (u32 i = n; i-- > 0;) {
 		udw p = (udw)a[i] * a[i] + r[2 * i + 1] + c;
 		r[2 * i + 1] = (uw)p;
 		c = p >> BI_UW_BITS;
@@ -1452,7 +1452,7 @@ inline void uw_divmod(const bul &a, const uw b, bul &q, uw& r) {
 	r = 0;
 	uw hl = highest_limb(a);
 	if (hl == 0 && a[BI_LEN2 - 1] == 0) return;
-	for (uw i = BI_LEN2 - 1 - hl; i < BI_LEN2; ++i)
+	for (u32 i = BI_LEN2 - 1 - hl; i < BI_LEN2; ++i)
 		q[i] = uw_divmod_single(r, a[i], b, &r);
 }
 
@@ -1471,7 +1471,7 @@ inline uw uw_mod(bul x, const uw m) {
 	uw r = 0;
 	uw hl = highest_limb(x);
 	if (hl == 0 && x[BI_LEN2 - 1] == 0) return 0;
-	for (uw i = BI_LEN2 - 1 - hl; i < BI_LEN2; ++i)
+	for (u32 i = BI_LEN2 - 1 - hl; i < BI_LEN2; ++i)
 		x[i] = uw_divmod_single(r, x[i], m, &r);
 	return r;
 }
@@ -1519,7 +1519,7 @@ inline bul bul_binary_flood1(const uw k) {
 inline bui pow_mod(bui x, const bui& e, const bui &m) {
 	bui r = bui1();
 	uw hb = highest_bit(e);
-	for (uw i = 0; i < hb; ++i) {
+	for (u32 i = 0; i < hb; ++i) {
 		if (get_bit(e, i))
 			mul_mod_ip(r, x, m);
 		mul_mod_ip(x, x, m);
@@ -1532,7 +1532,7 @@ inline bui pow_mod2(bui x, const bui& e, const bui &m) {
 	mod_ip(x, m);
 	bui r = bui1();
 	uw hb = highest_bit(e);
-	for (uw i = 0; i < hb; ++i) {
+	for (u32 i = 0; i < hb; ++i) {
 		if (get_bit(e, i))
 			mul_mod_soft_ip(r, x, m);
 		sqr_mod_soft_ip(x, m);
@@ -1561,7 +1561,7 @@ inline bui pow_mod_window(bui x, const bui& e, const bui &m) {
 	{
 		bui x2 = x;
 		sqr_mod_soft_ip(x2, m);
-		for (uw i = 1; i < tsz; ++i) {
+		for (u32 i = 1; i < tsz; ++i) {
 			table[i] = table[i - 1];
 			mul_mod_soft_ip(table[i], x2, m);
 		}
@@ -1578,10 +1578,10 @@ inline bui pow_mod_window(bui x, const bui& e, const bui &m) {
 		while (s < i && !get_bit(e, s)) ++s;
 		uw len = i - s + 1;
 		uw v = 0;
-		for (uw j = 0; j < len; ++j)
+		for (u32 j = 0; j < len; ++j)
 			v = (v << 1) | get_bit(e, i - j);
 
-		for (uw j = 0; j < len; ++j)
+		for (u32 j = 0; j < len; ++j)
 			sqr_mod_soft_ip(r, m);
 		mul_mod_soft_ip(r, table[v >> 1], m);
 
@@ -1624,7 +1624,7 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 	uw d_lead_pow = highest_limb(b);
 	uw d_msw_idx = BI_LEN - 1 - d_lead_pow;
 	uw d0 = d[d_msw_idx];
-	const uw norm_shift = d0 == 0 ? 0 : BI_UW_BITS - highest_bit(d0);
+	const u32 norm_shift = d0 == 0 ? 0 : BI_UW_BITS - highest_bit(d0);
 
 	if (norm_shift > 0) {
 		shift_left_ip(d, norm_shift);
@@ -1636,7 +1636,7 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 	d_msw_idx = BI_LEN - 1 - d_lead_pow;
 	d0 = d[d_msw_idx];
 	const uw d1 = d_msw_idx + 1 < BI_LEN ? d[d_msw_idx + 1] : 0;
-	const uw n = d_lead_pow + 1; // number of limbs in divisor
+	const u32 n = d_lead_pow + 1; // number of limbs in divisor
 
 	// 3. Knuth Division Loop
 	quot = {};
@@ -1671,7 +1671,7 @@ inline void divmod_knuth(const bui& a, const bui& b, bui& quot, bui& rem) {
 		udw borrow = 0;
 		uw d_lsw_idx = BI_LEN - 1;
 
-		for (uw i = 0; i < n; ++i) {
+		for (u32 i = 0; i < n; ++i) {
 			uw r_i = r_idx + n - i;
 			uw d_i = d_lsw_idx - i;
 
@@ -1724,12 +1724,12 @@ inline void divmod_knuth2(const bui& a, const bui& b, bui& quot, bui& rem) {
 		return;
 	}
 
-	const uw n = d_lead_pow + 1;
+	const u32 n = d_lead_pow + 1;
 	const uw d_start = BI_LEN - n;
 	bui d = b;
 
 	uw d0 = d[d_start];
-	const uw norm_shift = d0 == 0 ? 0 : BI_UW_BITS - highest_bit(d0);
+	const u32 norm_shift = d0 == 0 ? 0 : BI_UW_BITS - highest_bit(d0);
 
 	std::array<uw, BI_LEN + 2> u{};
 	std::copy_n(a.begin(), BI_LEN, u.begin() + 2);
@@ -1771,7 +1771,7 @@ inline void divmod_knuth2(const bui& a, const bui& b, bui& quot, bui& rem) {
 
 		udw borrow = 0;
 
-		for (uw i = 0; i < n; ++i) {
+		for (u32 i = 0; i < n; ++i) {
 			uw u_i = u_idx + n - i;
 			uw d_i = BI_LEN - 1 - i;
 
@@ -1807,12 +1807,12 @@ BI_ALWAYS_INLINE void uw_divmod_imp(const uw* a, uw na, uw d, uw* q, uw* r_out) 
 		*r_out = 0;
 		return;
 	}
-	for (uw i = na - 1 - a_lead_pow; i < na; ++i)
+	for (u32 i = na - 1 - a_lead_pow; i < na; ++i)
 		q[i] = uw_divmod_single(r, a[i], d, &r);
 	*r_out = r;
 }
 
-inline void divmod_knuth_imp(const uw* a, const uw na, const uw* b, const uw nb, uw* q, const uw nq, uw* r, const uw nr) {
+inline void divmod_knuth_imp(const uw* a, const u32 na, const uw* b, const u32 nb, uw* q, const u32 nq, uw* r, const u32 nr) {
 	assert(!bu_is0_imp(b, nb));
 	int cm = cmp_imp_nab(a, na, b, nb);
 	if (cm < 0) {
@@ -1841,7 +1841,7 @@ inline void divmod_knuth_imp(const uw* a, const uw na, const uw* b, const uw nb,
 		return;
 	}
 
-	const uw n = d_lead_pow + 1;
+	const u32 n = d_lead_pow + 1;
 	const uw d_start = nb - n;
 
 	std::vector<uw> u(na + 2, 0);
@@ -1850,7 +1850,7 @@ inline void divmod_knuth_imp(const uw* a, const uw na, const uw* b, const uw nb,
 	memcpy(u.data() + 2, a, na * BI_UW_BYTES);
 
 	uw d0 = d[d_start];
-	const uw norm_shift = d0 == 0 ? 0 : BI_UW_BITS - highest_bit(d0);
+	const u32 norm_shift = d0 == 0 ? 0 : BI_UW_BITS - highest_bit(d0);
 
 	if (norm_shift > 0) {
 		shift_left_ip_imp(d.data(), nb, norm_shift);
@@ -1888,7 +1888,7 @@ inline void divmod_knuth_imp(const uw* a, const uw na, const uw* b, const uw nb,
 		}
 
 		udw borrow = 0;
-		for (uw i = 0; i < n; ++i) {
+		for (u32 i = 0; i < n; ++i) {
 			uw u_i = u_idx + n - i;
 			uw d_i = nb - 1 - i;
 
@@ -1952,7 +1952,7 @@ void divmod_knuth_template(const uw* a, const uw* b, uw* q, uw* r) {
 		return;
 	}
 
-	const uw n = d_lead_pow + 1;
+	const u32 n = d_lead_pow + 1;
 	const uw d_start = nb - n;
 
 	std::array<uw, na + 2> u{};
@@ -1961,7 +1961,7 @@ void divmod_knuth_template(const uw* a, const uw* b, uw* q, uw* r) {
 	std::copy_n(a, na, u.begin() + 2);
 
 	uw d0 = d[d_start];
-	const uw norm_shift = d0 == 0 ? 0 : BI_UW_BITS - highest_bit(d0);
+	const u32 norm_shift = d0 == 0 ? 0 : BI_UW_BITS - highest_bit(d0);
 
 	if (norm_shift > 0) {
 		shift_left_ip_imp(d.data(), nb, norm_shift);
@@ -1999,7 +1999,7 @@ void divmod_knuth_template(const uw* a, const uw* b, uw* q, uw* r) {
 		}
 
 		udw borrow = 0;
-		for (uw i = 0; i < n; ++i) {
+		for (u32 i = 0; i < n; ++i) {
 			uw u_i = u_idx + n - i;
 			uw d_i = nb - 1 - i;
 
@@ -2049,7 +2049,7 @@ inline void divmod_knuth(const bul& a, const bul& b, bul& q, bul& r) {
 BI_ALWAYS_INLINE uw dbl_ip_n_imp(uw* x, uw n) {
 	assert(n != 0 && "Cannot double zero-limb.");
 	uw c = x[0] >> (BI_UW_BITS - 1);
-	for (uw i = 0; i < n - 1; ++i)
+	for (u32 i = 0; i < n - 1; ++i)
 		x[i] = x[i] << 1 | x[i + 1] >> (BI_UW_BITS - 1);
 	x[n - 1] = x[n - 1] << 1;
 	return c;
@@ -2094,7 +2094,7 @@ inline std::string bui_to_dec(const bui& x) {
 	std::string out;
 	out.reserve(parts.size() * 9);
 	out += std::to_string(parts.back());
-	for (uw i = parts.size() - 1; i-- > 0;) {
+	for (u32 i = parts.size() - 1; i-- > 0;) {
 		std::string chunk = std::to_string(parts[i]);
 		out.append(9 - chunk.length(), '0');
 		out.append(chunk);
@@ -2121,7 +2121,7 @@ inline std::string bul_to_dec(const bul& x) {
 	std::string out;
 	out.reserve(parts.size() * 9);
 	out += std::to_string(parts.back());
-	for (uw i = parts.size() - 1; i-- > 0;) {
+	for (u32 i = parts.size() - 1; i-- > 0;) {
 		std::string chunk = std::to_string(parts[i]);
 		out.append(9 - chunk.length(), '0');
 		out.append(chunk);
@@ -2136,7 +2136,7 @@ inline std::string bui_to_hex(const bui &a, const bool uppercase = false, const 
 	uw hl = highest_limb(a);
 	out.reserve(hl * (split ? 9 : 8));
 	bool first_limb = true;
-	for (uw i = BI_LEN - hl - 1; i < BI_LEN; ++i) {
+	for (u32 i = BI_LEN - hl - 1; i < BI_LEN; ++i) {
 		uw val = a[i];
 		if (first_limb) {
 			// strip leading zeros for the very first limb printed
@@ -2568,7 +2568,7 @@ struct MontgomeryReducer {
 	bui pow(bui x, const bui& e) const {
 		bui r = convertedOne;
 		uw hb = highest_bit(e);
-		for (uw i = 0; i < hb; ++i) {
+		for (u32 i = 0; i < hb; ++i) {
 			if (get_bit(e, i))
 				r = multiply(r, x);
 			x = multiply(x, x);
@@ -2705,7 +2705,7 @@ inline bui mr_pow_mod(bui x, const bui& e, const bui& m) {
 // t += x * y_i
 BI_ALWAYS_INLINE static uw mul_add_acc(bui& t, const bui& x, const uw y) {
 	udw c = 0;
-	for (uw j = 0; j < BI_LEN; ++j) {
+	for (u32 j = 0; j < BI_LEN; ++j) {
 		const uw xj = x[BI_LEN - 1 - j];
 		const uw tj = BI_LEN - 1 - j;
 		udw s = (udw)t[tj] + (udw)xj * y + c;
@@ -2738,7 +2738,7 @@ struct MontgomeryReducerSOS {
 		// R = 2^BI_BLEN mod m
 		r2 = shift_left_mod(bui1(), BI_BLEN, m);
 		// R^2 = R * 2^BI_BLEN mod m = 2^{2*BI_BLEN} mod m
-		for (uw i = 0; i < BI_BLEN; ++i)
+		for (u32 i = 0; i < BI_BLEN; ++i)
 			dbl_mod_ip(r2, m);
 	}
 
@@ -2755,11 +2755,11 @@ struct MontgomeryReducerSOS {
 		// 	}
 		// 	t[i + BI_LEN] = c;
 		// }
-		for (uw i = 0; i < BI_LEN; ++i) {
+		for (u32 i = 0; i < BI_LEN; ++i) {
 			uw mword = (uw)((udw)t[i] * n0_inv);
 			uw c = 0;
 
-			for (uw j = 0; j < BI_LEN; ++j) {
+			for (u32 j = 0; j < BI_LEN; ++j) {
 				udw s = (udw)t[i + j] + (udw)mword * m[BI_LEN - 1 - j] + c;
 				t[i + j] = (uw)s;
 				c = (uw)(s >> BI_UW_BITS);
@@ -2777,7 +2777,7 @@ struct MontgomeryReducerSOS {
 		}
 
 		bui r{};
-		for (uw i = 0; i < BI_LEN; ++i)
+		for (u32 i = 0; i < BI_LEN; ++i)
 			r[BI_LEN - 1 - i] = t[BI_LEN + i];
 
 		if (t[BI_LEN2] || cmp(r, m) >= 0)
@@ -2830,18 +2830,18 @@ struct MontgomeryReducerCIOS2 {
 		}
 
 		r2 = bui1();
-		for (uw i = 0; i < BI_BLEN2; ++i)
+		for (u32 i = 0; i < BI_BLEN2; ++i)
 			dbl_mod_ip(r2, m); // r2 = 2^(2*BI_BLEN) mod mod
 	}
 
 	bui mul(const bui& a, const bui& b) const {
 		uw t[BI_LEN + 2]{};
 
-		for (uw i = 0; i < BI_LEN; ++i) {
+		for (u32 i = 0; i < BI_LEN; ++i) {
 			const uw bi = b[BI_LEN - 1 - i];
 			udw carry = 0;
 
-			for (uw j = 0; j < BI_LEN; ++j) {
+			for (u32 j = 0; j < BI_LEN; ++j) {
 				const uw aj = a[BI_LEN - 1 - j];
 				udw s = (udw)t[j] + (udw)aj * bi + carry;
 				t[j] = (uw)s;
@@ -2862,7 +2862,7 @@ struct MontgomeryReducerCIOS2 {
 				carry = s >> BI_UW_BITS;
 			}
 
-			for (uw j = 1; j < BI_LEN; ++j) {
+			for (u32 j = 1; j < BI_LEN; ++j) {
 				const uw mj = m[BI_LEN - 1 - j];
 				udw s = (udw)t[j] + (udw)mword * mj + carry;
 				t[j - 1] = (uw)s;
@@ -2881,7 +2881,7 @@ struct MontgomeryReducerCIOS2 {
 		}
 
 		bui r{};
-		for (uw i = 0; i < BI_LEN; ++i)
+		for (u32 i = 0; i < BI_LEN; ++i)
 			r[BI_LEN - 1 - i] = t[i];
 
 		if (t[BI_LEN] || t[BI_LEN + 1] || cmp(r, m) >= 0)
@@ -2932,7 +2932,7 @@ struct MontgomeryReducerCIOS3 {
 			n0_inv = 0u - x;
 		}
 		r2 = bui1();
-		for (uw i = 0; i < BI_BLEN2; ++i)
+		for (u32 i = 0; i < BI_BLEN2; ++i)
 			dbl_mod_ip(r2, m); // r2 = 2^(2*BI_BLEN) mod mod
 
 		// // R = 2^BI_BLEN mod m
@@ -2945,7 +2945,7 @@ struct MontgomeryReducerCIOS3 {
 	bui mul(const bui& a, const bui& b) const {
 		std::array<uw, BI_LEN + 2> t{};
 
-		for (uw i = 0; i < BI_LEN; ++i) {
+		for (u32 i = 0; i < BI_LEN; ++i) {
 			const uw bi = b[BI_LEN - 1 - i];
 
 			udw A, C;
@@ -2967,7 +2967,7 @@ struct MontgomeryReducerCIOS3 {
 			}
 
 			BI_UNROLL(BI_UNROLL_THRESHOLD)
-			for (uw j = 1; j < BI_LEN; ++j) {
+			for (u32 j = 1; j < BI_LEN; ++j) {
 				uw aj = a[BI_LEN - 1 - j];
 				udw s1 = (udw)t[j] + (udw)aj * bi + A;
 				A = s1 >> BI_UW_BITS;
@@ -2989,7 +2989,7 @@ struct MontgomeryReducerCIOS3 {
 		}
 
 		bui r{};
-		for (uw i = 0; i < BI_LEN; ++i)
+		for (u32 i = 0; i < BI_LEN; ++i)
 			r[BI_LEN - 1 - i] = t[i];
 
 		if (t[BI_LEN] || t[BI_LEN + 1] || cmp(r, m) >= 0)
@@ -3005,7 +3005,7 @@ struct MontgomeryReducerCIOS3 {
 		if constexpr (BI_UW_BITS == 32) if (m[0] <= 0x3fffffffu) {
 			std::array<uw, BI_LEN + 2> t{};
 
-			for (uw i = 0; i < BI_LEN; ++i) {
+			for (u32 i = 0; i < BI_LEN; ++i) {
 				const uw ai = a[BI_LEN - 1 - i];
 
 				udw s = (udw)ai * ai + t[i];
@@ -3013,7 +3013,7 @@ struct MontgomeryReducerCIOS3 {
 				uw C = (uw)(s >> BI_UW_BITS);
 				uw p = 0;
 
-				for (uw j = i + 1; j < BI_LEN; ++j) {
+				for (u32 j = i + 1; j < BI_LEN; ++j) {
 					const udw prod = (udw)a[BI_LEN - 1 - j] * ai;
 					const uw lo = (uw)(prod << 1);
 					const udw hi = prod >> (BI_UW_BITS - 1);
@@ -3032,7 +3032,7 @@ struct MontgomeryReducerCIOS3 {
 				s = (udw)t[0] + (udw)q * m[BI_LEN - 1];
 				C = (uw)(s >> BI_UW_BITS);
 
-				for (uw j = 1; j < BI_LEN; ++j) {
+				for (u32 j = 1; j < BI_LEN; ++j) {
 					s = (udw)q * m[BI_LEN - 1 - j] + t[j] + C;
 					t[j - 1] = (uw)s;
 					C = (uw)(s >> BI_UW_BITS);
@@ -3045,7 +3045,7 @@ struct MontgomeryReducerCIOS3 {
 			}
 
 			bui r{};
-			for (uw i = 0; i < BI_LEN; ++i)
+			for (u32 i = 0; i < BI_LEN; ++i)
 				r[BI_LEN - 1 - i] = t[i];
 
 			if (t[BI_LEN] || t[BI_LEN + 1] || cmp(r, m) >= 0)
@@ -3056,15 +3056,15 @@ struct MontgomeryReducerCIOS3 {
 
 		bul prod = ::sqr(a);
 		std::array<uw, BI_LEN2 + 2> t{};
-		for (uw i = 0; i < BI_LEN2; ++i)
+		for (u32 i = 0; i < BI_LEN2; ++i)
 			t[i] = prod[BI_LEN2 - 1 - i];
 
-		for (uw i = 0; i < BI_LEN; ++i) {
+		for (u32 i = 0; i < BI_LEN; ++i) {
 			uw q = (uw)((udw)t[i] * n0_inv);
 			udw carry = 0;
 
 			BI_UNROLL(BI_UNROLL_THRESHOLD)
-			for (uw j = 0; j < BI_LEN; ++j) {
+			for (u32 j = 0; j < BI_LEN; ++j) {
 				udw s = (udw)t[i + j] + (udw)q * m[BI_LEN - 1 - j] + carry;
 				t[i + j] = (uw)s;
 				carry = s >> BI_UW_BITS;
@@ -3079,7 +3079,7 @@ struct MontgomeryReducerCIOS3 {
 		}
 
 		bui r{};
-		for (uw i = 0; i < BI_LEN; ++i)
+		for (u32 i = 0; i < BI_LEN; ++i)
 			r[BI_LEN - 1 - i] = t[i + BI_LEN];
 
 		if (t[BI_LEN2] || t[BI_LEN2 + 1] || cmp(r, m) >= 0)
@@ -3130,7 +3130,7 @@ inline bui pow_mod_mont_window(const bui& x, const bui& e, const bui& m) {
 	bui base = mr.to_mont(x);
 	table[0] = base;
 	bui base2 = mr.sqr(base);
-	for (uw i = 1; i < tsz; ++i)
+	for (u32 i = 1; i < tsz; ++i)
 		table[i] = mr.mul(table[i - 1], base2);
 
 	bui r = mr.to_mont(bui1());
@@ -3146,10 +3146,10 @@ inline bui pow_mod_mont_window(const bui& x, const bui& e, const bui& m) {
 
 		uw len = i - s + 1;
 		uw v = 0;
-		for (uw j = 0; j < len; ++j)
+		for (u32 j = 0; j < len; ++j)
 			v = (v << 1) | get_bit(e, i - j);
 
-		for (uw j = 0; j < len; ++j)
+		for (u32 j = 0; j < len; ++j)
 			r = mr.sqr(r);
 		r = mr.mul(r, table[v >> 1]);
 
