@@ -184,7 +184,7 @@ static_assert(BI_BLEN > 0 && BI_BLEN % BI_UW_BITS == 0, "BI_BLEN must be positiv
 #endif
 
 #define BI_USE_DIVMOD_KNUTH
-#ifdef BI_NUSE_DIVMOD_KNUTH
+#ifdef BI_DISABLE_DIVMOD_KNUTH
 #undef BI_USE_DIVMOD_KNUTH
 #endif
 
@@ -428,14 +428,13 @@ inline uw set_bit(const uw num, const uw pos, const uw val) {
 }
 
 inline uw get_bit(const bui &a, const uw pos) {
-	assert(pos < BI_LEN * BI_UW_BITS);
-	uw k = BI_LEN - 1 - pos / BI_UW_BITS;
-	return get_bit(a[k], pos % BI_UW_BITS);
+	assert(pos < BI_BLEN && "Cannot get bit outside the scope of the big integer");
+	return get_bit(a[BI_LEN - 1 - pos / BI_UW_BITS], pos % BI_UW_BITS);
 }
 
 // set in-place
 inline void set_bit_ip(bui &a, const uw pos, const uw val) {
-	assert(pos < BI_LEN * BI_UW_BITS && "Cannot set bit outside the scope of the big integer");
+	assert(pos < BI_BLEN && "Cannot set bit outside the scope of the big integer");
 	uw k = BI_LEN - 1 - pos / BI_UW_BITS;
 	a[k] = set_bit(a[k], pos % BI_UW_BITS, val);
 }
@@ -452,23 +451,26 @@ inline bui set_bit(bui a, const uw pos, const uw val) {
 }
 
 inline uw highest_bit(uw x) {
+	if (x == 0) return 0;
 #if defined(__GNUC__) || defined(__clang__)
-	if (x == 0) return 0;
-	if constexpr (BI_UW_BITS == 64)
-		return BI_UW_BITS - __builtin_clzll((unsigned long long)x);
-	return BI_UW_BITS - __builtin_clz((unsigned int)x);
-#elif defined(_MSC_VER)
-	if (x == 0) return 0;
-#if BI_UW_BITS == 64 && defined(_WIN64)
-	unsigned long idx;
-	if (_BitScanReverse64(&idx, x)) return static_cast<uw>(idx + 1);
+#if BI_UW_BITS == 64
+	return BI_UW_BITS - __builtin_clzll((ull)x);
 #else
-	unsigned long idx;
-	if (_BitScanReverse(&idx, x)) return static_cast<uw>(idx + 1);
+	return BI_UW_BITS - __builtin_clz((uint)x);
 #endif
-	return 0;
+#elif defined(_MSC_VER)
+	unsigned long idx;
+#if BI_UW_BITS == 64 && defined(_WIN64)
+	_BitScanReverse64(&idx, x);
 #else
-	uw pos = 0;
+	_BitScanReverse(&idx, x);
+#endif
+	return static_cast<uw>(idx + 1);
+#else
+	u32 pos = 0;
+#if BI_UW_BITS == 64
+	if (x >= (uw{1} << 32)) { x >>= 32; pos += 32; }
+#endif
 	if (x >= (uw{1} << 16)) { x >>= 16; pos += 16; }
 	if (x >= (uw{1} << 8))  { x >>= 8;  pos += 8;  }
 	if (x >= (uw{1} << 4))  { x >>= 4;  pos += 4;  }
@@ -565,7 +567,6 @@ BI_ALWAYS_INLINE uw highest_limb_imp(const uw *x, const uw n) {
 
 // find the highest (MSB) limb
 inline uw highest_limb(const bui &x) { return highest_limb_template<BI_LEN>(x.data()); }
-
 // find the highest (MSB) limb
 inline uw highest_limb(const bul &x) { return highest_limb_template<BI_LEN2>(x.data()); }
 
@@ -782,7 +783,7 @@ inline void shift_right_ip(bul& x, const uw k) { shift_right_ip_imp(x.data(), BI
 
 // Checking if input bigint is zero
 BI_ALWAYS_INLINE bool bu_is0_imp(const uw *x, uw n) {
-#ifdef BI_NFORCE_UNROLL
+#ifndef BI_USE_UNROLL_PRAGMAS
 	while (n >= 4) {
 		n -= 4;
 		if (x[n] | x[n+1] | x[n+2] | x[n+3]) return false;
