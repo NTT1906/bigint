@@ -423,7 +423,7 @@ inline uw get_bit(const uw num, const uw pos) { return num >> pos & 1; }
 
 inline uw set_bit(const uw num, const uw pos, const uw val) {
 	if (pos >= BI_UW_BITS) return num;
-	uw mask = (uw)1 << pos;
+	uw mask = uw{1} << pos;
 	return (num & ~mask) | (val & 1u ? mask : 0u);
 }
 
@@ -469,11 +469,11 @@ inline uw highest_bit(uw x) {
 	return 0;
 #else
 	uw pos = 0;
-	if (x >= ((uw)1 << 16)) { x >>= 16; pos += 16; }
-	if (x >= ((uw)1 << 8))  { x >>= 8;  pos += 8;  }
-	if (x >= ((uw)1 << 4))  { x >>= 4;  pos += 4;  }
-	if (x >= ((uw)1 << 2))  { x >>= 2;  pos += 2;  }
-	if (x >= ((uw)1 << 1))  {           pos += 1;  }
+	if (x >= (uw{1} << 16)) { x >>= 16; pos += 16; }
+	if (x >= (uw{1} << 8))  { x >>= 8;  pos += 8;  }
+	if (x >= (uw{1} << 4))  { x >>= 4;  pos += 4;  }
+	if (x >= (uw{1} << 2))  { x >>= 2;  pos += 2;  }
+	if (x >= (uw{1} << 1))  {           pos += 1;  }
 	return pos + 1;
 #endif
 }
@@ -514,16 +514,16 @@ inline uw highest_bit(const bul &x) {
 	return 0; // all limbs zero
 }
 
-inline void bitwise_and_ip(bui &a, const bui &b) {
-	for (uw i = BI_LEN; i-- > 0;) a[i] &= b[i];
+BI_ALWAYS_INLINE void bitwise_and_ip(bui &a, const bui &b) {
+	for (uw i = 0; i < BI_LEN; ++i) a[i] &= b[i];
 }
 
-inline void bitwise_or_ip(bui &a, const bui &b) {
-	for (uw i = BI_LEN; i-- > 0;) a[i] |= b[i];
+BI_ALWAYS_INLINE void bitwise_or_ip(bui &a, const bui &b) {
+	for (uw i = 0; i < BI_LEN; ++i) a[i] |= b[i];
 }
 
-inline void bitwise_xor_ip(bui &a, const bui &b) {
-	for (uw i = BI_LEN; i-- > 0;) a[i] ^= b[i];
+BI_ALWAYS_INLINE void bitwise_xor_ip(bui &a, const bui &b) {
+	for (uw i = 0; i < BI_LEN; ++i) a[i] ^= b[i];
 }
 
 template <uw n>
@@ -1436,6 +1436,7 @@ BI_ALWAYS_INLINE uw uw_divmod_single(uw hi, uw lo, uw b, uw* rem) {
 }
 
 inline void uw_divmod(const bui& a, const uw b, bui& q, uw& r) {
+	assert(!bui_is0(b) && "uw_divmod: input b must not be zero!");
 	q = {};
 	r = 0;
 	uw hl = highest_limb(a);
@@ -1444,16 +1445,8 @@ inline void uw_divmod(const bui& a, const uw b, bui& q, uw& r) {
 		q[i] = uw_divmod_single(r, a[i], b, &r);
 }
 
-inline uw uw_mod(bui x, const uw m) {
-	uw hl = highest_limb(x);
-	if (hl == 0 && x[BI_LEN - 1] == 0) return 0;
-	uw r = 0;
-	for (int i = BI_LEN - 1 - hl; i < BI_LEN; ++i)
-		x[i] = uw_divmod_single(r, x[i], m, &r);
-	return r;
-}
-
 inline void uw_divmod(const bul &a, const uw b, bul &q, uw& r) {
+	assert(!bui_is0(b) && "uw_divmod: input b must not be zero!");
 	q = {};
 	r = 0;
 	uw hl = highest_limb(a);
@@ -1462,7 +1455,18 @@ inline void uw_divmod(const bul &a, const uw b, bul &q, uw& r) {
 		q[i] = uw_divmod_single(r, a[i], b, &r);
 }
 
+inline uw uw_mod(bui x, const uw m) {
+	assert(!bui_is0(m) && "uw_mod: input m must not be zero!");
+	uw hl = highest_limb(x);
+	if (hl == 0 && x[BI_LEN - 1] == 0) return 0;
+	uw r = 0;
+	for (int i = BI_LEN - 1 - hl; i < BI_LEN; ++i)
+		x[i] = uw_divmod_single(r, x[i], m, &r);
+	return r;
+}
+
 inline uw uw_mod(bul x, const uw m) {
+	assert(!bui_is0(m) && "uw_mod: input m must not be zero!");
 	uw r = 0;
 	uw hl = highest_limb(x);
 	if (hl == 0 && x[BI_LEN2 - 1] == 0) return 0;
@@ -1472,17 +1476,17 @@ inline uw uw_mod(bul x, const uw m) {
 }
 
 
-// Big int: return 2^k
+// Big int: return 2^k, k \in [0, BI_BLEN)
 inline bui bui_pow2(const uw k) {
-	assert(k < BI_BLEN && "Input size must be in data range!");
+	assert(k < BI_BLEN && "bui_pow2: input size must be in data range!");
 	bui r{};
 	set_bit_ip(r, k, 1);
 	return r;
 }
 
-// Big long: return 2^k
+// Big long: return 2^k, k \in [0, BI_BLEN2)
 inline bul bul_pow2(const uw k) {
-	assert(k < BI_BLEN2);
+	assert(k < BI_BLEN2 && "bul_pow2: input size must be in data range!");
 	bul r{};
 	set_bit_ip(r, k, 1);
 	return r;
@@ -1495,7 +1499,7 @@ inline bui bui_binary_flood1(const uw k) {
 	uw l = k / BI_UW_BITS;
 	uw b = k % BI_UW_BITS;
 	if (l) std::fill_n(r.data() + BI_LEN - l, l, BI_UW_MAX);
-	if (l < BI_LEN) r[BI_LEN - 1 - l] = ((uw)1 << b) - 1;
+	if (l < BI_LEN) r[BI_LEN - 1 - l] = (uw{1} << b) - 1;
 	return r;
 }
 
@@ -1506,7 +1510,7 @@ inline bul bul_binary_flood1(const uw k) {
 	uw l = k / BI_UW_BITS;
 	uw b = k % BI_UW_BITS;
 	if (l) std::fill_n(r.data() + BI_LEN2 - l, l, BI_UW_MAX);
-	if (l < BI_LEN2) r[BI_LEN2 - 1 - l] = ((uw)1 << b) - 1;
+	if (l < BI_LEN2) r[BI_LEN2 - 1 - l] = (uw{1} << b) - 1;
 	return r;
 }
 
@@ -2260,7 +2264,7 @@ inline bui bui_from_bin(const std::string& s) {
 		while (str_idx >= start_idx && shift < BI_UW_BITS) {
 			char c = s[str_idx--];
 			if (c == '_' || isspace(c)) continue;
-			if (c == '1') limb_val |= ((uw)1 << shift);
+			if (c == '1') limb_val |= uw{1} << shift;
 			if (c == '0' || c == '1') shift++;
 		}
 		out[limb_idx--] = limb_val;
