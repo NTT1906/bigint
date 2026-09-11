@@ -1318,7 +1318,7 @@ inline bui mod(const bul &x, const bui &m) {
 }
 
 /// x = x mod m
-inline void mod_ip(bul &x, const bui &m) { x.high() = {}; x.low() = mod(x, m); }
+inline void mod_ip(bul &x, const bui &m) { x.low() = mod(x, m); x.high() = {}; }
 
 /// r = x mod m
 inline bul mod(const bul &x, const bul &m) {
@@ -1437,7 +1437,7 @@ BI_ALWAYS_INLINE uw uw_divmod_single(uw hi, uw lo, uw b, uw* rem) {
 }
 
 inline void uw_divmod(const bui& a, const uw b, bui& q, uw& r) {
-	assert(!bui_is0(b) && "uw_divmod: input b must not be zero!");
+	assert(b != 0 && "uw_divmod: input b must not be zero!");
 	q = {};
 	r = 0;
 	uw hl = highest_limb(a);
@@ -1447,7 +1447,7 @@ inline void uw_divmod(const bui& a, const uw b, bui& q, uw& r) {
 }
 
 inline void uw_divmod(const bul &a, const uw b, bul &q, uw& r) {
-	assert(!bui_is0(b) && "uw_divmod: input b must not be zero!");
+	assert(b != 0 && "uw_divmod: input b must not be zero!");
 	q = {};
 	r = 0;
 	uw hl = highest_limb(a);
@@ -1457,7 +1457,7 @@ inline void uw_divmod(const bul &a, const uw b, bul &q, uw& r) {
 }
 
 inline uw uw_mod(bui x, const uw m) {
-	assert(!bui_is0(m) && "uw_mod: input m must not be zero!");
+	assert(m != 0 && "uw_mod: input m must not be zero!");
 	uw hl = highest_limb(x);
 	if (hl == 0 && x[BI_LEN - 1] == 0) return 0;
 	uw r = 0;
@@ -1467,7 +1467,7 @@ inline uw uw_mod(bui x, const uw m) {
 }
 
 inline uw uw_mod(bul x, const uw m) {
-	assert(!bui_is0(m) && "uw_mod: input m must not be zero!");
+	assert(m != 0 && "uw_mod: input m must not be zero!");
 	uw r = 0;
 	uw hl = highest_limb(x);
 	if (hl == 0 && x[BI_LEN2 - 1] == 0) return 0;
@@ -2128,6 +2128,8 @@ inline std::string bul_to_dec(const bul& x) {
 	}
 	return out;
 }
+
+auto operator""_dbui(const char* str, const std::size_t N) { return bui_from_dec(std::string(str, N)); }
 
 inline std::string bui_to_hex(const bui &a, const bool uppercase = false, const bool split = false) {
 	if (bui_is0(a)) return "0";
